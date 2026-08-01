@@ -103,6 +103,11 @@ native Bedrock validation, and performance evidence are separate gates.
   vibration rendering, and the remaining unmapped particles remain open; a
   real Paper flame fixture now survives the Snappy bridge and delivers three
   repeated typed particle events.
+- [x] Forward Bedrock `Text` and `CommandRequest` input through Java 1.21.4
+  chat and unsigned signed-command packets, including Java-style whitespace
+  normalization and the 256-character limit. Command-tree negotiation,
+  suggestions, secure-chat sessions, and full text-component localization
+  remain open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -162,6 +167,12 @@ remain open.
 The Java level-particle envelope and common mapping path are also typed and
 covered by focused wire/mapping tests; native rendering and broad particle
 coverage remain open.
+Bedrock chat text and command requests now have a bounded downstream path:
+the Paper fixture accepted `hello from bedrock`, `/time set day` through a
+Bedrock `Text` packet, and `/time set night` through `CommandRequest` over the
+Snappy listener. Paper logged both commands as issued by the bridge player;
+the current Bedrock text projection still flattens command response
+translation arguments, so exact localized command feedback remains open.
 
 ## Non-negotiable contracts
 

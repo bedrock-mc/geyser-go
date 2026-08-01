@@ -25,6 +25,9 @@ func main() {
 	sendArm := flag.Bool("send-arm", false, "send one arm-swing animation after spawn")
 	sendEntityInteract := flag.Bool("send-entity-interact", false, "send one self entity interaction after spawn")
 	sendWindowTake := flag.Bool("send-window-take", false, "after the Paper WindowTest menu opens, take slot 0 to the cursor")
+	sendChat := flag.String("send-chat", "geyser-go probe", "send one Bedrock Text chat message after spawn; empty disables it")
+	sendCommand := flag.String("send-command", "", "send one slash command through Bedrock Text after spawn")
+	sendCommandRequest := flag.String("send-command-request", "", "send one slash command through Bedrock CommandRequest after spawn")
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -126,7 +129,19 @@ func main() {
 			}}})
 		}()
 	}
-	_ = conn.WritePacket(&packet.Text{TextType: packet.TextTypeChat, Message: "geyser-go probe"})
+	if *sendCommand != "" {
+		_ = conn.WritePacket(&packet.Text{TextType: packet.TextTypeChat, Message: "/" + *sendCommand})
+	} else if *sendCommandRequest != "" {
+		_ = conn.WritePacket(&packet.CommandRequest{
+			CommandLine: "/" + *sendCommandRequest,
+			CommandOrigin: protocol.CommandOrigin{
+				Origin: protocol.CommandOriginPlayer,
+				UUID:   uuid.New(),
+			},
+		})
+	} else if *sendChat != "" {
+		_ = conn.WritePacket(&packet.Text{TextType: packet.TextTypeChat, Message: *sendChat})
+	}
 	fmt.Printf("Bedrock spawn succeeded: protocol=%d version=%s items=%d world=%q entity=%d\n", conn.Proto().ID(), conn.Proto().Ver(), len(conn.GameData().Items), conn.GameData().WorldName, conn.GameData().EntityRuntimeID)
 	if *readFor <= 0 {
 		return

@@ -101,6 +101,11 @@ protocol parity.
   vibration, trail, and bounded sample counts to Bedrock level events or
   particle effects. Native visual fidelity and the remaining unmapped
   particles remain open.
+  Bedrock Text and CommandRequest chat input now normalizes Java-style
+  whitespace, drops empty/oversized input, forwards ordinary messages as the
+  unsigned Java chat packet, and forwards slash commands as Geyser's unsigned
+  signed-command packet. The command tree, suggestions, secure-chat session,
+  and full text-component localization remain open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are

@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 	"sync"
-	"time"
 
 	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
@@ -1107,14 +1107,46 @@ func (b *Basic) translateBedrockPacket(bedrock *minecraft.Conn, java *javaprotoc
 		}
 		return java.Conn.WritePacket(b.Profile.PlayServerboundPositionLookID, data)
 	case *packet.Text:
-		if pk.Message == "" {
+		message := normalizeIncomingChat(pk.Message)
+		if message == "" {
 			return nil
 		}
-		data, err := encodeChatMessage(pk.Message)
+		if strings.HasPrefix(message, "/") {
+			command := message[1:]
+			if command == "" || tooLongChat(command) {
+				b.logSemanticAnomaly("skipping Bedrock command outside Java limit", "length", len([]rune(command)))
+				return nil
+			}
+			data, err := encodeChatCommandSigned(command)
+			if err != nil {
+				return err
+			}
+			return java.Conn.WritePacket(b.Profile.PlayServerboundChatCommandSignedID, data)
+		}
+		if tooLongChat(message) {
+			b.logSemanticAnomaly("skipping Bedrock chat message over Java limit", "length", len([]rune(message)))
+			return nil
+		}
+		data, err := encodeChatMessage(message)
 		if err != nil {
 			return err
 		}
 		return java.Conn.WritePacket(b.Profile.PlayServerboundChatMessageID, data)
+	case *packet.CommandRequest:
+		message := normalizeIncomingChat(pk.CommandLine)
+		if message == "" || len(message) == 1 || !strings.HasPrefix(message, "/") {
+			return nil
+		}
+		command := message[1:]
+		if tooLongChat(command) {
+			b.logSemanticAnomaly("skipping Bedrock command outside Java limit", "length", len([]rune(command)))
+			return nil
+		}
+		data, err := encodeChatCommandSigned(command)
+		if err != nil {
+			return err
+		}
+		return java.Conn.WritePacket(b.Profile.PlayServerboundChatCommandSignedID, data)
 	case *packet.MobEquipment:
 		return b.translateBedrockEquipment(java, pk)
 	case *packet.Animate:
@@ -1208,27 +1240,4 @@ func encodePositionLook(pk *packet.MovePlayer) ([]byte, error) {
 		return nil, fmt.Errorf("translate: nil MovePlayer")
 	}
 	return encodeBedrockPositionLook(pk.Position, pk.Yaw, pk.Pitch, pk.OnGround, false)
-}
-
-func encodeChatMessage(message string) ([]byte, error) {
-	w := javaprotocol.NewWriter()
-	if err := w.String(message); err != nil {
-		return nil, err
-	}
-	if err := w.Int64(time.Now().UnixMilli()); err != nil {
-		return nil, err
-	}
-	if err := w.Int64(0); err != nil {
-		return nil, err
-	}
-	if err := w.Bool(false); err != nil {
-		return nil, err
-	}
-	if err := w.VarInt(0); err != nil {
-		return nil, err
-	}
-	if err := w.BytesValue([]byte{0, 0, 0}); err != nil {
-		return nil, err
-	}
-	return append([]byte(nil), w.Bytes()...), nil
 }

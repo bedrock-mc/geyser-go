@@ -119,6 +119,7 @@ type Profile struct {
 	PlayServerboundContainerCloseID             int32
 	PlayServerboundEntityActionID               int32
 	PlayServerboundArmAnimationID               int32
+	PlayServerboundChatCommandSignedID          int32
 	PlayServerboundChatMessageID                int32
 }
 
@@ -237,6 +238,7 @@ var Java1214 = Profile{
 	PlayServerboundContainerCloseID:             0x11,
 	PlayServerboundEntityActionID:               0x28,
 	PlayServerboundArmAnimationID:               0x3a,
+	PlayServerboundChatCommandSignedID:          0x06,
 	PlayServerboundChatMessageID:                0x07,
 }
 
