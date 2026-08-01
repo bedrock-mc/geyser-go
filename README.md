@@ -111,6 +111,10 @@ protocol parity.
   argument types, boolean enums, and bounded overload traversal. Exact
   redirects, server-backed suggestions, registry-backed argument enums, and
   command descriptions remain open.
+  Java 1.21.4 resource-pack push/pop packets now have bounded decoders, and
+  required packs receive the Java accepted/downloaded/successfully-loaded
+  status sequence while optional packs receive declined. Bedrock pack hosting,
+  download, cache, stack delivery, and removal remain open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -238,6 +242,12 @@ observed typed Bedrock level events `2001`, `2000`, `3600`, and `3602` with no
 bridge translation error. This closes only the common actor-link and effect
 packet paths; vehicle control, riding offsets, particle visual fidelity, and
 full native rendering remain open.
+
+The resource-pack push/pop path is also live-safe: a temporary Paper fixture
+scheduled a required pack, and the Snappy Bedrock probe on `127.0.0.1:19158`
+joined and survived its bounded read window with no bridge translation error.
+The current tranche only acknowledges Java pack requests; it does not yet
+deliver the pack to Bedrock or validate native pack rendering.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while

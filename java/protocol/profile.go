@@ -88,6 +88,8 @@ type Profile struct {
 	PlayClientboundSetSlotID                    int32
 	PlayClientboundSetCursorItemID              int32
 	PlayClientboundDeclareCommandsID            int32
+	PlayClientboundRemoveResourcePackID         int32
+	PlayClientboundAddResourcePackID            int32
 	PlayClientboundProfilelessChatID            int32
 	PlayClientboundPlayerChatID                 int32
 	PlayClientboundSystemChatID                 int32
@@ -122,6 +124,7 @@ type Profile struct {
 	PlayServerboundArmAnimationID               int32
 	PlayServerboundChatCommandSignedID          int32
 	PlayServerboundChatMessageID                int32
+	PlayServerboundResourcePackID               int32
 }
 
 // Java1214 is the 1.21.4 protocol profile (protocol 769), sourced from the
@@ -208,6 +211,8 @@ var Java1214 = Profile{
 	PlayClientboundSetSlotID:                    0x15,
 	PlayClientboundSetCursorItemID:              0x5a,
 	PlayClientboundDeclareCommandsID:            0x11,
+	PlayClientboundRemoveResourcePackID:         0x4a,
+	PlayClientboundAddResourcePackID:            0x4b,
 	PlayClientboundProfilelessChatID:            0x1e,
 	PlayClientboundPlayerChatID:                 0x3b,
 	PlayClientboundSystemChatID:                 0x73,
@@ -242,6 +247,7 @@ var Java1214 = Profile{
 	PlayServerboundArmAnimationID:               0x3a,
 	PlayServerboundChatCommandSignedID:          0x06,
 	PlayServerboundChatMessageID:                0x07,
+	PlayServerboundResourcePackID:               0x2f,
 }
 
 func (p Profile) Validate() error {

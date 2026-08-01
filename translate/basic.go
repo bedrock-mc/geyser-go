@@ -500,6 +500,13 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		})
 	case b.Profile.PlayClientboundDeclareCommandsID:
 		return b.translateJavaCommands(bedrock, pk.Data)
+	case b.Profile.PlayClientboundAddResourcePackID:
+		return b.translateJavaResourcePackPush(java, pk.Data)
+	case b.Profile.PlayClientboundRemoveResourcePackID:
+		if _, err := DecodeJavaResourcePackPop(pk.Data); err != nil {
+			return err
+		}
+		return nil
 	case b.Profile.PlayClientboundSetPlayerInventoryID:
 		update, err := DecodeSetPlayerInventory(pk.Data, b.nextStackNetworkID)
 		if err != nil {

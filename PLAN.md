@@ -112,6 +112,10 @@ native Bedrock validation, and performance evidence are separate gates.
   bounded top-level literal/common-argument tree to Bedrock `AvailableCommands`;
   redirects, server-backed suggestions, registry-backed enum values, and
   exact command descriptions remain open.
+- [x] Decode Java 1.21.4 resource-pack push/pop packets and acknowledge the
+  required accepted/downloaded/successfully-loaded sequence plus optional
+  declined status; Bedrock pack hosting, download, cache, stack delivery, and
+  removal remain open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -182,6 +186,11 @@ session; the probe received a typed Bedrock `AvailableCommands` packet with
 34 top-level commands and no bridge translation error on listener
 `127.0.0.1:19157`. Redirect aliases, server suggestions, registry-backed
 argument enums, and descriptions remain incomplete.
+The temporary Paper fixture also scheduled a required resource pack. The
+Snappy Bedrock probe on `127.0.0.1:19158` joined and survived its bounded read
+window with no bridge translation error. The Java status acknowledgment path
+is covered by focused tests; actual Bedrock pack hosting, delivery, caching,
+stack updates, removal, and native rendering remain incomplete.
 
 ## Non-negotiable contracts
 
