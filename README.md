@@ -47,7 +47,10 @@ protocol parity.
   and focused simulation tests. This remains limited to the Java player
   window; complex transactions, recipes, and component fidelity are open.
   Java cursor-item and entity-attribute packets now use typed bounded
-  translators, and rotation-only player updates reach Bedrock movement state.
+  translators, rotation-only player updates reach Bedrock movement state, and
+  Java add/remove entity effects reach Bedrock `MobEffect` packets. Common
+  Bedrock container-close events are also forwarded to Java; opening and
+  synchronizing arbitrary Java windows remains open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are

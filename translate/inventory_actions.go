@@ -641,6 +641,14 @@ func encodeJavaContainerClick(stateID int32, click javaInventoryClick, changed m
 	return append([]byte(nil), w.Bytes()...), nil
 }
 
+func encodeJavaContainerClose(windowID byte) ([]byte, error) {
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(int32(windowID)); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}
+
 func writeJavaHashedStack(w *javaprotocol.Writer, item gtprotocol.ItemInstance) error {
 	if itemEmpty(item) {
 		return w.Bool(false)

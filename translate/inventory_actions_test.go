@@ -128,6 +128,21 @@ func TestEncodeJavaContainerClick(t *testing.T) {
 	}
 }
 
+func TestEncodeJavaContainerClose(t *testing.T) {
+	payload, err := encodeJavaContainerClose(7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := javaprotocol.NewReader(payload)
+	windowID, err := r.VarInt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if windowID != 7 || r.Remaining() != 0 {
+		t.Fatalf("encoded close = window=%d remaining=%d", windowID, r.Remaining())
+	}
+}
+
 func TestApplyInventoryClicks(t *testing.T) {
 	runtimeID, ok := data.JavaItemRuntimeID(1)
 	if !ok {

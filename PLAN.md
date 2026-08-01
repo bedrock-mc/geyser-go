@@ -45,6 +45,10 @@ native Bedrock validation, and performance evidence are separate gates.
   update packet into typed Bedrock cursor/attribute updates, with bounded
   modifier decoding and a live Snappy Paper readback. Java rotation-only
   player updates are also forwarded as Bedrock movement rotations.
+- [x] Forward Java add/remove entity-effect packets into typed Bedrock
+  `MobEffect` updates, and translate Bedrock common-container close events into
+  the Java close-window packet; cover both bounded effect decoders and the
+  close-window codec.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -68,8 +72,10 @@ block/item/selection/entity-action path is present, including auth-input
 sprint/sneak/glide edges, Java section block updates, experience, abilities,
 and basic animation. Common player-inventory stack requests now have a Java
 hashed-click bridge, and Java attribute/rotation updates now have typed paths,
-but complex transactions, recipes, target-specific entity semantics, vehicle
-input, and client prediction reconciliation remain open. The
+entity effects now have a typed add/remove path, and common non-player-window
+close events are forwarded to Java, but complex transactions, recipes,
+target-specific entity semantics, vehicle input, and client prediction
+reconciliation remain open. The
 inventory slice is limited to the Java player window and safely skips updates
 containing components it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,

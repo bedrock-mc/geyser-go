@@ -480,6 +480,10 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateEntityEquipment(bedrock, equipment)
 	case b.Profile.PlayClientboundEntityAttributesID:
 		return b.translateEntityAttributes(bedrock, pk.Data)
+	case b.Profile.PlayClientboundEntityEffectID:
+		return b.translateEntityEffect(bedrock, pk.Data)
+	case b.Profile.PlayClientboundRemoveEntityEffectID:
+		return b.translateRemoveEntityEffect(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntityMetadataID:
 		metadata, err := DecodeEntityMetadata(pk.Data, b.nextStackNetworkID)
 		if err != nil {
@@ -1027,6 +1031,15 @@ func (b *Basic) translateBedrockPacket(bedrock *minecraft.Conn, java *javaprotoc
 		return b.translateBedrockPlayerAction(java, pk)
 	case *packet.ItemStackRequest:
 		return b.translateItemStackRequests(bedrock, java, pk.Requests)
+	case *packet.ContainerClose:
+		if pk.WindowID == 0 {
+			return nil
+		}
+		data, err := encodeJavaContainerClose(pk.WindowID)
+		if err != nil {
+			return err
+		}
+		return java.Conn.WritePacket(b.Profile.PlayServerboundContainerCloseID, data)
 	case *packet.Unknown:
 		b.Logger.Debug("unknown Bedrock packet", "id", pk.ID())
 		return nil
