@@ -24,6 +24,7 @@ func main() {
 	sendHeldSlot := flag.Bool("send-held-slot", false, "send one held-hotbar-slot update after spawn")
 	sendArm := flag.Bool("send-arm", false, "send one arm-swing animation after spawn")
 	sendEntityInteract := flag.Bool("send-entity-interact", false, "send one self entity interaction after spawn")
+	sendWindowTake := flag.Bool("send-window-take", false, "after the Paper WindowTest menu opens, take slot 0 to the cursor")
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -103,6 +104,28 @@ func main() {
 			panic(err)
 		}
 	}
+	if *sendWindowTake {
+		go func() {
+			time.Sleep(2 * time.Second)
+			action := &protocol.TakeStackRequestAction{}
+			action.Count = 1
+			action.Source = protocol.StackRequestSlotInfo{
+				Container:      protocol.FullContainerName{ContainerID: protocol.ContainerLevelEntity},
+				Slot:           0,
+				StackNetworkID: -1,
+			}
+			action.Destination = protocol.StackRequestSlotInfo{
+				Container:      protocol.FullContainerName{ContainerID: protocol.ContainerCursor},
+				Slot:           0,
+				StackNetworkID: -1,
+			}
+			_ = conn.WritePacket(&packet.ItemStackRequest{Requests: []protocol.ItemStackRequest{{
+				RequestID:   -41,
+				Actions:     []protocol.StackRequestAction{action},
+				FilterCause: -1,
+			}}})
+		}()
+	}
 	_ = conn.WritePacket(&packet.Text{TextType: packet.TextTypeChat, Message: "geyser-go probe"})
 	fmt.Printf("Bedrock spawn succeeded: protocol=%d version=%s items=%d world=%q entity=%d\n", conn.Proto().ID(), conn.Proto().Ver(), len(conn.GameData().Items), conn.GameData().WorldName, conn.GameData().EntityRuntimeID)
 	if *readFor <= 0 {
@@ -122,6 +145,22 @@ func main() {
 			switch pk := pk.(type) {
 			case *packet.Text:
 				fmt.Printf("Bedrock text: type=%d source=%q message=%q\n", pk.TextType, pk.SourceName, pk.Message)
+			case *packet.ItemStackResponse:
+				for _, response := range pk.Responses {
+					fmt.Printf("Bedrock item stack response: request=%d status=%d containers=%d\n", response.RequestID, response.Status, len(response.ContainerInfo))
+					for _, container := range response.ContainerInfo {
+						fmt.Printf("Bedrock item stack container: id=%d slots=%d\n", container.Container.ContainerID, len(container.SlotInfo))
+						for _, slot := range container.SlotInfo {
+							fmt.Printf("Bedrock item stack slot: id=%d slot=%d hotbar=%d count=%d network=%d\n", container.Container.ContainerID, slot.Slot, slot.HotbarSlot, slot.Count, slot.StackNetworkID)
+						}
+					}
+				}
+			case *packet.InventorySlot:
+				containerID := byte(0)
+				if container, ok := pk.Container.Value(); ok {
+					containerID = container.ContainerID
+				}
+				fmt.Printf("Bedrock inventory slot: window=%d container=%d slot=%d count=%d network=%d\n", pk.WindowID, containerID, pk.Slot, pk.NewItem.Stack.Count, pk.NewItem.StackNetworkID)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

@@ -48,6 +48,7 @@ type Basic struct {
 	players          map[[16]byte]*javaPlayerState
 	windows          map[int32]*javaWindowState
 	bedrockWindows   map[byte]*javaWindowState
+	activeWindowID   byte
 	nextWindowID     byte
 	nextStackID      int32
 	nextSequence     int32

@@ -50,6 +50,35 @@ func TestBedrockStackSlotMapping(t *testing.T) {
 	}
 }
 
+func TestResolveActiveWindowStackSlots(t *testing.T) {
+	b := NewBasic(javaprotocol.Java1214, nil)
+	window, ok := javaWindowMapping(javaWindowGeneric9x3)
+	if !ok {
+		t.Fatal("generic chest mapping missing")
+	}
+	window.javaID = 7
+	window.bedrockID = 3
+	window.items = make([]gtprotocol.ItemInstance, window.containerSize+36)
+	b.windows[window.javaID] = &window
+	b.bedrockWindows[window.bedrockID] = &window
+	b.activeWindowID = window.bedrockID
+
+	javaSlot, cursor, ok := b.resolveBedrockStackSlot(gtprotocol.StackRequestSlotInfo{
+		Container: gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerLevelEntity},
+		Slot:      0,
+	})
+	if !ok || cursor || javaSlot != 0 {
+		t.Fatalf("active container slot = (%d, %t, %t)", javaSlot, cursor, ok)
+	}
+	javaSlot, cursor, ok = b.resolveBedrockStackSlot(gtprotocol.StackRequestSlotInfo{
+		Container: gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerHotBar},
+		Slot:      0,
+	})
+	if !ok || cursor || javaSlot != window.containerSize+27 {
+		t.Fatalf("active hotbar slot = (%d, %t, %t)", javaSlot, cursor, ok)
+	}
+}
+
 func TestEncodeJavaContainerClick(t *testing.T) {
 	runtimeID, ok := data.JavaItemRuntimeID(1)
 	if !ok {
@@ -87,7 +116,7 @@ func TestEncodeJavaContainerClick(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	actionType, err := r.Byte()
+	actionType, err := r.VarInt()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,15 +128,11 @@ func TestEncodeJavaContainerClick(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	present, err := r.Bool()
+	itemCount, err := r.VarInt()
 	if err != nil {
 		t.Fatal(err)
 	}
 	itemID, err := r.VarInt()
-	if err != nil {
-		t.Fatal(err)
-	}
-	count, err := r.VarInt()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,12 +144,27 @@ func TestEncodeJavaContainerClick(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cursorPresent, err := r.Bool()
+	cursorCount, err := r.VarInt()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if windowID != 0 || stateID != 17 || slot != 36 || param != javaClickRight || actionType != javaContainerActionClickItem || changedCount != 1 || changedSlot != 36 || !present || itemID != 1 || count != 3 || addedComponents != 0 || removedComponents != 0 || cursorPresent || r.Remaining() != 0 {
-		t.Fatalf("encoded Java click = window=%d state=%d slot=%d param=%d action=%d changed=%d changedSlot=%d present=%t item=%d count=%d added=%d removed=%d cursor=%t remaining=%d", windowID, stateID, slot, param, actionType, changedCount, changedSlot, present, itemID, count, addedComponents, removedComponents, cursorPresent, r.Remaining())
+	if windowID != 0 || stateID != 17 || slot != 36 || param != javaClickRight || actionType != int32(javaContainerActionClickItem) || changedCount != 1 || changedSlot != 36 || itemCount != 3 || itemID != 1 || addedComponents != 0 || removedComponents != 0 || cursorCount != 0 || r.Remaining() != 0 {
+		t.Fatalf("encoded Java click = window=%d state=%d slot=%d param=%d action=%d changed=%d changedSlot=%d itemCount=%d item=%d added=%d removed=%d cursorCount=%d remaining=%d", windowID, stateID, slot, param, actionType, changedCount, changedSlot, itemCount, itemID, addedComponents, removedComponents, cursorCount, r.Remaining())
+	}
+}
+
+func TestEncodeJavaContainerClickWindowID(t *testing.T) {
+	payload, err := encodeJavaContainerClick(4, javaInventoryClick{windowID: 7, slot: 0, actionType: javaContainerActionClickItem, param: javaClickLeft}, nil, gtprotocol.ItemInstance{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := javaprotocol.NewReader(payload)
+	windowID, err := r.VarInt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if windowID != 7 {
+		t.Fatalf("encoded Java menu window ID = %d, want 7", windowID)
 	}
 }
 
@@ -156,7 +196,7 @@ func TestApplyInventoryClicks(t *testing.T) {
 		},
 	}
 	b := NewBasic(javaprotocol.Java1214, nil)
-	sim := inventorySimulation{items: b.playerItems, cursor: b.cursorItem}
+	sim := inventorySimulation{items: append([]gtprotocol.ItemInstance(nil), b.playerItems[:]...), cursor: b.cursorItem}
 	sim.items[36] = item
 	changed, err := b.applyInventoryClickLocked(&sim, javaInventoryClick{slot: 36, actionType: javaContainerActionClickItem, param: javaClickLeft})
 	if err != nil {

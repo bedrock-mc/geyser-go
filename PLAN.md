@@ -51,8 +51,10 @@ native Bedrock validation, and performance evidence are separate gates.
   close-window codec.
 - [x] Add the first Java window lifecycle slice: decode/open/close common
   vanilla menus, maintain Java-to-Bedrock window IDs, forward bounded content
-  and slot updates, and use a versioned virtual block holder. Per-menu stack
-  actions, property updates, and exact holder restoration remain open.
+  and slot updates, use a versioned virtual block holder, and translate bounded
+  take/place/swap/drop stack requests for supported mapped windows. Per-menu
+  properties, merchant/recipe behavior, and exact holder restoration remain
+  open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -74,20 +76,22 @@ windows, complex transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
 block/item/selection/entity-action path is present, including auth-input
 sprint/sneak/glide edges, Java section block updates, experience, abilities,
-and basic animation. Common player-inventory stack requests now have a Java
-hashed-click bridge, and Java attribute/rotation updates now have typed paths,
+and basic animation. Common player-inventory and initial mapped-window stack
+requests now have a Java hashed-click bridge, and Java attribute/rotation
+updates now have typed paths,
 entity effects now have a typed add/remove path, and common non-player-window
 close events are forwarded to Java, but complex transactions, recipes,
 target-specific entity semantics, vehicle input, and client prediction
-reconciliation remain open. The
-inventory slice is limited to the Java player window and safely skips updates
-containing components it cannot yet decode. Generic
+reconciliation remain open. The inventory slice covers the Java player window
+and the initial mapped common-menu path, and safely skips updates containing
+components it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
 and player-list/player-actor packets are present, but entity-specific metadata,
 Java skin properties, item actors, equipment fidelity, and animation are not
 yet parity-complete. Common Java menu open/close/content packets now have a
-virtual-holder path, but Bedrock window interaction is still incomplete until
-the per-menu stack-request translators and holder restoration are closed.
+virtual-holder path, and the generic mapped-window stack-request path is
+live-tested; Bedrock window interaction is still incomplete for unsupported
+menus, properties, recipes, and holder restoration.
 
 ## Non-negotiable contracts
 
@@ -130,4 +134,8 @@ plugin opened a generic 9x3 chest menu on join; a Snappy probe on
 `127.0.0.1:19153` observed the translated `ContainerOpen`, `InventoryContent`,
 and typed `InventorySlot` sequence with no bridge translation errors. This
 closes only the automated window-packet gate; native UI rendering and menu
-interaction are still open.
+interaction are still open. On `127.0.0.1:19154`, the probe then requested a
+take from chest slot 0; Paper accepted the translated Java `container_click`,
+and Bedrock returned request `-41` with status `0`, an empty chest slot, and a
+diamond on the cursor. This is a generic-window action slice, not full
+inventory parity.

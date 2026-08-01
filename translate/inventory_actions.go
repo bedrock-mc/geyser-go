@@ -23,13 +23,14 @@ const (
 )
 
 type javaInventoryClick struct {
+	windowID   int32
 	slot       int
 	actionType byte
 	param      byte
 }
 
 type inventorySimulation struct {
-	items  [46]gtprotocol.ItemInstance
+	items  []gtprotocol.ItemInstance
 	cursor gtprotocol.ItemInstance
 }
 
@@ -107,6 +108,14 @@ func rejectedItemStackRequest(request gtprotocol.ItemStackRequest) gtprotocol.It
 
 func (b *Basic) acceptedItemStackRequest(request gtprotocol.ItemStackRequest, affected map[int]struct{}) gtprotocol.ItemStackResponse {
 	b.mu.Lock()
+	activeWindow := b.bedrockWindows[b.activeWindowID]
+	if activeWindow != nil {
+		window := *activeWindow
+		items := append([]gtprotocol.ItemInstance(nil), activeWindow.items...)
+		cursor := b.cursorItem
+		b.mu.Unlock()
+		return acceptedWindowItemStackRequest(request, affected, window, items, cursor)
+	}
 	items := b.playerItems
 	cursor := b.cursorItem
 	b.mu.Unlock()
@@ -114,6 +123,60 @@ func (b *Basic) acceptedItemStackRequest(request gtprotocol.ItemStackRequest, af
 	byContainer := make(map[byte][]gtprotocol.StackResponseSlotInfo)
 	for javaSlot := range affected {
 		containerID, bedrockSlot, ok := javaPlayerSlot(int16(javaSlot))
+		if !ok {
+			continue
+		}
+		byContainer[containerID] = append(byContainer[containerID], makeStackResponseSlot(bedrockSlot, items[javaSlot]))
+	}
+	for containerID := range byContainer {
+		sort.Slice(byContainer[containerID], func(i, j int) bool {
+			return byContainer[containerID][i].Slot < byContainer[containerID][j].Slot
+		})
+	}
+	containerIDs := make([]int, 0, len(byContainer))
+	for containerID := range byContainer {
+		containerIDs = append(containerIDs, int(containerID))
+	}
+	sort.Ints(containerIDs)
+	containers := make([]gtprotocol.StackResponseContainerInfo, 0, len(containerIDs)+1)
+	for _, containerID := range containerIDs {
+		id := byte(containerID)
+		containers = append(containers, gtprotocol.StackResponseContainerInfo{
+			Container: gtprotocol.FullContainerName{ContainerID: id},
+			SlotInfo:  byContainer[id],
+		})
+	}
+	containers = append(containers, gtprotocol.StackResponseContainerInfo{
+		Container: gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerCursor},
+		SlotInfo:  []gtprotocol.StackResponseSlotInfo{makeStackResponseSlot(0, cursor)},
+	})
+	return gtprotocol.ItemStackResponse{
+		Status:        gtprotocol.ItemStackResponseStatusOK,
+		RequestID:     request.RequestID,
+		ContainerInfo: containers,
+	}
+}
+
+func acceptedWindowItemStackRequest(request gtprotocol.ItemStackRequest, affected map[int]struct{}, window javaWindowState, items []gtprotocol.ItemInstance, cursor gtprotocol.ItemInstance) gtprotocol.ItemStackResponse {
+	byContainer := make(map[byte][]gtprotocol.StackResponseSlotInfo)
+	for javaSlot := range affected {
+		if javaSlot < 0 || javaSlot >= len(items) {
+			continue
+		}
+		if javaSlot < window.containerSize {
+			bedrockSlot, ok := window.javaSlotToBedrock(javaSlot)
+			if !ok {
+				continue
+			}
+			containerID := window.slotContainerID(javaSlot)
+			byContainer[containerID] = append(byContainer[containerID], makeStackResponseSlot(bedrockSlot, items[javaSlot]))
+			continue
+		}
+		playerSlot, ok := javaWindowPlayerSlot(int16(javaSlot), window.containerSize)
+		if !ok {
+			continue
+		}
+		containerID, bedrockSlot, ok := javaPlayerSlot(playerSlot)
 		if !ok {
 			continue
 		}
@@ -168,8 +231,8 @@ func (b *Basic) translateStackTransfer(java *javaprotocol.Client, source, destin
 	if count == 0 {
 		return fmt.Errorf("transfer count is zero")
 	}
-	sourceSlot, sourceCursor, sourceOK := bedrockStackSlot(source)
-	destinationSlot, destinationCursor, destinationOK := bedrockStackSlot(destination)
+	sourceSlot, sourceCursor, sourceOK := b.resolveBedrockStackSlot(source)
+	destinationSlot, destinationCursor, destinationOK := b.resolveBedrockStackSlot(destination)
 	if !sourceOK || !destinationOK || (sourceCursor && destinationCursor) {
 		return fmt.Errorf("transfer uses an unsupported container")
 	}
@@ -180,7 +243,7 @@ func (b *Basic) translateStackTransfer(java *javaprotocol.Client, source, destin
 		return err
 	}
 	b.mu.Lock()
-	sim := inventorySimulation{items: b.playerItems, cursor: b.cursorItem}
+	sim := b.inventorySimulationLocked()
 	sourceItem := sim.cursor
 	if !sourceCursor {
 		sourceItem = sim.items[sourceSlot]
@@ -257,8 +320,8 @@ func (b *Basic) translateStackTransfer(java *javaprotocol.Client, source, destin
 }
 
 func (b *Basic) translateStackSwap(java *javaprotocol.Client, source, destination gtprotocol.StackRequestSlotInfo, affected map[int]struct{}) error {
-	sourceSlot, sourceCursor, sourceOK := bedrockStackSlot(source)
-	destinationSlot, destinationCursor, destinationOK := bedrockStackSlot(destination)
+	sourceSlot, sourceCursor, sourceOK := b.resolveBedrockStackSlot(source)
+	destinationSlot, destinationCursor, destinationOK := b.resolveBedrockStackSlot(destination)
 	if !sourceOK || !destinationOK || (sourceCursor && destinationCursor) {
 		return fmt.Errorf("swap uses an unsupported container")
 	}
@@ -298,7 +361,7 @@ func (b *Basic) translateStackDrop(java *javaprotocol.Client, source gtprotocol.
 	if count == 0 {
 		return fmt.Errorf("drop count is zero")
 	}
-	slot, cursor, ok := bedrockStackSlot(source)
+	slot, cursor, ok := b.resolveBedrockStackSlot(source)
 	if !ok {
 		return fmt.Errorf("drop uses an unsupported container")
 	}
@@ -308,7 +371,12 @@ func (b *Basic) translateStackDrop(java *javaprotocol.Client, source gtprotocol.
 	b.mu.Lock()
 	item := b.cursorItem
 	if !cursor {
-		item = b.playerItems[slot]
+		sim := b.inventorySimulationLocked()
+		if slot < 0 || slot >= len(sim.items) {
+			b.mu.Unlock()
+			return fmt.Errorf("drop slot %d is outside the active inventory", slot)
+		}
+		item = sim.items[slot]
 	}
 	b.mu.Unlock()
 	if itemEmpty(item) || int(item.Stack.Count) < int(count) {
@@ -348,27 +416,69 @@ func (b *Basic) sendInventoryClicks(java *javaprotocol.Client, clicks []javaInve
 
 func (b *Basic) sendInventoryClick(java *javaprotocol.Client, click javaInventoryClick) (map[int]gtprotocol.ItemInstance, error) {
 	b.mu.Lock()
-	sim := inventorySimulation{items: b.playerItems, cursor: b.cursorItem}
+	if click.windowID == 0 && b.activeWindowID != 0 {
+		if window := b.bedrockWindows[b.activeWindowID]; window != nil {
+			click.windowID = window.javaID
+		}
+	}
+	sim := b.inventorySimulationLocked()
 	changed, err := b.applyInventoryClickLocked(&sim, click)
 	if err != nil {
 		b.mu.Unlock()
 		return nil, err
 	}
-	payload, err := encodeJavaContainerClick(b.inventoryStateID, click, changed, sim.cursor)
+	stateID := b.inventoryStateID
+	if click.windowID != 0 {
+		window := b.windows[click.windowID]
+		if window == nil {
+			b.mu.Unlock()
+			return nil, fmt.Errorf("Java window %d is not open", click.windowID)
+		}
+		stateID = window.stateID
+	}
+	payload, err := encodeJavaContainerClick(stateID, click, changed, sim.cursor)
 	if err != nil {
 		b.mu.Unlock()
 		return nil, err
 	}
-	b.playerItems = sim.items
 	b.cursorItem = sim.cursor
-	if b.inventoryStateID < math.MaxInt32 {
-		b.inventoryStateID++
+	if click.windowID != 0 {
+		window := b.windows[click.windowID]
+		window.items = sim.items
+		b.updatePlayerInventoryFromWindowLocked(sim.items, window.containerSize)
+		if window.stateID < math.MaxInt32 {
+			window.stateID++
+		}
+	} else {
+		copy(b.playerItems[:], sim.items)
+		if b.inventoryStateID < math.MaxInt32 {
+			b.inventoryStateID++
+		}
 	}
 	b.mu.Unlock()
 	if err := java.Conn.WritePacket(b.Profile.PlayServerboundContainerClickID, payload); err != nil {
 		return nil, err
 	}
 	return changed, nil
+}
+
+func (b *Basic) inventorySimulationLocked() inventorySimulation {
+	if window := b.bedrockWindows[b.activeWindowID]; window != nil {
+		length := len(window.items)
+		if minimum := window.containerSize + 36; length < minimum {
+			length = minimum
+		}
+		items := make([]gtprotocol.ItemInstance, length)
+		copy(items, window.items)
+		for rawSlot := 9; rawSlot <= 44; rawSlot++ {
+			menuSlot, ok := javaWindowMenuSlot(rawSlot, window.containerSize)
+			if ok && menuSlot < len(items) {
+				items[menuSlot] = b.playerItems[rawSlot]
+			}
+		}
+		return inventorySimulation{items: items, cursor: b.cursorItem}
+	}
+	return inventorySimulation{items: append([]gtprotocol.ItemInstance(nil), b.playerItems[:]...), cursor: b.cursorItem}
 }
 
 func (b *Basic) applyInventoryClickLocked(sim *inventorySimulation, click javaInventoryClick) (map[int]gtprotocol.ItemInstance, error) {
@@ -404,6 +514,13 @@ func (b *Basic) applyInventoryClickLocked(sim *inventorySimulation, click javaIn
 			return nil, fmt.Errorf("hotbar target %d is outside 0..8", click.param)
 		}
 		destination := 36 + int(click.param)
+		if click.windowID != 0 {
+			window := b.windows[click.windowID]
+			if window == nil {
+				return nil, fmt.Errorf("Java window %d is not open", click.windowID)
+			}
+			destination, _ = javaWindowMenuSlot(36+int(click.param), window.containerSize)
+		}
 		sim.items[slot], sim.items[destination] = sim.items[destination], sim.items[slot]
 		changed[destination] = sim.items[destination]
 	case javaContainerActionDropItem:
@@ -532,13 +649,50 @@ func bedrockStackSlot(slot gtprotocol.StackRequestSlotInfo) (int, bool, bool) {
 	return 0, false, false
 }
 
+func (b *Basic) resolveBedrockStackSlot(slot gtprotocol.StackRequestSlotInfo) (int, bool, bool) {
+	if _, dynamic := slot.Container.DynamicContainerID.Value(); dynamic {
+		return 0, false, false
+	}
+	b.mu.Lock()
+	window := b.bedrockWindows[b.activeWindowID]
+	if window == nil {
+		b.mu.Unlock()
+		return bedrockStackSlot(slot)
+	}
+	if slot.Container.ContainerID == gtprotocol.ContainerCursor {
+		b.mu.Unlock()
+		return -1, true, slot.Slot == 0
+	}
+	for javaSlot := 0; javaSlot < window.containerSize; javaSlot++ {
+		bedrockSlot, ok := window.javaSlotToBedrock(javaSlot)
+		if ok && bedrockSlot == uint32(slot.Slot) && window.slotContainerID(javaSlot) == slot.Container.ContainerID {
+			b.mu.Unlock()
+			return javaSlot, false, true
+		}
+	}
+	playerSlot, cursor, ok := bedrockStackSlot(slot)
+	if ok && !cursor {
+		menuSlot, menuOK := javaWindowMenuSlot(playerSlot, window.containerSize)
+		b.mu.Unlock()
+		return menuSlot, false, menuOK
+	}
+	b.mu.Unlock()
+	return 0, false, false
+}
+
 func (b *Basic) validateStackReferenceForSlot(reference gtprotocol.StackRequestSlotInfo, javaSlot int, cursor bool) error {
 	current := gtprotocol.ItemInstance{}
 	b.mu.Lock()
 	if cursor {
 		current = b.cursorItem
 	} else {
-		current = b.playerItems[javaSlot]
+		if window := b.bedrockWindows[b.activeWindowID]; window != nil {
+			if javaSlot >= 0 && javaSlot < len(window.items) {
+				current = window.items[javaSlot]
+			}
+		} else if javaSlot >= 0 && javaSlot < len(b.playerItems) {
+			current = b.playerItems[javaSlot]
+		}
 	}
 	b.mu.Unlock()
 	requested := reference.StackNetworkID
@@ -597,7 +751,7 @@ func minUint16(a, b uint16) uint16 {
 
 func encodeJavaContainerClick(stateID int32, click javaInventoryClick, changed map[int]gtprotocol.ItemInstance, cursor gtprotocol.ItemInstance) ([]byte, error) {
 	w := javaprotocol.NewWriter()
-	if err := w.VarInt(0); err != nil {
+	if err := w.VarInt(click.windowID); err != nil {
 		return nil, err
 	}
 	if err := w.VarInt(stateID); err != nil {
@@ -613,7 +767,7 @@ func encodeJavaContainerClick(stateID int32, click javaInventoryClick, changed m
 	if err := w.Byte(param); err != nil {
 		return nil, err
 	}
-	if err := w.Byte(click.actionType); err != nil {
+	if err := w.VarInt(int32(click.actionType)); err != nil {
 		return nil, err
 	}
 	keys := make([]int, 0, len(changed))
@@ -631,11 +785,11 @@ func encodeJavaContainerClick(stateID int32, click javaInventoryClick, changed m
 		if err := w.Int16(int16(slot)); err != nil {
 			return nil, err
 		}
-		if err := writeJavaHashedStack(w, changed[slot]); err != nil {
+		if err := writeJavaSlot(w, changed[slot]); err != nil {
 			return nil, err
 		}
 	}
-	if err := writeJavaHashedStack(w, cursor); err != nil {
+	if err := writeJavaSlot(w, cursor); err != nil {
 		return nil, err
 	}
 	return append([]byte(nil), w.Bytes()...), nil
@@ -649,21 +803,18 @@ func encodeJavaContainerClose(windowID int32) ([]byte, error) {
 	return append([]byte(nil), w.Bytes()...), nil
 }
 
-func writeJavaHashedStack(w *javaprotocol.Writer, item gtprotocol.ItemInstance) error {
+func writeJavaSlot(w *javaprotocol.Writer, item gtprotocol.ItemInstance) error {
 	if itemEmpty(item) {
-		return w.Bool(false)
+		return w.VarInt(0)
 	}
 	itemID, ok := data.BedrockItemRuntimeID(item.Stack.NetworkID)
 	if !ok {
 		return fmt.Errorf("Bedrock runtime item %d has no Java registry ID", item.Stack.NetworkID)
 	}
-	if err := w.Bool(true); err != nil {
+	if err := w.VarInt(int32(item.Stack.Count)); err != nil {
 		return err
 	}
 	if err := w.VarInt(itemID); err != nil {
-		return err
-	}
-	if err := w.VarInt(int32(item.Stack.Count)); err != nil {
 		return err
 	}
 	if err := w.VarInt(0); err != nil { // added component hashes

@@ -349,6 +349,7 @@ func (b *Basic) translateOpenWindow(bedrock *minecraft.Conn, java *javaprotocol.
 	mapping.position = virtualWindowPositionLocked(b.position)
 	b.windows[open.WindowID] = &mapping
 	b.bedrockWindows[bedrockID] = &mapping
+	b.activeWindowID = bedrockID
 	b.mu.Unlock()
 	if oldWindow != nil {
 		if err := b.closeVirtualWindow(bedrock, oldWindow); err != nil {
@@ -419,6 +420,9 @@ func (b *Basic) translateJavaWindowClose(bedrock *minecraft.Conn, javaID int32) 
 	if window != nil {
 		delete(b.windows, window.javaID)
 		delete(b.bedrockWindows, window.bedrockID)
+		if b.activeWindowID == window.bedrockID {
+			b.activeWindowID = 0
+		}
 	}
 	b.mu.Unlock()
 	if window == nil {
@@ -436,6 +440,9 @@ func (b *Basic) translateBedrockContainerClose(bedrock *minecraft.Conn, java *ja
 	if window != nil {
 		delete(b.windows, window.javaID)
 		delete(b.bedrockWindows, window.bedrockID)
+		if b.activeWindowID == window.bedrockID {
+			b.activeWindowID = 0
+		}
 	}
 	b.mu.Unlock()
 	javaID := int32(closePacket.WindowID)
@@ -488,7 +495,8 @@ func (b *Basic) translateWindowContent(bedrock *minecraft.Conn, update JavaWindo
 		return nil
 	}
 	window.stateID = update.StateID
-	window.items = append(window.items[:0], update.Items...)
+	window.items = make([]gtprotocol.ItemInstance, window.containerSize+36)
+	copy(window.items, update.Items)
 	b.cursorItem = update.CarriedItem
 	windowSnapshot := *window
 	b.updatePlayerInventoryFromWindowLocked(update.Items, window.containerSize)
@@ -577,6 +585,9 @@ func (b *Basic) translateWindowSlot(bedrock *minecraft.Conn, update JavaSetSlot)
 		window.items[update.Slot] = update.Item
 	}
 	window.stateID = update.StateID
+	if playerSlot, ok := javaWindowPlayerSlot(update.Slot, snapshot.containerSize); ok && int(playerSlot) < len(b.playerItems) {
+		b.playerItems[playerSlot] = update.Item
+	}
 	b.mu.Unlock()
 	if update.Slot < 0 || int(update.Slot) >= snapshot.containerSize {
 		if playerSlot, ok := javaWindowPlayerSlot(update.Slot, snapshot.containerSize); ok {
@@ -605,4 +616,15 @@ func javaWindowPlayerSlot(slot int16, containerSize int) (int16, bool) {
 		return int16(9 + index), true
 	}
 	return int16(36 + index - 27), true
+}
+
+func javaWindowMenuSlot(playerSlot, containerSize int) (int, bool) {
+	switch {
+	case playerSlot >= 9 && playerSlot <= 35:
+		return containerSize + playerSlot - 9, true
+	case playerSlot >= 36 && playerSlot <= 44:
+		return containerSize + 27 + playerSlot - 36, true
+	default:
+		return 0, false
+	}
 }

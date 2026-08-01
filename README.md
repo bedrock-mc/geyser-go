@@ -44,16 +44,18 @@ protocol parity.
   Bedrock server-authoritative player-inventory stack requests (take/place/
   swap/drop plus mine-stack validation) now map to Java 1.21.4 hashed
   container-click packets, with cursor/state tracking, typed Bedrock responses,
-  and focused simulation tests. This remains limited to the Java player
-  window; complex transactions, recipes, and component fidelity are open.
+  and focused simulation tests. The initial mapped menu path now also handles
+  bounded take/place/swap/drop requests for supported Java windows; complex
+  transactions, recipes, and component fidelity are open.
   Java cursor-item and entity-attribute packets now use typed bounded
   translators, rotation-only player updates reach Bedrock movement state, and
   Java add/remove entity effects reach Bedrock `MobEffect` packets. Common
   Bedrock container-close events are also forwarded to Java; opening and
   synchronizing arbitrary Java windows now has an initial typed path for common
   vanilla menu types, including Java-to-Bedrock IDs, virtual block holders,
-  content, and slot updates. Per-menu Bedrock stack requests, properties,
-  merchant/recipe behavior, and exact virtual-holder restoration remain open.
+  content, and slot updates. Common mapped windows also accept bounded Bedrock
+  stack requests and return typed responses; properties, merchant/recipe
+  behavior, and exact virtual-holder restoration remain open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -109,8 +111,11 @@ intentionally temporary and ignored by Git.
 A temporary offline Paper `WindowTest` plugin opened a generic 9x3 chest on
 join. The Snappy probe on `127.0.0.1:19153` received the resulting
 `ContainerOpen`, `InventoryContent`, and typed `InventorySlot` sequence with no
-bridge translation errors. Native UI rendering and Bedrock menu interaction
-are not yet acceptance-complete.
+bridge translation errors. A follow-up probe on `127.0.0.1:19154` requested a
+take from the Java chest: Paper accepted the Java `container_click`, and Bedrock
+received `ItemStackResponse` status `0` with the chest slot emptied and the
+cursor populated. Native UI rendering and broader menu interaction are not yet
+acceptance-complete.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
