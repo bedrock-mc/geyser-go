@@ -89,6 +89,7 @@ type Profile struct {
 	PlayClientboundSetTitleSubtitleID   int32
 	PlayClientboundSetTitleTextID       int32
 	PlayClientboundSetTitleTimeID       int32
+	PlayClientboundActionBarID          int32
 	PlayServerboundKeepAlivePacketID    int32
 	PlayServerboundTeleportConfirmID    int32
 	PlayServerboundPositionLookID       int32
@@ -189,6 +190,7 @@ var Java1214 = Profile{
 	PlayClientboundSetTitleSubtitleID:   0x6a,
 	PlayClientboundSetTitleTextID:       0x6c,
 	PlayClientboundSetTitleTimeID:       0x6d,
+	PlayClientboundActionBarID:          0x51,
 	PlayServerboundKeepAlivePacketID:    0x1a,
 	PlayServerboundTeleportConfirmID:    0x00,
 	PlayServerboundPositionLookID:       0x1d,

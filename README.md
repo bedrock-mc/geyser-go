@@ -57,7 +57,8 @@ protocol parity.
   stack requests and return typed responses; properties, merchant/recipe
   behavior, and exact virtual-holder restoration remain open.
   Java difficulty/game-state notifications, default spawn position, and title
-  text/subtitle/timing/clear packets now have bounded typed Bedrock paths.
+  text/subtitle/action-bar/timing/clear packets now have bounded typed Bedrock
+  paths.
   Java respawn packets now update the initial Bedrock dimension/game-mode path
   with typed `ChangeDimension` and `Respawn` packets.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
@@ -123,9 +124,9 @@ acceptance-complete.
 
 The same temporary Paper plugin sent a title, changed the player to creative,
 and changed the world difficulty after join. The Snappy probe on
-`127.0.0.1:19155` received typed Bedrock title timing/title/subtitle packets,
-game type `1`, and difficulty `3`; Paper logged a normal disconnect and the
-bridge emitted no translation errors.
+`127.0.0.1:19155` received typed Bedrock title timing/title/subtitle/action-bar
+packets, game type `1`, and difficulty `3`; Paper logged a normal disconnect
+and the bridge emitted no translation errors.
 
 The same listener also passed a cross-dimension Paper teleport: the probe
 received `ChangeDimension` for Bedrock Nether dimension `1`, `Respawn` state

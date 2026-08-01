@@ -477,6 +477,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaTitleText(bedrock, pk.Data, packet.TitleActionSetTitle)
 	case b.Profile.PlayClientboundSetTitleTimeID:
 		return b.translateJavaTitleTimes(bedrock, pk.Data)
+	case b.Profile.PlayClientboundActionBarID:
+		return b.translateJavaTitleText(bedrock, pk.Data, packet.TitleActionSetActionBar)
 	case b.Profile.PlayClientboundPlayerInfoID:
 		info, err := DecodePlayerInfoUpdate(pk.Data)
 		if err != nil {
