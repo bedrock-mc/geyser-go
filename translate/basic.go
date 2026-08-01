@@ -37,27 +37,31 @@ type Basic struct {
 	Profile javaprotocol.Profile
 	Logger  *slog.Logger
 
-	mu               sync.Mutex
-	gameData         minecraft.GameData
-	position         javaPosition
-	playerItems      [46]gtprotocol.ItemInstance
-	cursorItem       gtprotocol.ItemInstance
-	inventoryStateID int32
-	selectedSlot     byte
-	entities         map[int32]*javaEntityState
-	players          map[[16]byte]*javaPlayerState
-	bossBars         map[[16]byte]*javaBossBarState
-	windows          map[int32]*javaWindowState
-	bedrockWindows   map[byte]*javaWindowState
-	activeWindowID   byte
-	nextWindowID     byte
-	nextBossBarID    int64
-	nextStackID      int32
-	nextSequence     int32
-	sprinting        bool
-	sneaking         bool
-	gliding          bool
-	unknown          map[int32]uint64
+	mu                    sync.Mutex
+	gameData              minecraft.GameData
+	position              javaPosition
+	playerItems           [46]gtprotocol.ItemInstance
+	cursorItem            gtprotocol.ItemInstance
+	inventoryStateID      int32
+	selectedSlot          byte
+	entities              map[int32]*javaEntityState
+	players               map[[16]byte]*javaPlayerState
+	bossBars              map[[16]byte]*javaBossBarState
+	scoreboardObjectives  map[string]*javaScoreboardObjectiveState
+	scoreboardTeams       map[string]*javaScoreboardTeamState
+	windows               map[int32]*javaWindowState
+	bedrockWindows        map[byte]*javaWindowState
+	activeWindowID        byte
+	nextWindowID          byte
+	nextBossBarID         int64
+	nextScoreboardID      int64
+	nextScoreboardEntryID int64
+	nextStackID           int32
+	nextSequence          int32
+	sprinting             bool
+	sneaking              bool
+	gliding               bool
+	unknown               map[int32]uint64
 }
 
 type javaPosition struct {
@@ -83,18 +87,22 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		logger = slog.Default()
 	}
 	return &Basic{
-		Profile:        profile,
-		Logger:         logger,
-		entities:       make(map[int32]*javaEntityState),
-		players:        make(map[[16]byte]*javaPlayerState),
-		bossBars:       make(map[[16]byte]*javaBossBarState),
-		windows:        make(map[int32]*javaWindowState),
-		bedrockWindows: make(map[byte]*javaWindowState),
-		nextWindowID:   1,
-		nextBossBarID:  1 << 32,
-		nextStackID:    1,
-		nextSequence:   1,
-		unknown:        make(map[int32]uint64),
+		Profile:               profile,
+		Logger:                logger,
+		entities:              make(map[int32]*javaEntityState),
+		players:               make(map[[16]byte]*javaPlayerState),
+		bossBars:              make(map[[16]byte]*javaBossBarState),
+		scoreboardObjectives:  make(map[string]*javaScoreboardObjectiveState),
+		scoreboardTeams:       make(map[string]*javaScoreboardTeamState),
+		windows:               make(map[int32]*javaWindowState),
+		bedrockWindows:        make(map[byte]*javaWindowState),
+		nextWindowID:          1,
+		nextBossBarID:         1 << 32,
+		nextScoreboardID:      1,
+		nextScoreboardEntryID: 1,
+		nextStackID:           1,
+		nextSequence:          1,
+		unknown:               make(map[int32]uint64),
 	}
 }
 
@@ -303,6 +311,16 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaDifficulty(bedrock, pk.Data)
 	case b.Profile.PlayClientboundBossBarID:
 		return b.translateJavaBossBar(bedrock, pk.Data)
+	case b.Profile.PlayClientboundResetScoreID:
+		return b.translateJavaResetScore(bedrock, pk.Data)
+	case b.Profile.PlayClientboundScoreboardDisplayObjectiveID:
+		return b.translateJavaScoreboardDisplay(bedrock, pk.Data)
+	case b.Profile.PlayClientboundScoreboardObjectiveID:
+		return b.translateJavaScoreboardObjective(bedrock, pk.Data)
+	case b.Profile.PlayClientboundTeamsID:
+		return b.translateJavaScoreboardTeam(bedrock, pk.Data)
+	case b.Profile.PlayClientboundScoreboardScoreID:
+		return b.translateJavaScoreboardScore(bedrock, pk.Data)
 	case b.Profile.PlayClientboundSoundEffectID:
 		return b.translateJavaSoundEffect(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntitySoundEffectID:

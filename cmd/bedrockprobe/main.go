@@ -177,6 +177,15 @@ func main() {
 				fmt.Printf("Bedrock sound: name=%q position=%v volume=%.2f pitch=%.2f\n", pk.SoundName, pk.Position, pk.Volume, pk.Pitch)
 			case *packet.StopSound:
 				fmt.Printf("Bedrock stop sound: name=%q all=%t\n", pk.SoundName, pk.StopAll)
+			case *packet.SetDisplayObjective:
+				fmt.Printf("Bedrock scoreboard display: slot=%q objective=%q title=%q criteria=%q order=%d\n", pk.DisplaySlot, pk.ObjectiveName, pk.DisplayName, pk.CriteriaName, pk.SortOrder)
+			case *packet.SetScore:
+				fmt.Printf("Bedrock scoreboard scores: action=%d entries=%d\n", pk.ActionType, len(pk.Entries))
+				for _, entry := range pk.Entries {
+					fmt.Printf("Bedrock scoreboard entry: objective=%q id=%d score=%d identity=%d display=%q\n", entry.ObjectiveName, entry.EntryID, entry.Score, entry.IdentityType, entry.DisplayName)
+				}
+			case *packet.RemoveObjective:
+				fmt.Printf("Bedrock scoreboard remove: objective=%q\n", pk.ObjectiveName)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

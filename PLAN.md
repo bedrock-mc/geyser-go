@@ -69,6 +69,10 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Generate the Java 1.21.4 sound registry and Geyser playsound mappings;
   translate positional/entity sound effects and stop-sound packets to typed
   Bedrock packets, with bounded custom-holder decoding and a live Paper probe.
+- [x] Decode Java scoreboard objective/display/score/reset/team packets and
+  project the initial objective/sidebar/fake-player/team-decoration path to
+  Bedrock; validate it with a live Snappy Paper probe. Number formats, colors,
+  exact team/name-tag behavior, and full multi-slot semantics remain open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -112,7 +116,9 @@ dimension registries, particles, and the remaining world-event mappings are
 still open. Boss-bar add/remove/health/title/style packets have a typed,
 live-tested path, and positional/entity sound plus stop-sound packets now have
 a generated, live-tested path; flags, custom sound packs, and broader
-HUD/scoreboard behavior remain open.
+HUD/scoreboard behavior remain open. A first scoreboard objective/sidebar path
+is now live-tested, but scoreboard styling, team/name-tag semantics, and the
+remaining HUD surfaces are not parity-complete.
 
 ## Non-negotiable contracts
 
@@ -176,3 +182,9 @@ gap because the current Bedrock codec has no darken-sky/music/fog fields.
 The same Paper plugin emitted a positional note sound, an entity level-up
 sound, and a stop-sound packet. The Snappy probe observed `note.pling`,
 `random.levelup`, and the typed stop event with no bridge translation errors.
+
+The same plugin installed a sidebar objective with two scores and a team
+prefix/suffix. The Snappy probe observed the typed Bedrock display objective and
+fake-player score entries for `[P] First line!` and `Second line`, including the
+score update path, with no bridge translation error. Native HUD rendering and
+full scoreboard styling/name-tag semantics remain open.
