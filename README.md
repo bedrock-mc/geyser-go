@@ -23,6 +23,11 @@ protocol parity.
   state JSON, preserving every source record (including multiple state hashes
   for one block name). Dragonfly/Lunar data is a source for complete vanilla
   catalogs, not a runtime excuse to omit unsupported blocks or items.
+- `translate/chunks.go` decodes Java 1.21.4 paletted chunk sections and emits
+  Bedrock subchunk/biome payloads. The generated
+  `data/generated_java1214.go` table is built from the matching Geyser mapping
+  revision and Cloudburst's Bedrock palette; unresolved state aliases remain
+  explicitly incomplete rather than silently being called parity.
 
 ## Authoritative references
 
@@ -39,6 +44,8 @@ forwarding hooks, declared compression handling, and Snappy implementation.
 The generated catalog command was exercised against Cloudburst data commit
 `619483eb88140f46b8933506c6263861c0d8fa43` and produced 1,933 item records and
 16,913 block-state records; the payload checkout remains external to this repo.
+The Java 1.21.4 block mapping was generated from Geyser mappings commit
+`5d38942`; its committed table records the input hashes and fallback counts.
 
 ## Live bootstrap evidence
 
@@ -50,10 +57,10 @@ the same listener through the native UI, and the Paper log recorded the native
 player entering the Java world. The native capture is intentionally temporary
 and ignored by Git.
 
-This is only a transport/bootstrap gate: the native client currently reaches a
-visible in-world HUD with diagnostic empty world space because chunk, entity,
-inventory, interaction, and the rest of the Geyser gameplay translators are
-still open work.
+This remains an incomplete transport/world tranche: the automated Bedrock
+probe receives forwarded Java chunk packets, while native terrain rendering,
+lighting, block entities, entities, inventory, interaction, and the rest of
+the Geyser gameplay translators are still open acceptance work.
 
 ## Local checks
 

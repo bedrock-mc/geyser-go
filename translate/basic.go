@@ -18,6 +18,7 @@ import (
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/sandertv/gophertunnel/minecraft"
+	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
 
@@ -178,6 +179,21 @@ func (b *Basic) pumpBedrock(ctx context.Context, bedrock *minecraft.Conn, java *
 
 func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.Client, pk javaprotocol.Packet) error {
 	switch pk.ID {
+	case b.Profile.PlayClientboundMapChunkPacketID:
+		chunk, err := DecodeMapChunk(pk.Data)
+		if err != nil {
+			return err
+		}
+		raw, sections, err := EncodeBedrockChunk(chunk, b.gameData.Dimension)
+		if err != nil {
+			return err
+		}
+		return bedrock.WritePacket(&packet.LevelChunk{
+			Position:      gtprotocol.ChunkPos{chunk.X, chunk.Z},
+			Dimension:     b.gameData.Dimension,
+			SubChunkCount: sections,
+			RawPayload:    raw,
+		})
 	case b.Profile.PlayClientboundKeepAlivePacketID:
 		value, err := javaprotocol.DecodeLongPayload(pk.Data)
 		if err != nil {
