@@ -236,6 +236,7 @@ func (b *Basic) updateJavaFireworkAttachmentLocked(entityID int32, entity *javaE
 			continue
 		}
 		owner, hasOwner := javaIntegerValue(entry.Value)
+		entity.fireworkAttachedToEntity = hasOwner
 		attachedToPlayer := hasOwner && owner == int64(int32(uint32(b.gameData.EntityRuntimeID)))
 		if attachedToPlayer == entity.fireworkAttachedToPlayer {
 			continue
