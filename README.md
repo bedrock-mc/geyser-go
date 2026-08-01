@@ -26,8 +26,9 @@ protocol parity.
 - `translate/chunks.go` decodes Java 1.21.4 paletted chunk sections and emits
   Bedrock subchunk/biome payloads. The generated
   `data/generated_java1214.go` table is built from the matching Geyser mapping
-  revision and Cloudburst's Bedrock palette; unresolved state aliases remain
-  explicitly incomplete rather than silently being called parity.
+  revision and Cloudburst's Bedrock palette; all Java states currently resolve
+  to a versioned Bedrock runtime ID, while type-specific block-entity and
+  lighting semantics remain explicitly incomplete.
 - The current play translator also forwards versioned single-block changes,
   chunk unloads, time, and the basic non-player entity lifecycle (spawn,
   absolute/relative movement, rotation, and removal). It translates Java
@@ -197,7 +198,7 @@ The initial dependency pin uses `hashimthearab/gophertunnel` `lunar` commit
 `60c66ae560608f209f67b7c432cbc5e29e38170a`, which includes the fork's batch
 forwarding hooks, declared compression handling, and Snappy implementation.
 The generated catalog command was exercised against Cloudburst data commit
-`619483eb88140f46b8933506c6263861c0d8fa43` and produced 1,933 item records and
+`4634cd1725b4fb765c1c4431ae16a0bca77f93d0` and produced 1,933 item records and
 16,913 block-state records; the payload checkout remains external to this repo.
 The Java 1.21.4 block mapping was generated from Geyser mappings commit
 `5d38942`; its committed table records the input hashes and fallback counts.

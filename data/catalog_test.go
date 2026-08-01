@@ -59,6 +59,17 @@ func TestGeneratedJavaLookups(t *testing.T) {
 	}
 }
 
+func TestGeneratedJavaHeadStatesDoNotFallBackToAir(t *testing.T) {
+	// Java 1.21.4 places the seven skull/head families contiguously in this
+	// registry range: standing rotations followed by wall attachments.
+	airRuntimeID := Java1214ToBedrock[0]
+	for stateID := 9626; stateID <= 9905; stateID++ {
+		if Java1214ToBedrock[stateID] == airRuntimeID {
+			t.Fatalf("Java head state %d still maps to Bedrock air", stateID)
+		}
+	}
+}
+
 func TestBedrockItemRuntimeIDRoundTripsGeneratedItem(t *testing.T) {
 	for itemID := int32(1); itemID < Java1214ItemCount; itemID++ {
 		runtimeID, ok := JavaItemRuntimeID(itemID)

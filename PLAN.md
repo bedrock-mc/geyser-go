@@ -18,6 +18,11 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Normalize the Java 1.21.4 block-entity registry and forward generic
   tile-entity NBT in chunk payloads and standalone `BlockActorData` updates;
   type-specific Geyser transforms remain explicitly incomplete.
+- [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
+  zombie, player, creeper, dragon, and piglin heads (including wall variants)
+  through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and
+  `void_air` aliases intentional and versioned, and cover each alias in the
+  registry-generator tests.
 - [x] Translate Bedrock `PlayerAuthInput` and legacy `MovePlayer` positions and
   rotations to Java position/look packets, including eye-height and collision
   flag conversion, and emit bounded Java block-dig/block-place/use-item
@@ -207,12 +212,12 @@ native Bedrock validation, and performance evidence are separate gates.
   tranche complete.
 
 The current implementation is an explicitly incomplete bootstrap/world
-tranche. It does not claim Geyser gameplay parity: 200 Java block states still
-fall back to Bedrock air in the generated 1.21.4 mapping. The generator now
-resolves 118 palette-checked Java-to-Bedrock name/state transforms (including
-chains, standing pale-oak signs, and skeleton/wither skull variants); the
-remaining head states require Geyser's custom-skull/entity path rather than an
-arbitrary static block alias. Lighting,
+tranche. It does not claim Geyser gameplay parity: the generated 1.21.4 table
+now has zero unmapped Java block states; 318 palette-checked Java-to-Bedrock
+name/state transforms cover chains, standing pale-oak signs, and all seven
+skull/head families, including wall variants. The intentional `air`,
+`cave_air`, and `void_air` aliases are recorded as valid air semantics rather
+than counted as missing data. Lighting,
 type-specific block-entity transforms, behavior-heavy item components, arbitrary container
 windows, complex transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
@@ -448,3 +453,15 @@ diamond sword and a glow frame with distinct facing. The Snappy probe on
 `ItemFrame`/`GlowItemFrame` actor tags, the sword's `minecraft:diamond_sword`
 item tag, a 45-degree rotation update, and air cleanup, with no bridge
 translation error. Native frame rendering and Bedrock interaction remain open.
+
+The Paper vehicle fixture then sent Java's implicit `ClientboundMoveVehiclePacket`
+while a Pig carried the local player. The Snappy probe on `127.0.0.1:19210`
+observed the rider link and repeated Bedrock `MoveActorAbsolute` teleports for
+the vehicle (`flags=2`), with zero bridge errors. Client-side vehicle
+prediction, paddling, riding offsets, input, and reconciliation remain open.
+
+The regenerated head-state table was exercised through the same Paper/Snappy
+path on `127.0.0.1:19211`. The probe observed seven Java head block updates as
+non-air Bedrock runtimes `9296`, `14566`, `34`, `5469`, `10988`, `11012`, and
+`13833`, with zero bridge errors; wall-state and skull block-entity semantics
+remain open.

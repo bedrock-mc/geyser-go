@@ -470,6 +470,16 @@ func normalizeBlockMapping(javaKey string, target *blockMappingTarget, palette m
 		setNameIfPresent("minecraft:skeleton_skull")
 	case "minecraft:wither_skeleton_skull", "minecraft:wither_skeleton_wall_skull":
 		setNameIfPresent("minecraft:wither_skeleton_skull")
+	case "minecraft:zombie_head", "minecraft:zombie_wall_head":
+		setNameIfPresent("minecraft:zombie_head")
+	case "minecraft:player_head", "minecraft:player_wall_head":
+		setNameIfPresent("minecraft:player_head")
+	case "minecraft:creeper_head", "minecraft:creeper_wall_head":
+		setNameIfPresent("minecraft:creeper_head")
+	case "minecraft:dragon_head", "minecraft:dragon_wall_head":
+		setNameIfPresent("minecraft:dragon_head")
+	case "minecraft:piglin_head", "minecraft:piglin_wall_head":
+		setNameIfPresent("minecraft:piglin_head")
 	}
 	return changed
 }

@@ -8,6 +8,11 @@ func TestNormalizeBlockMappingUsesPaletteAliases(t *testing.T) {
 		"minecraft:pale_oak_standing_sign": {4},
 		"minecraft:skeleton_skull":         {5, 6},
 		"minecraft:wither_skeleton_skull":  {7, 8},
+		"minecraft:zombie_head":            {9, 10},
+		"minecraft:player_head":            {11, 12},
+		"minecraft:creeper_head":           {13, 14},
+		"minecraft:dragon_head":            {15, 16},
+		"minecraft:piglin_head":            {17, 18},
 	}
 
 	tests := []struct {
@@ -43,11 +48,44 @@ func TestNormalizeBlockMappingUsesPaletteAliases(t *testing.T) {
 			wantChange: true,
 		},
 		{
-			name:       "unsupported custom head stays explicit",
+			name:       "zombie wall head",
+			javaKey:    "minecraft:zombie_wall_head[facing=east,powered=false]",
+			target:     blockMappingTarget{name: "minecraft:skull", states: map[string]any{"facing_direction": int32(5)}},
+			wantName:   "minecraft:zombie_head",
+			wantStates: map[string]any{"facing_direction": int32(5)},
+			wantChange: true,
+		},
+		{
+			name:       "player head",
 			javaKey:    "minecraft:player_head[powered=false,rotation=0]",
-			target:     blockMappingTarget{name: "minecraft:skull"},
-			wantName:   "minecraft:skull",
-			wantStates: map[string]any{},
+			target:     blockMappingTarget{name: "minecraft:skull", states: map[string]any{"facing_direction": int32(1)}},
+			wantName:   "minecraft:player_head",
+			wantStates: map[string]any{"facing_direction": int32(1)},
+			wantChange: true,
+		},
+		{
+			name:       "creeper head",
+			javaKey:    "minecraft:creeper_head[powered=true,rotation=0]",
+			target:     blockMappingTarget{name: "minecraft:skull", states: map[string]any{"facing_direction": int32(1)}},
+			wantName:   "minecraft:creeper_head",
+			wantStates: map[string]any{"facing_direction": int32(1)},
+			wantChange: true,
+		},
+		{
+			name:       "dragon wall head",
+			javaKey:    "minecraft:dragon_wall_head[facing=north,powered=true]",
+			target:     blockMappingTarget{name: "minecraft:skull", states: map[string]any{"facing_direction": int32(2)}},
+			wantName:   "minecraft:dragon_head",
+			wantStates: map[string]any{"facing_direction": int32(2)},
+			wantChange: true,
+		},
+		{
+			name:       "piglin head",
+			javaKey:    "minecraft:piglin_head[powered=false,rotation=15]",
+			target:     blockMappingTarget{name: "minecraft:skull", states: map[string]any{"facing_direction": int32(1)}},
+			wantName:   "minecraft:piglin_head",
+			wantStates: map[string]any{"facing_direction": int32(1)},
+			wantChange: true,
 		},
 	}
 
