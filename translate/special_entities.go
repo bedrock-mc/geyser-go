@@ -3,6 +3,7 @@ package translate
 import (
 	"math"
 	"math/rand"
+	"strings"
 
 	"github.com/bedrock-mc/geyser-go/data"
 	"github.com/go-gl/mathgl/mgl32"
@@ -33,6 +34,11 @@ func bedrockEntityType(javaType string) string {
 		return "minecraft:wind_charge_projectile"
 	case "minecraft:trident":
 		return "minecraft:thrown_trident"
+	case "minecraft:text_display", "minecraft:interaction":
+		// Geyser renders both Java display/interaction entities using an
+		// invisible armor-stand-backed actor. The metadata projection below
+		// removes the armor-stand body while retaining the name or hitbox.
+		return "minecraft:armor_stand"
 	case "minecraft:zombie_villager":
 		return "minecraft:zombie_villager_v2"
 	case "minecraft:zombified_piglin":
@@ -64,8 +70,16 @@ func javaEntitySpawnPosition(entityType string, position mgl32.Vec3) mgl32.Vec3 
 // without an owner has no lossless Bedrock representation: Geyser drops that
 // spawn rather than emitting a hook with a broken fishing line.
 func javaSpawnEntityProjection(entityType string, objectData int32) (gtprotocol.EntityMetadata, bool) {
-	metadata := gtprotocol.NewEntityMetadataWithCapacity(4)
+	metadata := gtprotocol.NewEntityMetadataWithCapacity(8)
 	switch entityType {
+	case "minecraft:text_display":
+		metadata[gtprotocol.EntityDataKeyHitBox] = map[string]any{}
+		metadata[gtprotocol.EntityDataKeyScale] = float32(0)
+		metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = byte(1)
+	case "minecraft:interaction":
+		metadata.SetFlag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagInvisible)
+		metadata[gtprotocol.EntityDataKeyWidth] = float32(1)
+		metadata[gtprotocol.EntityDataKeyHeight] = float32(1)
 	case "minecraft:area_effect_cloud":
 		metadata.SetFlag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagFireImmune)
 		metadata[gtprotocol.EntityDataKeyDataDuration] = int32(math.MaxInt32)
@@ -174,12 +188,40 @@ func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetad
 					}
 				}
 			}
+		case "minecraft:text_display":
+			if entry.Index == 23 {
+				// Bedrock armor stands expose their nametag as a plain string.
+				// Keep the empty value as an explicit update so Java can clear
+				// an existing display without leaving stale text client-side.
+				metadata[gtprotocol.EntityDataKeyName] = JavaTextComponentText(entry.Value)
+			}
+		case "minecraft:interaction":
+			switch entry.Index {
+			case 8:
+				if width, ok := entry.Value.(float32); ok && finiteFloat32(width) && width >= 0 {
+					metadata[gtprotocol.EntityDataKeyWidth] = width
+				}
+			case 9:
+				if height, ok := entry.Value.(float32); ok && finiteFloat32(height) && height >= 0 {
+					metadata[gtprotocol.EntityDataKeyHeight] = clampFloat32(height, 0, 64)
+				}
+			}
 		}
 	}
 	if !flagsChanged {
 		delete(metadata, gtprotocol.EntityDataKeyFlags)
 	}
 	return metadata
+}
+
+// javaTextDisplayLineOffset matches Geyser's armor-stand nametag adjustment
+// for Java text-display entities. Empty text has no visible line to offset.
+func javaTextDisplayLineOffset(text string) float32 {
+	if text == "" {
+		return 0
+	}
+	lineCount := 1 + strings.Count(text, "\n")
+	return -0.6 + 0.1414*float32(lineCount)
 }
 
 func tippedArrowDisplayID(color int32) byte {

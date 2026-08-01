@@ -293,9 +293,9 @@ func translateGenericEntityMetadata(entries []JavaEntityMetadataEntry) gtprotoco
 		case 3:
 			if value, ok := entry.Value.(bool); ok {
 				if value {
-					metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = int64(1)
+					metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = byte(1)
 				} else {
-					metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = int64(0)
+					metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = byte(0)
 				}
 			}
 		case 4:

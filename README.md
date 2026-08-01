@@ -58,6 +58,10 @@ protocol parity.
   Spectral-arrow texture flags, arrow critical/tipped-display metadata, and
   trident critical/enchantment flags are also projected; native projectile
   rendering and collision remain open.
+  Java `text_display` and `interaction` entities now use Geyser's
+  armor-stand-backed projection with text/name-tag metadata, multiline offset,
+  display translation, and interaction size updates. Item/block display
+  entities, display transforms, and native rendering/interaction remain open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/

@@ -1,6 +1,7 @@
 package translate
 
 import (
+	"math"
 	"testing"
 
 	"github.com/bedrock-mc/geyser-go/data"
@@ -18,6 +19,8 @@ func TestBedrockEntityTypeOverrides(t *testing.T) {
 		"minecraft:firework_rocket":   "minecraft:fireworks_rocket",
 		"minecraft:fishing_bobber":    "minecraft:fishing_hook",
 		"minecraft:trident":           "minecraft:thrown_trident",
+		"minecraft:text_display":      "minecraft:armor_stand",
+		"minecraft:interaction":       "minecraft:armor_stand",
 		"minecraft:villager":          "minecraft:villager_v2",
 	}
 	for javaType, want := range cases {
@@ -39,6 +42,19 @@ func TestJavaEntitySpawnProjectionDefaults(t *testing.T) {
 	crystal, ok := javaSpawnEntityProjection("minecraft:ender_crystal", 0)
 	if !ok || !crystal.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagFireImmune) || crystal[gtprotocol.EntityDataKeyBlockTarget] != (gtprotocol.BlockPos{}) {
 		t.Fatalf("end-crystal spawn metadata = %#v, ok=%t", crystal, ok)
+	}
+
+	textDisplay, ok := javaSpawnEntityProjection("minecraft:text_display", 0)
+	if !ok || textDisplay[gtprotocol.EntityDataKeyScale] != float32(0) || textDisplay[gtprotocol.EntityDataKeyAlwaysShowNameTag] != byte(1) {
+		t.Fatalf("text-display spawn metadata = %#v, ok=%t", textDisplay, ok)
+	}
+	if hitbox, ok := textDisplay[gtprotocol.EntityDataKeyHitBox].(map[string]any); !ok || len(hitbox) != 0 {
+		t.Fatalf("text-display hitbox metadata = %#v", textDisplay[gtprotocol.EntityDataKeyHitBox])
+	}
+
+	interaction, ok := javaSpawnEntityProjection("minecraft:interaction", 0)
+	if !ok || !interaction.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagInvisible) || interaction[gtprotocol.EntityDataKeyWidth] != float32(1) || interaction[gtprotocol.EntityDataKeyHeight] != float32(1) {
+		t.Fatalf("interaction spawn metadata = %#v, ok=%t", interaction, ok)
 	}
 
 	if got := javaEntitySpawnPosition("minecraft:leash_knot", mgl32.Vec3{10, 20, 30}); got != (mgl32.Vec3{10.5, 20.25, 30.5}) {
@@ -92,6 +108,24 @@ func TestTranslateSpecialEntityMetadata(t *testing.T) {
 	}
 	if tippedArrowDisplayID(123456789) != 0 || tippedArrowDisplayID(-1) != 0 {
 		t.Fatal("unknown tipped-arrow colors should use no display variant")
+	}
+
+	textDisplay := translateSpecialEntityMetadata("minecraft:text_display", []JavaEntityMetadataEntry{{Index: 23, Type: 5, Value: map[string]any{
+		"text":  "line one",
+		"extra": []any{"\nline two"},
+	}}})
+	if textDisplay[gtprotocol.EntityDataKeyName] != "line one\nline two" {
+		t.Fatalf("text-display name metadata = %#v", textDisplay)
+	}
+	interaction := translateSpecialEntityMetadata("minecraft:interaction", []JavaEntityMetadataEntry{
+		{Index: 8, Type: 3, Value: float32(2.5)},
+		{Index: 9, Type: 3, Value: float32(100)},
+	})
+	if interaction[gtprotocol.EntityDataKeyWidth] != float32(2.5) || interaction[gtprotocol.EntityDataKeyHeight] != float32(64) {
+		t.Fatalf("interaction metadata = %#v", interaction)
+	}
+	if math.Abs(float64(javaTextDisplayLineOffset("one")-float32(-0.4586))) > 0.00001 || math.Abs(float64(javaTextDisplayLineOffset("one\ntwo")-float32(-0.3172))) > 0.00001 || javaTextDisplayLineOffset("") != 0 {
+		t.Fatalf("text-display line offsets are incorrect")
 	}
 }
 

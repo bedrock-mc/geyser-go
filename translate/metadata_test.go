@@ -35,7 +35,7 @@ func TestDecodeEntityMetadataAndMapGenericFields(t *testing.T) {
 		!bedrock.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSprinting) {
 		t.Fatalf("generic flags not mapped: %#v", bedrock)
 	}
-	if bedrock[gtprotocol.EntityDataKeyName] != "Pig" || bedrock[gtprotocol.EntityDataKeyAlwaysShowNameTag] != int64(1) {
+	if bedrock[gtprotocol.EntityDataKeyName] != "Pig" || bedrock[gtprotocol.EntityDataKeyAlwaysShowNameTag] != byte(1) {
 		t.Fatalf("generic metadata not mapped: %#v", bedrock)
 	}
 }

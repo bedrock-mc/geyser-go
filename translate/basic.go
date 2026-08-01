@@ -77,26 +77,28 @@ type javaPosition struct {
 }
 
 type javaEntityState struct {
-	runtimeID         uint64
-	entityType        string
-	position          mgl32.Vec3
-	rotation          mgl32.Vec3 // pitch, yaw, head yaw
-	velocity          mgl32.Vec3
-	item              gtprotocol.ItemInstance
-	hasItem           bool
-	framePosition     gtprotocol.BlockPos
-	frameDirection    int32
-	frameItem         gtprotocol.ItemInstance
-	frameRotation     int32
-	frameSpawned      bool
-	painting          JavaPaintingVariant
-	hasPainting       bool
-	paintingDirection int32
-	paintingSpawned   bool
-	equipment         [6]gtprotocol.ItemInstance
-	metadata          gtprotocol.EntityMetadata
-	player            bool
-	playerUUID        [16]byte
+	runtimeID          uint64
+	entityType         string
+	position           mgl32.Vec3
+	displayTranslation mgl32.Vec3
+	displayLineOffset  float32
+	rotation           mgl32.Vec3 // pitch, yaw, head yaw
+	velocity           mgl32.Vec3
+	item               gtprotocol.ItemInstance
+	hasItem            bool
+	framePosition      gtprotocol.BlockPos
+	frameDirection     int32
+	frameItem          gtprotocol.ItemInstance
+	frameRotation      int32
+	frameSpawned       bool
+	painting           JavaPaintingVariant
+	hasPainting        bool
+	paintingDirection  int32
+	paintingSpawned    bool
+	equipment          [6]gtprotocol.ItemInstance
+	metadata           gtprotocol.EntityMetadata
+	player             bool
+	playerUUID         [16]byte
 }
 
 func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
@@ -976,6 +978,29 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		return nil
 	}
 	entityType := entity.entityType
+	displayTranslationChanged := false
+	displayLineOffsetChanged := false
+	if entityType == "minecraft:text_display" {
+		for _, entry := range update.Entries {
+			switch entry.Index {
+			case 11:
+				translation, ok := entry.Value.(mgl32.Vec3)
+				if !ok || !finiteVec3(translation) {
+					continue
+				}
+				if entity.displayTranslation != translation {
+					entity.displayTranslation = translation
+					displayTranslationChanged = true
+				}
+			case 23:
+				lineOffset := javaTextDisplayLineOffset(JavaTextComponentText(entry.Value))
+				if entity.displayLineOffset != lineOffset {
+					entity.displayLineOffset = lineOffset
+					displayLineOffsetChanged = true
+				}
+			}
+		}
+	}
 	if !hasEntityMetadataEntry(update.Entries, 0) {
 		delete(metadata, gtprotocol.EntityDataKeyFlags)
 		delete(metadata, gtprotocol.EntityDataKeyFlagsTwo)
@@ -1041,7 +1066,12 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 	}
 	runtimeID := entity.runtimeID
 	position := entity.position
+	rotation := entity.rotation
 	velocity := entity.velocity
+	if entityType == "minecraft:text_display" {
+		position = position.Add(entity.displayTranslation)
+		position[1] += entity.displayLineOffset
+	}
 	previousItem := entity.item
 	hadItem := entity.hasItem
 	itemChanged := false
@@ -1174,6 +1204,15 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		}
 		b.mu.Unlock()
 		return nil
+	}
+	if entityType == "minecraft:text_display" && (displayTranslationChanged || displayLineOffsetChanged) {
+		if err := bedrock.WritePacket(&packet.MoveActorAbsolute{
+			EntityRuntimeID: runtimeID,
+			Position:        position,
+			Rotation:        rotation,
+		}); err != nil {
+			return err
+		}
 	}
 	if len(merged) == 0 {
 		return nil
@@ -1314,24 +1353,30 @@ func (b *Basic) translateEntityTeleport(bedrock *minecraft.Conn, payload []byte)
 	}
 	b.mu.Lock()
 	entity := b.entities[teleport.EntityID]
-	if entity != nil {
-		entity.position = teleport.Position
-		entity.rotation[0] = teleport.Pitch
-		entity.rotation[1] = teleport.Yaw
-	}
-	b.mu.Unlock()
 	if entity == nil {
+		b.mu.Unlock()
 		return nil
 	}
+	entity.position = teleport.Position
+	entity.rotation[0] = teleport.Pitch
+	entity.rotation[1] = teleport.Yaw
+	runtimeID := entity.runtimeID
+	position := entity.position
+	rotation := entity.rotation
+	if entity.entityType == "minecraft:text_display" {
+		position = position.Add(entity.displayTranslation)
+		position[1] += entity.displayLineOffset
+	}
+	b.mu.Unlock()
 	flags := byte(0)
 	if teleport.OnGround {
 		flags |= packet.MoveFlagOnGround
 	}
 	return bedrock.WritePacket(&packet.MoveActorAbsolute{
-		EntityRuntimeID: entity.runtimeID,
+		EntityRuntimeID: runtimeID,
 		Flags:           flags,
-		Position:        teleport.Position,
-		Rotation:        entity.rotation,
+		Position:        position,
+		Rotation:        rotation,
 	})
 }
 
@@ -1342,16 +1387,22 @@ func (b *Basic) translateEntityRelativeMove(bedrock *minecraft.Conn, payload []b
 	}
 	b.mu.Lock()
 	entity := b.entities[move.EntityID]
-	if entity != nil {
-		entity.position = entity.position.Add(move.Delta)
-		if move.HasRotation {
-			entity.rotation[0], entity.rotation[1] = move.Pitch, move.Yaw
-		}
-	}
-	b.mu.Unlock()
 	if entity == nil {
+		b.mu.Unlock()
 		return nil
 	}
+	entity.position = entity.position.Add(move.Delta)
+	if move.HasRotation {
+		entity.rotation[0], entity.rotation[1] = move.Pitch, move.Yaw
+	}
+	runtimeID := entity.runtimeID
+	position := entity.position
+	rotation := entity.rotation
+	if entity.entityType == "minecraft:text_display" {
+		position = position.Add(entity.displayTranslation)
+		position[1] += entity.displayLineOffset
+	}
+	b.mu.Unlock()
 	flags := uint16(packet.MoveActorDeltaFlagHasX | packet.MoveActorDeltaFlagHasY | packet.MoveActorDeltaFlagHasZ)
 	if move.HasRotation {
 		flags |= packet.MoveActorDeltaFlagHasRotX | packet.MoveActorDeltaFlagHasRotY
@@ -1360,10 +1411,10 @@ func (b *Basic) translateEntityRelativeMove(bedrock *minecraft.Conn, payload []b
 		flags |= packet.MoveActorDeltaFlagOnGround
 	}
 	return bedrock.WritePacket(&packet.MoveActorDelta{
-		EntityRuntimeID: entity.runtimeID,
+		EntityRuntimeID: runtimeID,
 		Flags:           flags,
-		Position:        entity.position,
-		Rotation:        entity.rotation,
+		Position:        position,
+		Rotation:        rotation,
 	})
 }
 

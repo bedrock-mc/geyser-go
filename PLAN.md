@@ -58,6 +58,12 @@ native Bedrock validation, and performance evidence are separate gates.
   metadata, and trident critical/enchantment flags into Bedrock actor metadata;
   cover the version-pinned color table with focused tests and a live
   Paper/Snappy arrow-family fixture.
+- [x] Project Java `text_display` and `interaction` entities through Geyser's
+  armor-stand backing contract, including text/name-tag metadata, multiline
+  vertical offset, display translation, and interaction width/height updates;
+  cover a live Paper/Snappy fixture on `127.0.0.1:19180`. Item-display,
+  block-display, transformation, billboard, brightness, and native interaction
+  fidelity remain open.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -266,6 +272,13 @@ probe on `127.0.0.1:19179` received `arrow`, `spectral_arrow`, and Bedrock's
 reported no bridge translation error. The tipped-color and trident-enchantment
 updates are covered by focused tests; native projectile rendering, collision,
 and the remaining projectile metadata remain open.
+
+A Paper display fixture then spawned a two-line Java text display and an
+`interaction` entity. The Snappy probe on `127.0.0.1:19180` received both as
+Bedrock armor-stand-backed actors, observed the text name field and zero-scale
+hitbox carrier, the multiline `MoveActorAbsolute` offset, and interaction
+width/height updates, with no bridge translation error. Display transformation,
+item/block displays, and native Bedrock rendering/interaction remain open.
 
 ## Non-negotiable contracts
 
