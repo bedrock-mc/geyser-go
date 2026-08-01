@@ -325,7 +325,7 @@ func EncodeBedrockChunk(chunk JavaChunk, dimension int32) ([]byte, uint32, error
 	// ocean biome until Java biome registry translation is added.
 	for i := 0; i < sectionCount; i++ {
 		payload.WriteByte(1) // singleton palette, runtime palette
-		writeUnsignedVarInt(&payload, 0)
+		writeSignedVarInt(&payload, 0)
 	}
 	payload.WriteByte(0) // Education Edition border blocks marker.
 	for _, entity := range chunk.BlockEntities {
@@ -424,10 +424,10 @@ func writeBedrockStorage(out *bytes.Buffer, values []uint32) {
 			binary.LittleEndian.PutUint32(encoded[:], word)
 			_, _ = out.Write(encoded[:])
 		}
-		writeUnsignedVarInt(out, uint32(len(palette)))
+		writeSignedVarInt(out, int32(len(palette)))
 	}
 	for _, value := range palette {
-		writeUnsignedVarInt(out, value)
+		writeSignedVarInt(out, int32(value))
 	}
 }
 
@@ -440,10 +440,11 @@ func bedrockBitsForPalette(size int) int {
 	return 16
 }
 
-func writeUnsignedVarInt(out io.ByteWriter, value uint32) {
-	for value >= 0x80 {
-		_ = out.WriteByte(byte(value) | 0x80)
-		value >>= 7
+func writeSignedVarInt(out io.ByteWriter, value int32) {
+	encoded := uint32(value<<1) ^ uint32(value>>31)
+	for encoded >= 0x80 {
+		_ = out.WriteByte(byte(encoded) | 0x80)
+		encoded >>= 7
 	}
-	_ = out.WriteByte(byte(value))
+	_ = out.WriteByte(byte(encoded))
 }

@@ -70,6 +70,11 @@ func TestEncodeBedrockChunkCarriesMappedTerrain(t *testing.T) {
 	if payload[3] != 3 {
 		t.Fatalf("expected a two-entry 1-bit block palette, header=%d", payload[3])
 	}
+	// 4096 one-bit indices occupy 128 little-endian uint32 words. The
+	// following palette count is a signed ZigZag VarInt: 2 entries -> 4.
+	if payload[516] != 4 {
+		t.Fatalf("expected signed palette count 4, got byte %d", payload[516])
+	}
 
 	airBlocks := make([]int32, javaChunkSectionSize)
 	empty, _, err := EncodeBedrockChunk(JavaChunk{Sections: []JavaChunkSection{{Blocks: airBlocks}}}, 0)
