@@ -58,6 +58,8 @@ protocol parity.
   behavior, and exact virtual-holder restoration remain open.
   Java difficulty/game-state notifications, default spawn position, and title
   text/subtitle/timing/clear packets now have bounded typed Bedrock paths.
+  Java respawn packets now update the initial Bedrock dimension/game-mode path
+  with typed `ChangeDimension` and `Respawn` packets.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -124,6 +126,12 @@ and changed the world difficulty after join. The Snappy probe on
 `127.0.0.1:19155` received typed Bedrock title timing/title/subtitle packets,
 game type `1`, and difficulty `3`; Paper logged a normal disconnect and the
 bridge emitted no translation errors.
+
+The same listener also passed a cross-dimension Paper teleport: the probe
+received `ChangeDimension` for Bedrock Nether dimension `1`, `Respawn` state
+`1`, and the subsequent Java advancement without a bridge error. Dynamic
+dimension registries, dimension-specific world settings, and full respawn
+inventory/entity reconciliation remain open.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while

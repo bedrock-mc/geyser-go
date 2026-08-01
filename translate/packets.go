@@ -147,13 +147,7 @@ func (j JoinGame) GameData(bedrock *minecraft.Conn, items []gtprotocol.ItemEntry
 	if mode < 0 || mode > 3 {
 		mode = 0
 	}
-	var dimension int32
-	switch j.World.Name {
-	case "minecraft:the_nether":
-		dimension = 1
-	case "minecraft:the_end":
-		dimension = 2
-	}
+	dimension := javaDimensionID(j.World.Name)
 	position := mgl32.Vec3{0.5, 80, 0.5}
 	baseVersion := "1.26.30"
 	if bedrock != nil && bedrock.Proto() != nil {

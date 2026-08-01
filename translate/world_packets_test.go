@@ -202,3 +202,53 @@ func TestDecodeWorldPresentationPackets(t *testing.T) {
 		t.Fatalf("spawn position = %+v, err=%v", spawn, err)
 	}
 }
+
+func TestDecodeJavaRespawn(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(1); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.String("minecraft:the_nether"); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Int64(99); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Byte(2); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Byte(1); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Bool(false); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Bool(true); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Bool(true); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.String("minecraft:the_nether"); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Int64(encodeJavaPosition(gtprotocol.BlockPos{1, 65, 2})); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.VarInt(80); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.VarInt(32); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Byte(3); err != nil {
+		t.Fatal(err)
+	}
+	respawn, err := DecodeJavaRespawn(w.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if respawn.World.Name != "minecraft:the_nether" || respawn.World.Dimension != 1 || respawn.World.HashedSeed != 99 || respawn.World.GameMode != 2 || !respawn.World.Flat || respawn.World.PortalCooldown != 80 || respawn.World.SeaLevel != 32 || respawn.CopyMetadata != 3 {
+		t.Fatalf("decoded respawn = %+v", respawn)
+	}
+}

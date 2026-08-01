@@ -167,6 +167,10 @@ func main() {
 				fmt.Printf("Bedrock game type: %d\n", pk.GameType)
 			case *packet.SetTitle:
 				fmt.Printf("Bedrock title: action=%d text=%q fadeIn=%d stay=%d fadeOut=%d\n", pk.ActionType, pk.Text, pk.FadeInDuration, pk.RemainDuration, pk.FadeOutDuration)
+			case *packet.ChangeDimension:
+				fmt.Printf("Bedrock dimension change: dimension=%d position=%v respawn=%t\n", pk.Dimension, pk.Position, pk.Respawn)
+			case *packet.Respawn:
+				fmt.Printf("Bedrock respawn: state=%d position=%v entity=%d\n", pk.State, pk.Position, pk.EntityRuntimeID)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

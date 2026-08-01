@@ -58,6 +58,9 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Translate Java difficulty, game-state mode/credits/weather cues, default
   spawn position, and title clear/text/subtitle/timing packets into typed
   Bedrock packets with bounded decoders and a live Snappy Paper readback.
+- [x] Decode Java respawn `SpawnInfo` plus metadata flags and forward the
+  initial cross-dimension path through Bedrock `ChangeDimension`/`Respawn`,
+  with a live Paper Nether teleport readback.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -94,10 +97,11 @@ Java skin properties, item actors, equipment fidelity, and animation are not
 yet parity-complete. Common Java menu open/close/content packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
-menus, properties, recipes, and holder restoration.
-Java difficulty, game-state mode/credits/weather cues, default spawn position,
-and title packets now have typed bounded paths, but dimension respawn, sound,
-particles, and the remaining world-event mappings are still open.
+menus, properties, recipes, and holder restoration. Java difficulty, game-state
+mode/credits/weather cues, default spawn position, title packets, and the
+initial respawn/dimension path now have typed bounded paths, but dynamic
+dimension registries, sound, particles, and the remaining world-event mappings
+are still open.
 
 ## Non-negotiable contracts
 

@@ -467,6 +467,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateSetSlot(bedrock, JavaSetSlot{
 			WindowID: 0, Slot: int16(update.Slot), Item: update.Item.Item, Known: update.Item.Known,
 		})
+	case b.Profile.PlayClientboundRespawnID:
+		return b.translateJavaRespawn(bedrock, pk.Data)
 	case b.Profile.PlayClientboundSpawnPositionID:
 		return b.translateJavaSpawnPosition(bedrock, pk.Data)
 	case b.Profile.PlayClientboundSetTitleSubtitleID:

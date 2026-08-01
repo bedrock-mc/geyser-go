@@ -564,6 +564,77 @@ func DecodeJavaSpawnPosition(data []byte) (JavaSpawnPosition, error) {
 	return JavaSpawnPosition{Position: decodeJavaPosition(packed), Angle: angle}, nil
 }
 
+type JavaRespawn struct {
+	World        SpawnInfo
+	CopyMetadata uint8
+}
+
+func DecodeJavaRespawn(data []byte) (JavaRespawn, error) {
+	r := javaprotocol.NewReader(data)
+	dimension, err := r.VarInt()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn dimension: %w", err)
+	}
+	name, err := r.String()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn dimension name: %w", err)
+	}
+	hashedSeed, err := r.Int64()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn seed: %w", err)
+	}
+	gameMode, err := r.Int8()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn game mode: %w", err)
+	}
+	previousMode, err := r.Byte()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn previous game mode: %w", err)
+	}
+	debug, err := r.Bool()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn debug flag: %w", err)
+	}
+	flat, err := r.Bool()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn flat flag: %w", err)
+	}
+	hasDeathLocation, err := r.Bool()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn death-location flag: %w", err)
+	}
+	if hasDeathLocation {
+		if _, err := r.String(); err != nil {
+			return JavaRespawn{}, fmt.Errorf("translate: respawn death dimension: %w", err)
+		}
+		packed, err := r.Int64()
+		if err != nil {
+			return JavaRespawn{}, fmt.Errorf("translate: respawn death position: %w", err)
+		}
+		_ = packed
+	}
+	portalCooldown, err := r.VarInt()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn portal cooldown: %w", err)
+	}
+	seaLevel, err := r.VarInt()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn sea level: %w", err)
+	}
+	copyMetadata, err := r.Byte()
+	if err != nil {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn metadata flags: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return JavaRespawn{}, fmt.Errorf("translate: respawn has %d trailing bytes", r.Remaining())
+	}
+	return JavaRespawn{World: SpawnInfo{
+		Dimension: dimension, Name: name, HashedSeed: hashedSeed,
+		GameMode: gameMode, PreviousMode: previousMode, Debug: debug, Flat: flat,
+		PortalCooldown: portalCooldown, SeaLevel: seaLevel,
+	}, CopyMetadata: copyMetadata}, nil
+}
+
 func (b *Basic) translateJavaDifficulty(bedrock *minecraft.Conn, data []byte) error {
 	difficulty, err := DecodeJavaDifficulty(data)
 	if err != nil {
@@ -715,4 +786,58 @@ func (b *Basic) translateJavaSpawnPosition(bedrock *minecraft.Conn, data []byte)
 		Dimension:     dimension,
 		SpawnPosition: spawn.Position,
 	})
+}
+
+func (b *Basic) translateJavaRespawn(bedrock *minecraft.Conn, data []byte) error {
+	respawn, err := DecodeJavaRespawn(data)
+	if err != nil {
+		return err
+	}
+	if respawn.World.GameMode < 0 || respawn.World.GameMode > 3 {
+		b.logSemanticAnomaly("skipping Java respawn with unknown game mode", "mode", respawn.World.GameMode)
+		return nil
+	}
+	newDimension := javaDimensionID(respawn.World.Name)
+	b.mu.Lock()
+	oldDimension := b.gameData.Dimension
+	position := mgl32.Vec3{float32(b.position.x), float32(b.position.y), float32(b.position.z)}
+	runtimeID := b.gameData.EntityRuntimeID
+	b.gameData.Dimension = newDimension
+	b.gameData.WorldSeed = respawn.World.HashedSeed
+	b.gameData.PlayerGameMode = int32(respawn.World.GameMode)
+	b.gameData.WorldGameMode = int32(respawn.World.GameMode)
+	b.mu.Unlock()
+
+	if newDimension != oldDimension {
+		if err := bedrock.WritePacket(&packet.ChangeDimension{
+			Dimension: newDimension,
+			Position:  position,
+			Respawn:   true,
+		}); err != nil {
+			return err
+		}
+	}
+	if err := bedrock.WritePacket(&packet.Respawn{
+		Position:        position,
+		State:           packet.RespawnStateReadyToSpawn,
+		EntityRuntimeID: runtimeID,
+	}); err != nil {
+		return err
+	}
+	gameType := int32(respawn.World.GameMode)
+	if gameType == 3 {
+		gameType = packet.GameTypeSpectator
+	}
+	return bedrock.WritePacket(&packet.SetPlayerGameType{GameType: gameType})
+}
+
+func javaDimensionID(name string) int32 {
+	switch name {
+	case "minecraft:the_nether":
+		return packet.DimensionNether
+	case "minecraft:the_end":
+		return packet.DimensionEnd
+	default:
+		return packet.DimensionOverworld
+	}
 }
