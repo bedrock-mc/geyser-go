@@ -48,6 +48,11 @@ native Bedrock validation, and performance evidence are separate gates.
   updates, generic entity metadata, and the Java player-info/list lifecycle to
   typed Bedrock actor packets; cover the Java 1.21.4 equipment enum order,
   body equipment, bounded decoders, and a live Paper readback.
+- [x] Decode Java `textures` profile properties into bounded Mojang skin/cape
+  image downloads, Bedrock RGBA skin data, slim-arm selection, and a
+  per-session URL cache; malformed or unavailable profiles fall back to the
+  synthetic skin and focused resolver tests cover the security and image
+  boundaries. An authenticated remote-profile live gate remains open.
 - [x] Project Java dropped-item entities through Bedrock's dedicated item-actor
   packet, including delayed stack metadata, count-only actor events, and
   changed-stack remove/re-add behavior; cover the item metadata codec and a
@@ -227,7 +232,7 @@ skull/head families, including wall variants. The intentional `air`,
 `cave_air`, and `void_air` aliases are recorded as valid air semantics rather
 than counted as missing data. Lighting,
 most type-specific block-entity transforms beyond signs/hanging signs, behavior-heavy item components, arbitrary container
-windows, complex transaction state, player/entity metadata, interactions, and
+windows, complex transaction state, remote-profile skin validation, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
 block/item/selection/entity-action path is present, including auth-input
 sprint/sneak/glide edges, Java section block updates, experience, abilities,

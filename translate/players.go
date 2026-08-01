@@ -205,6 +205,8 @@ type javaPlayerState struct {
 	UUID       [16]byte
 	Name       string
 	Properties []javaprotocol.Property
+	Skin       gtprotocol.Skin
+	HasSkin    bool
 	GameMode   int32
 	Listed     bool
 	Latency    int32
@@ -212,6 +214,15 @@ type javaPlayerState struct {
 
 func (b *Basic) translatePlayerInfo(bedrock *minecraft.Conn, update JavaPlayerInfoUpdate) error {
 	for _, entry := range update.Entries {
+		var resolvedSkin gtprotocol.Skin
+		resolvedSkinOK := false
+		if update.Actions&javaPlayerInfoAddPlayer != 0 {
+			var err error
+			resolvedSkin, resolvedSkinOK, err = b.resolveJavaPlayerSkin(entry.Properties, entry.Name)
+			if err != nil {
+				b.logSemanticAnomaly("Java player textures property could not be resolved", "player", entry.Name, "error", err)
+			}
+		}
 		b.mu.Lock()
 		state := b.players[entry.UUID]
 		if state == nil {
@@ -221,6 +232,10 @@ func (b *Basic) translatePlayerInfo(bedrock *minecraft.Conn, update JavaPlayerIn
 		if update.Actions&javaPlayerInfoAddPlayer != 0 {
 			state.Name = entry.Name
 			state.Properties = append(state.Properties[:0], entry.Properties...)
+			if resolvedSkinOK {
+				state.Skin = resolvedSkin
+				state.HasSkin = true
+			}
 		}
 		if entry.HasGameMode {
 			state.GameMode = entry.GameMode
@@ -335,12 +350,37 @@ func (b *Basic) translatePlayerSpawn(bedrock *minecraft.Conn, spawn JavaSpawnEnt
 }
 
 func (b *Basic) playerListEntry(state javaPlayerState, entityID int64) gtprotocol.PlayerListEntry {
+	skin := defaultPlayerSkin(state.Name)
+	if state.HasSkin {
+		skin = state.Skin
+	}
 	return gtprotocol.PlayerListEntry{
 		UUID:           uuid.UUID(state.UUID),
 		EntityUniqueID: entityID,
 		Username:       state.Name,
-		Skin:           defaultPlayerSkin(state.Name),
+		Skin:           skin,
 	}
+}
+
+func (b *Basic) resolveJavaPlayerSkin(properties []javaprotocol.Property, name string) (gtprotocol.Skin, bool, error) {
+	propertyValue, ok := javaTexturesPropertyValue(properties)
+	if !ok {
+		return gtprotocol.Skin{}, false, nil
+	}
+	b.mu.Lock()
+	cached, cachedOK := b.skinCache[propertyValue]
+	b.mu.Unlock()
+	if cachedOK {
+		return cached, true, nil
+	}
+	skin, resolved, err := projectJavaSkin(properties, name)
+	if err != nil || !resolved {
+		return gtprotocol.Skin{}, resolved, err
+	}
+	b.mu.Lock()
+	b.skinCache[propertyValue] = skin
+	b.mu.Unlock()
+	return skin, true, nil
 }
 
 func defaultPlayerSkin(name string) gtprotocol.Skin {

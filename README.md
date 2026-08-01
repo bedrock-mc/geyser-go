@@ -43,8 +43,10 @@ protocol parity.
   front/back text, dye colors, glow, and wax state; most other type-specific
   NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
   common custom NBT, names/lore, durability, enchantments, glint, repair cost,
-  dyed colors, and map IDs into Gophertunnel item stacks. Behavior-heavy item
-  components, arbitrary container windows, Java skin properties, and richer
+  dyed colors, and map IDs into Gophertunnel item stacks. Java `textures`
+  profile properties now resolve bounded Mojang skin/cape images with slim-arm
+  selection and a per-session URL cache; authenticated remote-profile validation
+  remains open. Behavior-heavy item components, arbitrary container windows, and richer
   entity-specific behavior are also still open. The bounded entity-metadata
   decoder follows the pinned Java 1.21.4 registry, dropped Java item entities
   use Bedrock's dedicated item-actor packet and typed stack-count updates, and

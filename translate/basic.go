@@ -53,6 +53,7 @@ type Basic struct {
 	selectedSlot          byte
 	entities              map[int32]*javaEntityState
 	players               map[[16]byte]*javaPlayerState
+	skinCache             map[string]gtprotocol.Skin
 	bossBars              map[[16]byte]*javaBossBarState
 	scoreboardObjectives  map[string]*javaScoreboardObjectiveState
 	scoreboardTeams       map[string]*javaScoreboardTeamState
@@ -134,6 +135,7 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		dimensionLayouts:      make(map[int32]javaDimensionLayout),
 		entities:              make(map[int32]*javaEntityState),
 		players:               make(map[[16]byte]*javaPlayerState),
+		skinCache:             make(map[string]gtprotocol.Skin),
 		bossBars:              make(map[[16]byte]*javaBossBarState),
 		scoreboardObjectives:  make(map[string]*javaScoreboardObjectiveState),
 		scoreboardTeams:       make(map[string]*javaScoreboardTeamState),
