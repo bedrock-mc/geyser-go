@@ -1007,49 +1007,26 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		delete(metadata, gtprotocol.EntityDataKeyPlayerFlags)
 	}
 	specialMetadata := translateSpecialEntityMetadata(entityType, update.Entries)
-	if specialFlags, ok := specialMetadata[gtprotocol.EntityDataKeyFlags].(int64); ok {
+	specialFlags, hasSpecialFlags := specialMetadata[gtprotocol.EntityDataKeyFlags].(int64)
+	specialFlagsTwo, hasSpecialFlagsTwo := specialMetadata[gtprotocol.EntityDataKeyFlagsTwo].(int64)
+	if hasSpecialFlags || hasSpecialFlagsTwo {
 		currentFlags, _ := entity.metadata[gtprotocol.EntityDataKeyFlags].(int64)
-		if entityType == "minecraft:end_crystal" || entityType == "minecraft:ender_crystal" {
-			for _, entry := range update.Entries {
-				if entry.Index != 9 {
-					continue
-				}
-				if showBottom, ok := entry.Value.(bool); ok {
-					if showBottom {
-						specialFlags = currentFlags | (int64(1) << gtprotocol.EntityDataFlagShowBottom)
-					} else {
-						specialFlags = currentFlags &^ (int64(1) << gtprotocol.EntityDataFlagShowBottom)
-					}
-				}
-			}
-		} else if entityType == "minecraft:arrow" || entityType == "minecraft:spectral_arrow" || entityType == "minecraft:trident" {
-			specialFlags = currentFlags
-			for _, entry := range update.Entries {
-				switch entry.Index {
-				case 8:
-					if arrowFlags, ok := entry.Value.(int8); ok {
-						if arrowFlags&0x01 != 0 {
-							specialFlags |= int64(1) << gtprotocol.EntityDataFlagCritical
-						} else {
-							specialFlags &^= int64(1) << gtprotocol.EntityDataFlagCritical
-						}
-					}
-				case 12:
-					if entityType == "minecraft:trident" {
-						if enchanted, ok := entry.Value.(bool); ok {
-							if enchanted {
-								specialFlags |= int64(1) << gtprotocol.EntityDataFlagEnchanted
-							} else {
-								specialFlags &^= int64(1) << gtprotocol.EntityDataFlagEnchanted
-							}
-						}
-					}
-				}
-			}
+		currentFlagsTwo, _ := entity.metadata[gtprotocol.EntityDataKeyFlagsTwo].(int64)
+		flagMask, flagMaskTwo := specialEntityFlagMasks(entityType, update.Entries)
+		if flagMask != 0 {
+			specialFlags = (currentFlags &^ flagMask) | (specialFlags & flagMask)
 		} else {
 			specialFlags |= currentFlags
 		}
+		if flagMaskTwo != 0 {
+			specialFlagsTwo = (currentFlagsTwo &^ flagMaskTwo) | (specialFlagsTwo & flagMaskTwo)
+		} else if hasSpecialFlagsTwo {
+			specialFlagsTwo |= currentFlagsTwo
+		}
 		specialMetadata[gtprotocol.EntityDataKeyFlags] = specialFlags
+		if hasSpecialFlagsTwo || flagMaskTwo != 0 {
+			specialMetadata[gtprotocol.EntityDataKeyFlagsTwo] = specialFlagsTwo
+		}
 	}
 	for key, value := range specialMetadata {
 		metadata[key] = value

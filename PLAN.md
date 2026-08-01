@@ -64,6 +64,12 @@ native Bedrock validation, and performance evidence are separate gates.
   cover a live Paper/Snappy fixture on `127.0.0.1:19180`. Item-display,
   block-display, transformation, billboard, brightness, and native interaction
   fidelity remain open.
+- [x] Project common Java 1.21.4 living-entity metadata into Bedrock flags and
+  variants, including ageable/tameable state, sheep colors/shearing, armor-stand
+  flag words, fox/rabbit/bee state, and tropical-fish packed colors; cover the
+  exact pinned metadata indices with focused tests and a live Paper/Snappy
+  fixture on `127.0.0.1:19184`. Registry-dependent cat/wolf variants, owner
+  UUIDs, and the broader entity metadata matrix remain open.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -279,6 +285,15 @@ Bedrock armor-stand-backed actors, observed the text name field and zero-scale
 hitbox carrier, the multiline `MoveActorAbsolute` offset, and interaction
 width/height updates, with no bridge translation error. Display transformation,
 item/block displays, and native Bedrock rendering/interaction remain open.
+
+The same Paper fixture spawned a baby/sheared blue sheep, a flagged armor stand,
+a baby/tamed/sitting cat, a sleeping/interested fox, a killer rabbit, an angry
+bee, and a tropical fish. The Snappy probe on `127.0.0.1:19184` observed the
+corresponding Bedrock flag words (including the high `FlagsTwo` word), color and
+variant metadata, and the bee anger clear update, with no bridge translation
+error. This validates the pinned Java 1.21.4 metadata layout; registry-dependent
+cat/wolf variants, owner UUIDs, animation, interaction, and the broader entity
+matrix remain open.
 
 ## Non-negotiable contracts
 

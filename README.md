@@ -62,6 +62,10 @@ protocol parity.
   armor-stand-backed projection with text/name-tag metadata, multiline offset,
   display translation, and interaction size updates. Item/block display
   entities, display transforms, and native rendering/interaction remain open.
+  Common Java 1.21.4 living-entity metadata now projects ageable/tameable state,
+  sheep colors/shearing, armor-stand low/high flag words, fox/rabbit/bee state,
+  and tropical-fish packed colors/variants. Registry-dependent cat/wolf
+  variants, owner UUIDs, and the broader entity metadata matrix remain open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
@@ -337,6 +341,14 @@ probe on `127.0.0.1:19179` received `arrow`, `spectral_arrow`, and Bedrock's
 reported no bridge translation error. The tipped-color and trident-enchantment
 updates are covered by focused tests; native projectile rendering, collision,
 and the remaining projectile metadata remain open.
+
+The Paper entity fixture also spawned a baby/sheared blue sheep, a flagged armor
+stand, a baby/tamed/sitting cat, a sleeping/interested fox, a killer rabbit, an
+angry bee, and a tropical fish. The Snappy probe on `127.0.0.1:19184` observed
+their Bedrock flag words (including `FlagsTwo`), color/variant metadata, and the
+bee anger clear update with no bridge translation error. This validates the
+pinned Java 1.21.4 metadata layout; registry-dependent cat/wolf variants, owner
+UUIDs, animation, interaction, and the broader entity matrix remain open.
 
 ## Local checks
 

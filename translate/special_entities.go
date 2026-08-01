@@ -112,6 +112,121 @@ func javaSpawnEntityProjection(entityType string, objectData int32) (gtprotocol.
 	return metadata, true
 }
 
+func setProjectedFlag(metadata gtprotocol.EntityMetadata, flag uint8, enabled bool) {
+	key := uint32(gtprotocol.EntityDataKeyFlags)
+	bit := flag
+	if flag >= 64 {
+		key = gtprotocol.EntityDataKeyFlagsTwo
+		bit -= 64
+	}
+	if _, ok := metadata[key].(int64); !ok {
+		metadata[key] = int64(0)
+	}
+	if enabled {
+		metadata.SetFlag(key, bit)
+	} else {
+		metadata.UnsetFlag(key, bit)
+	}
+}
+
+func javaAgeableEntity(entityType string) bool {
+	switch entityType {
+	case "minecraft:armadillo", "minecraft:axolotl", "minecraft:bee", "minecraft:camel",
+		"minecraft:cat", "minecraft:chicken", "minecraft:cow", "minecraft:donkey", "minecraft:fox",
+		"minecraft:frog", "minecraft:goat", "minecraft:hoglin", "minecraft:horse", "minecraft:llama",
+		"minecraft:mooshroom", "minecraft:mule", "minecraft:ocelot", "minecraft:panda", "minecraft:pig",
+		"minecraft:polar_bear", "minecraft:rabbit", "minecraft:sheep", "minecraft:sniffer",
+		"minecraft:strider", "minecraft:turtle", "minecraft:wolf", "minecraft:parrot":
+		return true
+	default:
+		return false
+	}
+}
+
+func javaIntegerValue(value any) (int64, bool) {
+	switch value := value.(type) {
+	case int8:
+		return int64(value), true
+	case int32:
+		return int64(value), true
+	case int64:
+		return value, true
+	default:
+		return 0, false
+	}
+}
+
+// specialEntityFlagMask reports the Bedrock flags whose values are owned by
+// the Java metadata packet. The bridge must replace these bits rather than
+// OR-ing them with the previous actor state, otherwise a Java false update
+// leaves a stale Bedrock flag set.
+func specialEntityFlagMasks(entityType string, entries []JavaEntityMetadataEntry) (int64, int64) {
+	var mask, maskTwo int64
+	add := func(flag uint8) {
+		if flag >= 64 {
+			maskTwo |= int64(1) << (flag - 64)
+		} else {
+			mask |= int64(1) << flag
+		}
+	}
+	for _, entry := range entries {
+		switch {
+		case entry.Index == 16 && javaAgeableEntity(entityType):
+			add(gtprotocol.EntityDataFlagBaby)
+		case (entityType == "minecraft:end_crystal" || entityType == "minecraft:ender_crystal") && entry.Index == 9:
+			add(gtprotocol.EntityDataFlagShowBottom)
+		case entityType == "minecraft:tnt" && entry.Index == 8:
+			add(gtprotocol.EntityDataFlagIgnited)
+		case (entityType == "minecraft:arrow" || entityType == "minecraft:spectral_arrow" || entityType == "minecraft:trident") && entry.Index == 8:
+			add(gtprotocol.EntityDataFlagCritical)
+		case entityType == "minecraft:trident" && entry.Index == 12:
+			add(gtprotocol.EntityDataFlagEnchanted)
+		case entityType == "minecraft:creeper":
+			switch entry.Index {
+			case 16:
+				add(gtprotocol.EntityDataFlagIgnited)
+			case 17:
+				add(gtprotocol.EntityDataFlagPowered)
+			case 18:
+				add(gtprotocol.EntityDataFlagIgnited)
+			}
+		case entityType == "minecraft:sheep" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagSheared)
+		case entityType == "minecraft:armor_stand" && entry.Index == 15:
+			add(gtprotocol.EntityDataFlagBaby)
+			add(gtprotocol.EntityDataFlagAngry)
+			add(gtprotocol.EntityDataFlagAdmiring)
+		case (entityType == "minecraft:cat" || entityType == "minecraft:wolf" || entityType == "minecraft:parrot") && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagSitting)
+			add(gtprotocol.EntityDataFlagAngry)
+			add(gtprotocol.EntityDataFlagTamed)
+		case entityType == "minecraft:cat" && entry.Index == 20:
+			add(gtprotocol.EntityDataFlagResting)
+		case entityType == "minecraft:wolf" && entry.Index == 19:
+			add(gtprotocol.EntityDataFlagInterested)
+		case entityType == "minecraft:wolf" && entry.Index == 21:
+			add(gtprotocol.EntityDataFlagAngry)
+		case entityType == "minecraft:fox" && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagSitting)
+			add(gtprotocol.EntityDataFlagSneaking)
+			add(gtprotocol.EntityDataFlagInterested)
+			add(gtprotocol.EntityDataFlagSleeping)
+		case entityType == "minecraft:rabbit" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagBribed)
+		case (entityType == "minecraft:zombie" || entityType == "minecraft:zombie_villager" || entityType == "minecraft:zombified_piglin" || entityType == "minecraft:drowned" || entityType == "minecraft:husk") && entry.Index == 16:
+			add(gtprotocol.EntityDataFlagBaby)
+		case (entityType == "minecraft:zombie" || entityType == "minecraft:zombie_villager" || entityType == "minecraft:zombified_piglin" || entityType == "minecraft:drowned" || entityType == "minecraft:husk") && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagShaking)
+		case entityType == "minecraft:zombie_villager" && entry.Index == 19:
+			add(gtprotocol.EntityDataFlagTransforming)
+			add(gtprotocol.EntityDataFlagShaking)
+		case entityType == "minecraft:bee" && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagAngry)
+		}
+	}
+	return mask, maskTwo
+}
+
 // translateSpecialEntityMetadata projects metadata whose Bedrock key or
 // meaning differs from Java's shared entity metadata. It returns only fields
 // changed by this packet; spawn defaults are supplied by the function above.
@@ -120,7 +235,207 @@ func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetad
 	metadata[gtprotocol.EntityDataKeyFlags] = int64(0)
 	flagsChanged := false
 	for _, entry := range entries {
+		if entry.Index == 16 && javaAgeableEntity(entityType) {
+			if baby, ok := entry.Value.(bool); ok {
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagBaby, baby)
+				flagsChanged = true
+			}
+		}
 		switch entityType {
+		case "minecraft:creeper":
+			switch entry.Index {
+			case 16:
+				if swelling, ok := entry.Value.(int32); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagIgnited, swelling == 1)
+					flagsChanged = true
+				}
+			case 17:
+				if powered, ok := entry.Value.(bool); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagPowered, powered)
+					flagsChanged = true
+				}
+			case 18:
+				if ignited, ok := entry.Value.(bool); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagIgnited, ignited)
+					flagsChanged = true
+				}
+			}
+		case "minecraft:sheep":
+			if entry.Index == 17 {
+				if sheepFlags, ok := entry.Value.(int8); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagSheared, byte(sheepFlags)&0x10 != 0)
+					metadata[gtprotocol.EntityDataKeyColorIndex] = byte(sheepFlags) & 0x0f
+					flagsChanged = true
+				}
+			}
+		case "minecraft:armor_stand":
+			if entry.Index == 15 {
+				if armorFlags, ok := entry.Value.(int8); ok {
+					flags := byte(armorFlags)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagBaby, flags&0x01 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAngry, flags&0x04 == 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAdmiring, flags&0x08 != 0)
+					flagsChanged = true
+				}
+			}
+		case "minecraft:cat":
+			switch entry.Index {
+			case 17:
+				if tameableFlags, ok := entry.Value.(int8); ok {
+					flags := byte(tameableFlags)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagSitting, flags&0x01 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAngry, flags&0x02 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagTamed, flags&0x04 != 0)
+					flagsChanged = true
+				}
+			case 19:
+				if variant, ok := entry.Value.(int32); ok && variant >= 0 {
+					// Cat variant registry IDs are translated once registry
+					// ordinal mappings are available. Preserve the value for
+					// resource packs in the meantime.
+					metadata[gtprotocol.EntityDataKeyVariant] = variant
+				}
+			case 20:
+				if resting, ok := entry.Value.(bool); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagResting, resting)
+					flagsChanged = true
+				}
+			case 22:
+				if collar, ok := entry.Value.(int32); ok && collar >= 0 && collar <= 15 {
+					metadata[gtprotocol.EntityDataKeyColorIndex] = byte(collar)
+				}
+			}
+		case "minecraft:parrot":
+			if entry.Index == 19 {
+				if variant, ok := entry.Value.(int32); ok && variant >= 0 {
+					metadata[gtprotocol.EntityDataKeyVariant] = variant
+				}
+			}
+			if entry.Index == 17 {
+				if tameableFlags, ok := entry.Value.(int8); ok {
+					flags := byte(tameableFlags)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagSitting, flags&0x01 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAngry, flags&0x02 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagTamed, flags&0x04 != 0)
+					flagsChanged = true
+				}
+			}
+		case "minecraft:wolf":
+			switch entry.Index {
+			case 17:
+				if tameableFlags, ok := entry.Value.(int8); ok {
+					flags := byte(tameableFlags)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagSitting, flags&0x01 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAngry, flags&0x02 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagTamed, flags&0x04 != 0)
+					flagsChanged = true
+				}
+			case 19:
+				if interested, ok := entry.Value.(bool); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagInterested, interested)
+					flagsChanged = true
+				}
+			case 20:
+				if collar, ok := entry.Value.(int32); ok && collar >= 0 && collar <= 15 {
+					metadata[gtprotocol.EntityDataKeyColorIndex] = byte(collar)
+				}
+			case 21:
+				if anger, ok := javaIntegerValue(entry.Value); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAngry, anger > 0)
+					flagsChanged = true
+				}
+			}
+		case "minecraft:fox":
+			switch entry.Index {
+			case 17:
+				if variant, ok := entry.Value.(int32); ok && variant >= 0 {
+					metadata[gtprotocol.EntityDataKeyVariant] = variant
+				}
+			case 18:
+				if foxFlags, ok := entry.Value.(int8); ok {
+					flags := byte(foxFlags)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagSitting, flags&0x01 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagSneaking, flags&0x04 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagInterested, flags&0x08 != 0)
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagSleeping, flags&0x20 != 0)
+					flagsChanged = true
+				}
+			}
+		case "minecraft:rabbit":
+			if entry.Index == 17 {
+				if variant, ok := entry.Value.(int32); ok {
+					if variant == 99 {
+						variant = 1
+						setProjectedFlag(metadata, gtprotocol.EntityDataFlagBribed, true)
+					} else {
+						setProjectedFlag(metadata, gtprotocol.EntityDataFlagBribed, false)
+					}
+					metadata[gtprotocol.EntityDataKeyVariant] = variant
+					flagsChanged = true
+				}
+			}
+		case "minecraft:bee":
+			switch entry.Index {
+			case 17:
+				if beeFlags, ok := entry.Value.(int8); ok {
+					metadata[gtprotocol.EntityDataKeyMarkVariant] = int32(0)
+					if byte(beeFlags)&0x04 != 0 {
+						metadata[gtprotocol.EntityDataKeyMarkVariant] = int32(1)
+					}
+				}
+			case 18:
+				if anger, ok := javaIntegerValue(entry.Value); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAngry, anger > 0)
+					flagsChanged = true
+				}
+			}
+		case "minecraft:tropicalfish", "minecraft:tropical_fish":
+			if entry.Index == 17 {
+				if variant, ok := entry.Value.(int32); ok {
+					packed := uint32(variant)
+					shape := packed & 0xff
+					if shape > 1 {
+						shape = 1
+					}
+					pattern := (packed >> 8) & 0xff
+					if pattern > 5 {
+						pattern = 5
+					}
+					baseColor := byte((packed >> 16) & 0xff)
+					if baseColor > 15 {
+						baseColor = 0
+					}
+					patternColor := byte((packed >> 24) & 0xff)
+					if patternColor > 15 {
+						patternColor = 0
+					}
+					metadata[gtprotocol.EntityDataKeyVariant] = int32(shape)
+					metadata[gtprotocol.EntityDataKeyMarkVariant] = int32(pattern)
+					metadata[gtprotocol.EntityDataKeyColorIndex] = baseColor
+					metadata[gtprotocol.EntityDataKeyColorTwoIndex] = patternColor
+				}
+			}
+		case "minecraft:zombie", "minecraft:zombie_villager", "minecraft:zombified_piglin", "minecraft:drowned", "minecraft:husk":
+			switch entry.Index {
+			case 16:
+				if baby, ok := entry.Value.(bool); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagBaby, baby)
+					flagsChanged = true
+				}
+			case 18:
+				if converting, ok := entry.Value.(bool); ok {
+					setProjectedFlag(metadata, gtprotocol.EntityDataFlagShaking, converting)
+					flagsChanged = true
+				}
+			case 19:
+				if entityType == "minecraft:zombie_villager" {
+					if transforming, ok := entry.Value.(bool); ok {
+						setProjectedFlag(metadata, gtprotocol.EntityDataFlagTransforming, transforming)
+						setProjectedFlag(metadata, gtprotocol.EntityDataFlagShaking, transforming)
+						flagsChanged = true
+					}
+				}
+			}
 		case "minecraft:area_effect_cloud":
 			if entry.Index == 8 {
 				if radius, ok := entry.Value.(float32); ok && finiteFloat32(radius) {
@@ -210,6 +525,7 @@ func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetad
 	}
 	if !flagsChanged {
 		delete(metadata, gtprotocol.EntityDataKeyFlags)
+		delete(metadata, gtprotocol.EntityDataKeyFlagsTwo)
 	}
 	return metadata
 }

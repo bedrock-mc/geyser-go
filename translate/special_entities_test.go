@@ -81,6 +81,77 @@ func TestTranslateSpecialEntityMetadata(t *testing.T) {
 		t.Fatalf("TNT metadata = %#v", tnt)
 	}
 
+	creeper := translateSpecialEntityMetadata("minecraft:creeper", []JavaEntityMetadataEntry{
+		{Index: 16, Type: 1, Value: int32(1)},
+		{Index: 17, Type: 8, Value: true},
+		{Index: 18, Type: 8, Value: true},
+	})
+	if !creeper.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagIgnited) || !creeper.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagPowered) {
+		t.Fatalf("creeper metadata = %#v", creeper)
+	}
+	clearedCreeper := translateSpecialEntityMetadata("minecraft:creeper", []JavaEntityMetadataEntry{
+		{Index: 16, Type: 1, Value: int32(-1)},
+		{Index: 17, Type: 8, Value: false},
+		{Index: 18, Type: 8, Value: false},
+	})
+	if clearedCreeper.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagIgnited) || clearedCreeper.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagPowered) {
+		t.Fatalf("cleared creeper metadata = %#v", clearedCreeper)
+	}
+
+	sheep := translateSpecialEntityMetadata("minecraft:sheep", []JavaEntityMetadataEntry{
+		{Index: 16, Type: 8, Value: true},
+		{Index: 17, Type: 0, Value: int8(0x15)},
+	})
+	if !sheep.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagBaby) || !sheep.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSheared) || sheep[gtprotocol.EntityDataKeyColorIndex] != byte(5) {
+		t.Fatalf("sheep metadata = %#v", sheep)
+	}
+
+	armorStand := translateSpecialEntityMetadata("minecraft:armor_stand", []JavaEntityMetadataEntry{{Index: 15, Type: 0, Value: int8(0x09)}})
+	if !armorStand.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagBaby) || !armorStand.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagAngry) || !armorStand.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagAdmiring-64) {
+		t.Fatalf("armor-stand metadata = %#v", armorStand)
+	}
+
+	cat := translateSpecialEntityMetadata("minecraft:cat", []JavaEntityMetadataEntry{
+		{Index: 17, Type: 0, Value: int8(0x07)},
+		{Index: 19, Type: 1, Value: int32(4)},
+		{Index: 20, Type: 8, Value: true},
+		{Index: 22, Type: 1, Value: int32(14)},
+	})
+	if !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSitting) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagAngry) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagTamed) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagResting) || cat[gtprotocol.EntityDataKeyVariant] != int32(4) || cat[gtprotocol.EntityDataKeyColorIndex] != byte(14) {
+		t.Fatalf("cat metadata = %#v", cat)
+	}
+
+	fox := translateSpecialEntityMetadata("minecraft:fox", []JavaEntityMetadataEntry{
+		{Index: 17, Type: 1, Value: int32(1)},
+		{Index: 18, Type: 0, Value: int8(0x2d)},
+	})
+	for _, flag := range []uint8{gtprotocol.EntityDataFlagSitting, gtprotocol.EntityDataFlagSneaking, gtprotocol.EntityDataFlagInterested} {
+		if !fox.Flag(gtprotocol.EntityDataKeyFlags, flag) {
+			t.Fatalf("fox metadata missing flag %d: %#v", flag, fox)
+		}
+	}
+	if !fox.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagSleeping-64) {
+		t.Fatalf("fox metadata missing sleeping flag: %#v", fox)
+	}
+
+	rabbit := translateSpecialEntityMetadata("minecraft:rabbit", []JavaEntityMetadataEntry{{Index: 17, Type: 1, Value: int32(99)}})
+	if rabbit[gtprotocol.EntityDataKeyVariant] != int32(1) || !rabbit.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagBribed) {
+		t.Fatalf("killer-rabbit metadata = %#v", rabbit)
+	}
+
+	bee := translateSpecialEntityMetadata("minecraft:bee", []JavaEntityMetadataEntry{
+		{Index: 17, Type: 0, Value: int8(0x04)},
+		{Index: 18, Type: 1, Value: int32(20)},
+	})
+	if bee[gtprotocol.EntityDataKeyMarkVariant] != int32(1) || !bee.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagAngry) {
+		t.Fatalf("bee metadata = %#v", bee)
+	}
+
+	fish := translateSpecialEntityMetadata("minecraft:tropicalfish", []JavaEntityMetadataEntry{{Index: 17, Type: 1, Value: int32(0x0f030201)}})
+	if fish[gtprotocol.EntityDataKeyVariant] != int32(1) || fish[gtprotocol.EntityDataKeyMarkVariant] != int32(2) || fish[gtprotocol.EntityDataKeyColorIndex] != byte(3) || fish[gtprotocol.EntityDataKeyColorTwoIndex] != byte(15) {
+		t.Fatalf("tropical-fish metadata = %#v", fish)
+	}
+
 	sounds := javaLightningSounds(mgl32.Vec3{1, 2, 3})
 	if len(sounds) != 2 || sounds[0].SoundName != "ambient.weather.thunder" || sounds[1].SoundName != "ambient.weather.lightning.impact" || sounds[0].Volume != 10000 || sounds[1].Volume != 2 || sounds[0].Pitch < 0.8 || sounds[0].Pitch >= 1 || sounds[1].Pitch < 0.5 || sounds[1].Pitch >= 0.7 {
 		t.Fatalf("lightning sounds = %#v", sounds)
