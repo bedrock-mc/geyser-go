@@ -46,6 +46,9 @@ protocol parity.
   fields. Beacon effect holders, end-gateway exit arrays, and decorated-pot
   sherd lists also have direct Geyser-compatible projections. Mob spawners
   now project generated Bedrock entity identifiers and bounded timing fields.
+  Vault block entities project display items and particle range with exact
+  Bedrock NBT types; session-aware conversion of Java vault UUIDs to Bedrock
+  player actor IDs remains explicitly open.
   The generated Java state-name table and bounded recent-state cache now feed
   state-aware banner base/patterns, skull rotation/mouth state, jigsaw joints,
   command conditional mode, and core structure metadata for both chunk and

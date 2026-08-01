@@ -54,6 +54,12 @@ native Bedrock validation, and performance evidence are separate gates.
   variants with focused tests and validate both records over a live
   Paper/Snappy probe. Brush interaction animation, loot-table behavior,
   trial-spawner ticking, and native Bedrock rendering remain open.
+- [x] Translate Java vault `shared_data.display_item` and particle-range state
+  into Bedrock's `display_item` and `connected_particle_range` fields with
+  exact NBT scalar types, defaults, bounded malformed-data handling, and a
+  network `BlockActorData` test. Java UUID-array `connected_players` values are
+  intentionally not converted into fabricated Bedrock actor IDs by the pure
+  shared helper; session-aware player-EID resolution remains open.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and
