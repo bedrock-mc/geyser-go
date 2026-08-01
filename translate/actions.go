@@ -5,11 +5,12 @@ import (
 
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/sandertv/gophertunnel/minecraft"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
 
-func (b *Basic) translatePlayerAuthInputActions(java *javaprotocol.Client, input *packet.PlayerAuthInput) error {
+func (b *Basic) translatePlayerAuthInputActions(bedrock *minecraft.Conn, java *javaprotocol.Client, input *packet.PlayerAuthInput) error {
 	if input == nil {
 		return nil
 	}
@@ -71,7 +72,7 @@ func (b *Basic) translatePlayerAuthInputActions(java *javaprotocol.Client, input
 	}
 
 	if loadInputFlag(input, packet.InputFlagPerformItemStackRequest) && len(input.ItemStackRequest.Actions) != 0 {
-		b.logSemanticAnomaly("skipping Bedrock item stack request until Java inventory transactions are implemented", "actions", len(input.ItemStackRequest.Actions))
+		return b.translateItemStackRequests(bedrock, java, []gtprotocol.ItemStackRequest{input.ItemStackRequest})
 	}
 	return nil
 }

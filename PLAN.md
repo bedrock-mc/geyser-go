@@ -37,6 +37,10 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
+- [x] Translate common server-authoritative player-inventory stack requests
+  (take, place, swap, drop, and mine-stack validation) into Java 1.21.4
+  hashed container-click packets, synchronize the Java cursor/state ID, and
+  return typed Bedrock stack responses with focused codec and simulation tests.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -54,14 +58,15 @@ The current implementation is an explicitly incomplete bootstrap/world
 tranche. It does not claim Geyser gameplay parity: 318 Java block states still
 fall back to Bedrock air in the generated 1.21.4 mapping, and lighting,
 type-specific block-entity transforms, item components, arbitrary container
-windows, cursor/transaction state, player/entity metadata, interactions, and
+windows, complex transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
 block/item/selection/entity-action path is present, including auth-input
 sprint/sneak/glide edges, Java section block updates, experience, abilities,
-and basic animation, but stack requests, target-specific entity semantics,
-vehicle input, and client prediction reconciliation remain open. The inventory slice is
-limited to the Java player window and safely skips updates containing components
-it cannot yet decode. Generic
+and basic animation. Common player-inventory stack requests now have a Java
+hashed-click bridge, but complex transactions, recipes, target-specific entity
+semantics, vehicle input, and client prediction reconciliation remain open. The
+inventory slice is limited to the Java player window and safely skips updates
+containing components it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
 and player-list/player-actor packets are present, but entity-specific metadata,
 Java skin properties, item actors, equipment fidelity, and animation are not
@@ -96,7 +101,9 @@ Windows 11, bridge listener `127.0.0.1:19132`, and the lunar fork at
 `60c66ae560608f209f67b7c432cbc5e29e38170a`. Both the automated client and the
 native client reached the bridge; the native client reached the in-world HUD.
 The visible empty world is an expected incomplete-state finding, not a parity
-pass. The automated probe now receives translated Java chunks, inventory/chat,
+pass. A later native add-server retry hit the Bedrock UI's `U-000` modal before
+contacting the listener, so it is recorded as a client-environment limitation,
+not a terrain result. The automated probe now receives translated Java chunks, inventory/chat,
 generic metadata, equipment, velocity, and player-list updates; native terrain
 rendering, BDS, and gameplay behavior remain acceptance gates. A separate
 Snappy-enabled probe on `127.0.0.1:19146` sent auth-input, held-slot,

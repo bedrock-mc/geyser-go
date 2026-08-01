@@ -37,19 +37,21 @@ type Basic struct {
 	Profile javaprotocol.Profile
 	Logger  *slog.Logger
 
-	mu           sync.Mutex
-	gameData     minecraft.GameData
-	position     javaPosition
-	playerItems  [46]gtprotocol.ItemInstance
-	selectedSlot byte
-	entities     map[int32]*javaEntityState
-	players      map[[16]byte]*javaPlayerState
-	nextStackID  int32
-	nextSequence int32
-	sprinting    bool
-	sneaking     bool
-	gliding      bool
-	unknown      map[int32]uint64
+	mu               sync.Mutex
+	gameData         minecraft.GameData
+	position         javaPosition
+	playerItems      [46]gtprotocol.ItemInstance
+	cursorItem       gtprotocol.ItemInstance
+	inventoryStateID int32
+	selectedSlot     byte
+	entities         map[int32]*javaEntityState
+	players          map[[16]byte]*javaPlayerState
+	nextStackID      int32
+	nextSequence     int32
+	sprinting        bool
+	sneaking         bool
+	gliding          bool
+	unknown          map[int32]uint64
 }
 
 type javaPosition struct {
@@ -196,7 +198,7 @@ func (b *Basic) pumpBedrock(ctx context.Context, bedrock *minecraft.Conn, java *
 			return fmt.Errorf("translate: Bedrock read batch: %w", err)
 		}
 		for _, pk := range batch {
-			if err := b.translateBedrockPacket(java, pk); err != nil {
+			if err := b.translateBedrockPacket(bedrock, java, pk); err != nil {
 				return err
 			}
 		}
@@ -532,6 +534,8 @@ func (b *Basic) translateWindowItems(bedrock *minecraft.Conn, update JavaWindowI
 		b.playerItems[slot] = gtprotocol.ItemInstance{}
 	}
 	copy(b.playerItems[:], update.Items)
+	b.cursorItem = update.CarriedItem
+	b.inventoryStateID = update.StateID
 	b.mu.Unlock()
 	contents := make([]gtprotocol.ItemInstance, 36)
 	for slot := 9; slot <= 35 && slot < len(update.Items); slot++ {
@@ -581,16 +585,29 @@ func (b *Basic) translateWindowItems(bedrock *minecraft.Conn, update JavaWindowI
 			return err
 		}
 	}
-	if update.CarriedItem.Stack.NetworkID != 0 {
-		b.logSemanticAnomaly("Java carried item is not forwarded until a cursor translator is available")
+	if err := bedrock.WritePacket(&packet.InventorySlot{
+		WindowID:  0,
+		Slot:      0,
+		Container: gtprotocol.Option(gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerCursor}),
+		NewItem:   update.CarriedItem,
+	}); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (b *Basic) translateSetSlot(bedrock *minecraft.Conn, update JavaSetSlot) error {
 	if update.WindowID == -1 && update.Slot == -1 {
-		b.logSemanticAnomaly("Java cursor slot is not forwarded until a cursor translator is available")
-		return nil
+		b.mu.Lock()
+		b.cursorItem = update.Item
+		b.inventoryStateID = update.StateID
+		b.mu.Unlock()
+		return bedrock.WritePacket(&packet.InventorySlot{
+			WindowID:  0,
+			Slot:      0,
+			Container: gtprotocol.Option(gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerCursor}),
+			NewItem:   update.Item,
+		})
 	}
 	if update.WindowID != 0 && update.WindowID != -2 {
 		b.logSemanticAnomaly("skipping slot update for unsupported Java window", "window", update.WindowID)
@@ -599,6 +616,7 @@ func (b *Basic) translateSetSlot(bedrock *minecraft.Conn, update JavaSetSlot) er
 	if update.Slot >= 0 && update.Slot < int16(len(b.playerItems)) {
 		b.mu.Lock()
 		b.playerItems[update.Slot] = update.Item
+		b.inventoryStateID = update.StateID
 		b.mu.Unlock()
 	}
 	containerID, slot, ok := javaPlayerSlot(update.Slot)
@@ -926,10 +944,10 @@ func (b *Basic) logSemanticAnomaly(message string, args ...any) {
 	b.Logger.Debug(message, args...)
 }
 
-func (b *Basic) translateBedrockPacket(java *javaprotocol.Client, pk packet.Packet) error {
+func (b *Basic) translateBedrockPacket(bedrock *minecraft.Conn, java *javaprotocol.Client, pk packet.Packet) error {
 	switch pk := pk.(type) {
 	case *packet.PlayerAuthInput:
-		if err := b.translatePlayerAuthInputActions(java, pk); err != nil {
+		if err := b.translatePlayerAuthInputActions(bedrock, java, pk); err != nil {
 			return err
 		}
 		data, err := encodePlayerAuthInput(pk)
@@ -962,6 +980,8 @@ func (b *Basic) translateBedrockPacket(java *javaprotocol.Client, pk packet.Pack
 		return b.translateBedrockInteract(java, pk)
 	case *packet.PlayerAction:
 		return b.translateBedrockPlayerAction(java, pk)
+	case *packet.ItemStackRequest:
+		return b.translateItemStackRequests(bedrock, java, pk.Requests)
 	case *packet.Unknown:
 		b.Logger.Debug("unknown Bedrock packet", "id", pk.ID())
 		return nil

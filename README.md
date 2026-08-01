@@ -39,9 +39,14 @@ protocol parity.
   translators. Java 1.21.4 block-entity registry records are normalized into
   Bedrock tile-entity NBT in chunk payloads, and standalone Java tile-entity
   updates become `BlockActorData`; type-specific NBT transforms are still
-  open. Component-bearing items, arbitrary container windows, cursor state,
-  Java skin properties, and richer entity-specific behavior are also still
-  open. Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
+  open. Component-bearing items, arbitrary container windows, Java skin
+  properties, and richer entity-specific behavior are also still open. Common
+  Bedrock server-authoritative player-inventory stack requests (take/place/
+  swap/drop plus mine-stack validation) now map to Java 1.21.4 hashed
+  container-click packets, with cursor/state tracking, typed Bedrock responses,
+  and focused simulation tests. This remains limited to the Java player
+  window; complex transactions, recipes, and component fidelity are open.
+  Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
   also emitted as Java packets. Bedrock auth-input sprint/sneak/glide edges,
@@ -80,7 +85,10 @@ joined through the bridge as Bedrock protocol `1.26.33` and received a complete
 block-update, and actor-removal packets before its bounded read window ended.
 The installed Bedrock client (`1.26.3301.0`) also joined the same listener
 through the native UI, and the Paper log recorded the native player entering
-the Java world. A Snappy-enabled automated Bedrock probe subsequently sent
+the Java world. A later native add-server retry produced Bedrock's own `U-000`
+modal without reaching the listener; it is retained as a UI/environment
+limitation rather than a connection or terrain pass. A Snappy-enabled automated
+Bedrock probe subsequently sent
 auth-input, held-slot, arm-swing, and self-interact packets on listener
 `127.0.0.1:19146`; Paper recorded `GeyserHeld` joining and the bridge reported
 no translation errors. A second Snappy probe on `127.0.0.1:19148` received
@@ -91,7 +99,7 @@ intentionally temporary and ignored by Git.
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
 native terrain rendering, lighting, type-specific block-entity transforms,
-item components, arbitrary inventory windows, cursor/transaction state, Java skin fidelity,
+item components, arbitrary inventory windows, complex transaction state, Java skin fidelity,
 entity-specific metadata, target-specific interaction semantics, and the rest of
 the Geyser gameplay translators are still open acceptance work.
 

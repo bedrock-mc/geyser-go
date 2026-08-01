@@ -58,3 +58,16 @@ func TestGeneratedJavaLookups(t *testing.T) {
 		t.Fatal("out-of-range Java entity ID unexpectedly reported as known")
 	}
 }
+
+func TestBedrockItemRuntimeIDRoundTripsGeneratedItem(t *testing.T) {
+	for itemID := int32(1); itemID < Java1214ItemCount; itemID++ {
+		runtimeID, ok := JavaItemRuntimeID(itemID)
+		if !ok {
+			t.Fatalf("Java item %d is missing from generated mapping", itemID)
+		}
+		alias, ok := BedrockItemRuntimeID(runtimeID)
+		if !ok || Java1214ToBedrockItem[alias] != runtimeID {
+			t.Fatalf("Bedrock runtime %d did not resolve to a generated Java alias", runtimeID)
+		}
+	}
+}

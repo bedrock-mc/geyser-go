@@ -1,5 +1,18 @@
 package data
 
+var bedrockToJavaItem = func() map[int32]int32 {
+	lookup := make(map[int32]int32, len(Java1214ToBedrockItem))
+	for itemID, runtimeID := range Java1214ToBedrockItem {
+		if itemID == 0 || runtimeID == 0 {
+			continue
+		}
+		if _, exists := lookup[runtimeID]; !exists {
+			lookup[runtimeID] = int32(itemID)
+		}
+	}
+	return lookup
+}()
+
 // JavaItemRuntimeID maps a Java item registry ID to the Bedrock item network
 // ID used by Gophertunnel's ItemInstance format. Unknown IDs are mapped to
 // air and reported as false so semantically odd server data does not tear down
@@ -15,6 +28,21 @@ func JavaItemRuntimeID(itemID int32) (int32, bool) {
 		return 0, false
 	}
 	return Java1214ToBedrockItem[itemID], true
+}
+
+// BedrockItemRuntimeID returns the first Java registry ID represented by a
+// Bedrock item network ID. The generated mapping can contain aliases, so the
+// result is intentionally one valid Java spelling rather than a claim that
+// the mapping is one-to-one.
+func BedrockItemRuntimeID(runtimeID int32) (int32, bool) {
+	if runtimeID == 0 {
+		return 0, true
+	}
+	itemID, ok := bedrockToJavaItem[runtimeID]
+	if !ok {
+		return 0, false
+	}
+	return itemID, true
 }
 
 // JavaEntityTypeName returns the Bedrock identifier for a Java entity type
