@@ -61,6 +61,11 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Decode Java respawn `SpawnInfo` plus metadata flags and forward the
   initial cross-dimension path through Bedrock `ChangeDimension`/`Respawn`,
   with a live Paper Nether teleport readback.
+- [x] Translate Java boss-bar add/remove/health/title/style actions through a
+  UUID-keyed state cache, including the invisible Bedrock backing actor;
+  validate the typed Bedrock events over a Snappy Paper probe. Java boss-bar
+  flags remain leniently recorded because the current codec has no matching
+  Bedrock fields.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -101,7 +106,8 @@ menus, properties, recipes, and holder restoration. Java difficulty, game-state
 mode/credits/weather cues, default spawn position, title/action-bar packets,
 and the initial respawn/dimension path now have typed bounded paths, but dynamic
 dimension registries, sound, particles, and the remaining world-event mappings
-are still open.
+are still open. Boss-bar add/remove/health/title/style packets have a typed,
+live-tested path; flags and broader HUD/scoreboard behavior remain open.
 
 ## Non-negotiable contracts
 
@@ -155,3 +161,9 @@ and changed the world difficulty after join. The Snappy probe on
 `127.0.0.1:19155` observed typed title timing/title/subtitle packets, game type
 `1`, and difficulty `3`; Paper logged a normal disconnect and the bridge
 reported no translation errors.
+
+The same plugin created a segmented boss bar and changed its health, color, and
+title. The Snappy probe on `127.0.0.1:19155` observed Bedrock boss-bar events
+`Show`, `HealthPercentage`, `AppearanceProperties`, and `Title` with a stable
+synthetic actor ID. Boss-bar flags are retained as a leniently logged semantic
+gap because the current Bedrock codec has no darken-sky/music/fog fields.

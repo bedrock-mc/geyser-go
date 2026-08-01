@@ -61,6 +61,10 @@ protocol parity.
   paths.
   Java respawn packets now update the initial Bedrock dimension/game-mode path
   with typed `ChangeDimension` and `Respawn` packets.
+  Java boss-bar add/remove/health/title/style packets now use a UUID-keyed
+  state cache, a Bedrock-compatible invisible backing actor, and typed
+  `BossEvent` updates; Java boss-bar flags remain recorded but have no field in
+  the current Gophertunnel codec.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -133,6 +137,13 @@ received `ChangeDimension` for Bedrock Nether dimension `1`, `Respawn` state
 `1`, and the subsequent Java advancement without a bridge error. Dynamic
 dimension registries, dimension-specific world settings, and full respawn
 inventory/entity reconciliation remain open.
+
+The temporary Paper plugin also created a segmented boss bar and changed its
+health, color, and title. The Snappy probe on `127.0.0.1:19155` observed typed
+Bedrock boss-bar events `Show`, `HealthPercentage`, `AppearanceProperties`, and
+`Title` with a stable synthetic actor ID. The Java flags action is intentionally
+leniently recorded because the current Bedrock codec has no darken-sky/music/
+fog fields.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while

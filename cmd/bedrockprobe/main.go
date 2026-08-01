@@ -171,6 +171,8 @@ func main() {
 				fmt.Printf("Bedrock dimension change: dimension=%d position=%v respawn=%t\n", pk.Dimension, pk.Position, pk.Respawn)
 			case *packet.Respawn:
 				fmt.Printf("Bedrock respawn: state=%d position=%v entity=%d\n", pk.State, pk.Position, pk.EntityRuntimeID)
+			case *packet.BossEvent:
+				fmt.Printf("Bedrock boss bar: event=%d entity=%d player=%d title=%q health=%.2f color=%d overlay=%d\n", pk.EventType, pk.BossEntityUniqueID, pk.PlayerUniqueID, pk.BossBarTitle, pk.HealthPercentage, pk.Colour, pk.Overlay)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}
