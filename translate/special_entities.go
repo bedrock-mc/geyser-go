@@ -38,6 +38,10 @@ func bedrockEntityType(javaType string) string {
 		return "minecraft:xp_bottle"
 	case "minecraft:eye_of_ender":
 		return "minecraft:eye_of_ender_signal"
+	case "minecraft:potion", "minecraft:lingering_potion", "minecraft:splash_potion":
+		// Java's registry uses potion for the thrown potion actor; Bedrock
+		// exposes the splash-potion actor definition for both variants.
+		return "minecraft:splash_potion"
 	case "minecraft:firework_rocket":
 		return "minecraft:fireworks_rocket"
 	case "minecraft:fishing_bobber":
@@ -85,6 +89,17 @@ func javaEntitySpawnPosition(entityType string, position mgl32.Vec3) mgl32.Vec3 
 // spawn rather than emitting a hook with a broken fishing line.
 func javaSpawnEntityProjection(entityType string, objectData int32) (gtprotocol.EntityMetadata, bool) {
 	metadata := gtprotocol.NewEntityMetadataWithCapacity(8)
+	if javaThrowableItemEntity(entityType) {
+		// ThrowableItemEntity applies the half-size scale and starts hidden so
+		// a just-spawned projectile cannot obstruct the Bedrock camera before
+		// its first draw tick.
+		metadata[gtprotocol.EntityDataKeyScale] = float32(0.5)
+		setProjectedFlag(metadata, gtprotocol.EntityDataFlagInvisible, true)
+	} else if entityType == "minecraft:eye_of_ender" || entityType == "minecraft:eye_of_ender_signal" {
+		// The Java eye is already the right actor, but its Bedrock definition
+		// is twice the size without this entity-specific scale.
+		metadata[gtprotocol.EntityDataKeyScale] = float32(0.5)
+	}
 	if javaBoatEntity(entityType) {
 		if variant, ok := javaBoatVariant(entityType); ok {
 			metadata[gtprotocol.EntityDataKeyVariant] = variant
@@ -124,15 +139,31 @@ func javaSpawnEntityProjection(entityType string, objectData int32) (gtprotocol.
 		runtimeID, known := JavaBlockRuntimeID(objectData)
 		metadata[gtprotocol.EntityDataKeyDisplayTileRuntimeID] = int32(runtimeID)
 		return metadata, known
-	case "minecraft:fishing_hook":
+	case "minecraft:fishing_bobber", "minecraft:fishing_hook":
 		if objectData < 0 {
 			return metadata, false
 		}
-		// This bridge deliberately uses the Java entity ID as the Bedrock
-		// runtime ID, so the owner can be projected without a second lookup.
+		// The Basic session replaces this Java owner ID with the mapped
+		// Bedrock runtime ID before it writes AddActor. Keep the raw payload
+		// here so this pure projection remains useful to codec tests.
 		metadata[gtprotocol.EntityDataKeyOwner] = int64(uint32(objectData))
 	}
 	return metadata, true
+}
+
+func javaThrowableItemEntity(entityType string) bool {
+	switch entityType {
+	case "minecraft:egg", "minecraft:ender_pearl", "minecraft:experience_bottle",
+		"minecraft:lingering_potion", "minecraft:snowball", "minecraft:splash_potion",
+		"minecraft:xp_bottle", "minecraft:potion":
+		return true
+	default:
+		return false
+	}
+}
+
+func javaFishingHookEntity(entityType string) bool {
+	return entityType == "minecraft:fishing_bobber" || entityType == "minecraft:fishing_hook"
 }
 
 func setProjectedFlag(metadata gtprotocol.EntityMetadata, flag uint8, enabled bool) {

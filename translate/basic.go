@@ -82,6 +82,7 @@ type javaEntityState struct {
 	runtimeID          uint64
 	entityType         string
 	entityUUID         [16]byte
+	projectileHidden   bool
 	ownerUUID          [16]byte
 	hasOwnerUUID       bool
 	position           mgl32.Vec3
@@ -618,17 +619,25 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		}
 		b.mu.Lock()
 		entity := b.entities[velocity.EntityID]
+		var visibility gtprotocol.EntityMetadata
 		if entity != nil {
 			entity.velocity = velocity.Velocity
+			visibility = revealJavaProjectileLocked(entity)
 		}
 		b.mu.Unlock()
 		if entity == nil {
 			return nil
 		}
-		return bedrock.WritePacket(&packet.SetActorMotion{
+		if err := bedrock.WritePacket(&packet.SetActorMotion{
 			EntityRuntimeID: entity.runtimeID,
 			Velocity:        velocity.Velocity,
-		})
+		}); err != nil {
+			return err
+		}
+		if visibility != nil {
+			return bedrock.WritePacket(&packet.SetActorData{EntityRuntimeID: entity.runtimeID, EntityMetadata: visibility})
+		}
+		return nil
 	case b.Profile.PlayClientboundEntityEquipmentID:
 		equipment, err := DecodeEntityEquipment(pk.Data, b.nextStackNetworkID)
 		if err != nil {
@@ -1030,6 +1039,13 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 	currentFlagsTwo, _ := entity.metadata[gtprotocol.EntityDataKeyFlagsTwo].(int64)
 	if genericFlags, ok := metadata[gtprotocol.EntityDataKeyFlags].(int64); ok {
 		genericMask, genericMaskTwo := javaGenericEntityFlagMasks(update.Entries)
+		// Geyser owns the initial invisible state for throwable item
+		// projectiles. Java's shared flag byte does not control that state;
+		// the first movement update below reveals the actor after its draw
+		// window. Preserve the bridge-owned bit when Java sends defaults.
+		if javaThrowableItemEntity(entityType) && entity.projectileHidden {
+			genericMask &^= int64(1) << gtprotocol.EntityDataFlagInvisible
+		}
 		currentFlags = (currentFlags &^ genericMask) | (genericFlags & genericMask)
 		metadata[gtprotocol.EntityDataKeyFlags] = currentFlags
 		if genericFlagsTwo, hasGenericFlagsTwo := metadata[gtprotocol.EntityDataKeyFlagsTwo].(int64); hasGenericFlagsTwo || genericMaskTwo != 0 {
@@ -1317,6 +1333,16 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 			return nil
 		}
 	}
+	if javaFishingHookEntity(entityType) {
+		b.mu.Lock()
+		ownerRuntimeID := b.javaEntityRuntimeIDLocked(spawn.ObjectData)
+		b.mu.Unlock()
+		if ownerRuntimeID == 0 {
+			b.logSemanticAnomaly("skipping Java fishing hook without a visible owner", "entity", spawn.EntityID, "owner", spawn.ObjectData)
+			return nil
+		}
+		metadata[gtprotocol.EntityDataKeyOwner] = ownerRuntimeID
+	}
 	b.mu.Lock()
 	entity := &javaEntityState{
 		runtimeID:         runtimeID,
@@ -1329,6 +1355,9 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 		framePosition:     javaItemFramePosition(spawn.Position),
 		frameDirection:    spawn.ObjectData,
 		metadata:          metadata,
+	}
+	if javaThrowableItemEntity(entityType) {
+		entity.projectileHidden = true
 	}
 	if entity.frameDirection < 0 || entity.frameDirection > 5 {
 		entity.frameDirection = javaItemFrameDefaultDirection
@@ -1376,6 +1405,25 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 	return nil
 }
 
+// revealJavaProjectileLocked applies the short-lived ThrowableItemEntity
+// camera-occlusion guard. Java's metadata flag byte does not own this Bedrock
+// presentation detail; the first server movement is the earliest reliable
+// point at which the actor has entered the draw stream in this translator.
+func revealJavaProjectileLocked(entity *javaEntityState) gtprotocol.EntityMetadata {
+	if entity == nil || !entity.projectileHidden || !javaThrowableItemEntity(entity.entityType) {
+		return nil
+	}
+	if entity.metadata == nil {
+		entity.metadata = gtprotocol.NewEntityMetadata()
+	}
+	setProjectedFlag(entity.metadata, gtprotocol.EntityDataFlagInvisible, false)
+	entity.projectileHidden = false
+	return gtprotocol.EntityMetadata{
+		gtprotocol.EntityDataKeyFlags:    entity.metadata[gtprotocol.EntityDataKeyFlags],
+		gtprotocol.EntityDataKeyFlagsTwo: entity.metadata[gtprotocol.EntityDataKeyFlagsTwo],
+	}
+}
+
 func (b *Basic) translateEntityTeleport(bedrock *minecraft.Conn, payload []byte) error {
 	teleport, err := DecodeEntityTeleport(payload)
 	if err != nil {
@@ -1397,6 +1445,7 @@ func (b *Basic) translateEntityTeleport(bedrock *minecraft.Conn, payload []byte)
 	runtimeID := entity.runtimeID
 	position := entity.position
 	rotation := entity.rotation
+	visibility := revealJavaProjectileLocked(entity)
 	if entity.entityType == "minecraft:text_display" {
 		position = position.Add(entity.displayTranslation)
 		position[1] += entity.displayLineOffset
@@ -1406,12 +1455,18 @@ func (b *Basic) translateEntityTeleport(bedrock *minecraft.Conn, payload []byte)
 	if teleport.OnGround {
 		flags |= packet.MoveFlagOnGround
 	}
-	return bedrock.WritePacket(&packet.MoveActorAbsolute{
+	if err := bedrock.WritePacket(&packet.MoveActorAbsolute{
 		EntityRuntimeID: runtimeID,
 		Flags:           flags,
 		Position:        position,
 		Rotation:        rotation,
-	})
+	}); err != nil {
+		return err
+	}
+	if visibility != nil {
+		return bedrock.WritePacket(&packet.SetActorData{EntityRuntimeID: runtimeID, EntityMetadata: visibility})
+	}
+	return nil
 }
 
 func (b *Basic) translateEntityRelativeMove(bedrock *minecraft.Conn, payload []byte, hasRotation bool) error {
@@ -1432,6 +1487,7 @@ func (b *Basic) translateEntityRelativeMove(bedrock *minecraft.Conn, payload []b
 	runtimeID := entity.runtimeID
 	position := entity.position
 	rotation := entity.rotation
+	visibility := revealJavaProjectileLocked(entity)
 	if entity.entityType == "minecraft:text_display" {
 		position = position.Add(entity.displayTranslation)
 		position[1] += entity.displayLineOffset
@@ -1444,12 +1500,18 @@ func (b *Basic) translateEntityRelativeMove(bedrock *minecraft.Conn, payload []b
 	if move.OnGround {
 		flags |= packet.MoveActorDeltaFlagOnGround
 	}
-	return bedrock.WritePacket(&packet.MoveActorDelta{
+	if err := bedrock.WritePacket(&packet.MoveActorDelta{
 		EntityRuntimeID: runtimeID,
 		Flags:           flags,
 		Position:        position,
 		Rotation:        rotation,
-	})
+	}); err != nil {
+		return err
+	}
+	if visibility != nil {
+		return bedrock.WritePacket(&packet.SetActorData{EntityRuntimeID: runtimeID, EntityMetadata: visibility})
+	}
+	return nil
 }
 
 func (b *Basic) translateEntityLook(bedrock *minecraft.Conn, payload []byte) error {

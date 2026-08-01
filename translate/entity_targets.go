@@ -19,6 +19,17 @@ func (b *Basic) javaEntityRuntimeIDLocked(entityID int32) int64 {
 func (b *Basic) translateEntityTargetMetadataLocked(entityType string, entries []JavaEntityMetadataEntry, metadata gtprotocol.EntityMetadata) {
 	for _, entry := range entries {
 		switch {
+		case javaFishingHookEntity(entityType) && entry.Index == 8:
+			// Java stores the hooked entity as entity-id + 1. Bedrock needs
+			// the actor runtime ID, and zero is the safe clear value when the
+			// entity has already despawned or has not reached this session.
+			if target, ok := javaIntegerValue(entry.Value); ok {
+				if target > 0 {
+					metadata[gtprotocol.EntityDataKeyTarget] = b.javaEntityRuntimeIDLocked(int32(target - 1))
+				} else {
+					metadata[gtprotocol.EntityDataKeyTarget] = int64(0)
+				}
+			}
 		case entityType == "minecraft:guardian" && entry.Index == 17:
 			if target, ok := javaIntegerValue(entry.Value); ok {
 				metadata[gtprotocol.EntityDataKeyTarget] = b.javaEntityRuntimeIDLocked(int32(target))

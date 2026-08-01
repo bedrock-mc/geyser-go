@@ -58,6 +58,12 @@ protocol parity.
   Spectral-arrow texture flags, arrow critical/tipped-display metadata, and
   trident critical/enchantment flags are also projected; native projectile
   rendering and collision remain open.
+  Throwable Java projectile aliases and Bedrock defaults now cover eggs,
+  snowballs, ender pearls, experience bottles, potions, and eyes of ender,
+  including half-scale metadata and the short invisible draw window. Fishing
+  hook owners and hooked targets resolve through the Java-to-Bedrock actor map;
+  projectile simulation, potion/firework item payloads, hook casting, and
+  native rendering remain open.
   Java `text_display` and `interaction` entities now use Geyser's
   armor-stand-backed projection with text/name-tag metadata, multiline offset,
   display translation, and interaction size updates. Item/block display
@@ -349,6 +355,15 @@ probe on `127.0.0.1:19179` received `arrow`, `spectral_arrow`, and Bedrock's
 reported no bridge translation error. The tipped-color and trident-enchantment
 updates are covered by focused tests; native projectile rendering, collision,
 and the remaining projectile metadata remain open.
+
+A follow-up Paper fixture spawned real egg, snowball, ender-pearl,
+experience-bottle, potion, and eye-of-ender entities. The Snappy probe on
+`127.0.0.1:19197` received `egg`, `snowball`, `ender_pearl`, `xp_bottle`,
+`splash_potion`, and `eye_of_ender_signal` actors at scale `0.5`; throwable
+actors then received the invisible-bit clear update on their velocity packet,
+including zero-motion projectiles, with no bridge translation error. Paper’s
+API rejects direct `FishHook` fixture spawning, so fishing-hook owner/target
+behavior is unit-tested and not represented as a live-closed gate yet.
 
 The Paper entity fixture also spawned a baby/sheared blue sheep, a flagged armor
 stand, a baby/tamed/sitting cat, a sleeping/interested fox, a killer rabbit, an

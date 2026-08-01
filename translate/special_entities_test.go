@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bedrock-mc/geyser-go/data"
+	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/go-gl/mathgl/mgl32"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 )
@@ -34,6 +35,12 @@ func TestBedrockEntityTypeOverrides(t *testing.T) {
 	if got := bedrockEntityType("minecraft:pig"); got != "minecraft:pig" {
 		t.Fatalf("ordinary entity identifier changed to %q", got)
 	}
+	if got := bedrockEntityType("minecraft:lingering_potion"); got != "minecraft:splash_potion" {
+		t.Fatalf("lingering-potion Bedrock identifier = %q", got)
+	}
+	if got := bedrockEntityType("minecraft:potion"); got != "minecraft:splash_potion" {
+		t.Fatalf("potion Bedrock identifier = %q", got)
+	}
 }
 
 func TestJavaEntitySpawnProjectionDefaults(t *testing.T) {
@@ -62,6 +69,20 @@ func TestJavaEntitySpawnProjectionDefaults(t *testing.T) {
 	boat, ok := javaSpawnEntityProjection("minecraft:pale_oak_boat", 0)
 	if !ok || boat[gtprotocol.EntityDataKeyVariant] != int32(9) || boat[gtprotocol.EntityDataKeyIsBuoyant] != byte(1) || boat[gtprotocol.EntityDataKeyBuoyancyData] != javaBoatBuoyancyData || !boat.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagCollidable-64) {
 		t.Fatalf("boat spawn metadata = %#v, ok=%t", boat, ok)
+	}
+	for _, entityType := range []string{
+		"minecraft:egg", "minecraft:ender_pearl", "minecraft:experience_bottle",
+		"minecraft:splash_potion", "minecraft:lingering_potion", "minecraft:snowball",
+		"minecraft:xp_bottle", "minecraft:potion",
+	} {
+		projectile, ok := javaSpawnEntityProjection(entityType, 0)
+		if !ok || projectile[gtprotocol.EntityDataKeyScale] != float32(0.5) || !projectile.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagInvisible) {
+			t.Fatalf("throwable projectile %s spawn metadata = %#v, ok=%t", entityType, projectile, ok)
+		}
+	}
+	eye, ok := javaSpawnEntityProjection("minecraft:eye_of_ender_signal", 0)
+	if !ok || eye[gtprotocol.EntityDataKeyScale] != float32(0.5) || eye.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagInvisible) {
+		t.Fatalf("eye-of-ender spawn metadata = %#v, ok=%t", eye, ok)
 	}
 
 	if got := javaEntitySpawnPosition("minecraft:leash_knot", mgl32.Vec3{10, 20, 30}); got != (mgl32.Vec3{10.5, 20.25, 30.5}) {
@@ -337,5 +358,40 @@ func TestJavaSpawnEntityProjection(t *testing.T) {
 	}
 	if _, ok := javaSpawnEntityProjection("minecraft:fishing_hook", -1); ok {
 		t.Fatal("ownerless fishing hook was projected")
+	}
+}
+
+func TestFishingHookTargetProjection(t *testing.T) {
+	b := NewBasic(javaprotocol.Java1214, nil)
+	b.entities[17] = &javaEntityState{runtimeID: 117}
+	metadata := gtprotocol.NewEntityMetadata()
+	b.mu.Lock()
+	b.translateEntityTargetMetadataLocked("minecraft:fishing_bobber", []JavaEntityMetadataEntry{{Index: 8, Type: 1, Value: int32(18)}}, metadata)
+	b.mu.Unlock()
+	if got := metadata[gtprotocol.EntityDataKeyTarget]; got != int64(117) {
+		t.Fatalf("hook target runtime ID = %#v, want 117", got)
+	}
+
+	metadata = gtprotocol.NewEntityMetadata()
+	b.mu.Lock()
+	b.translateEntityTargetMetadataLocked("minecraft:fishing_bobber", []JavaEntityMetadataEntry{{Index: 8, Type: 1, Value: int32(0)}}, metadata)
+	b.mu.Unlock()
+	if got := metadata[gtprotocol.EntityDataKeyTarget]; got != int64(0) {
+		t.Fatalf("cleared hook target runtime ID = %#v, want 0", got)
+	}
+}
+
+func TestThrowableProjectileVisibilityReveal(t *testing.T) {
+	metadata, ok := javaSpawnEntityProjection("minecraft:egg", 0)
+	if !ok {
+		t.Fatal("egg projection rejected")
+	}
+	entity := &javaEntityState{entityType: "minecraft:egg", metadata: metadata, projectileHidden: true}
+	visibility := revealJavaProjectileLocked(entity)
+	if entity.projectileHidden || visibility == nil || visibility.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagInvisible) {
+		t.Fatalf("projectile reveal state = hidden=%t metadata=%#v", entity.projectileHidden, visibility)
+	}
+	if metadata.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagInvisible) {
+		t.Fatalf("stored projectile metadata kept invisible bit: %#v", metadata)
 	}
 }
