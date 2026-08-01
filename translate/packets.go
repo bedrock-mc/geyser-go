@@ -138,7 +138,7 @@ func DecodeJoinGame(data []byte) (JoinGame, error) {
 	}, nil
 }
 
-func (j JoinGame) GameData(bedrock *minecraft.Conn, items []gtprotocol.ItemEntry) minecraft.GameData {
+func (j JoinGame) GameData(bedrock *minecraft.Conn, items []gtprotocol.ItemEntry, configurations ...javaprotocol.ConfigurationData) minecraft.GameData {
 	worldName := "Java server"
 	if len(j.WorldNames) > 0 && j.WorldNames[0] != "" {
 		worldName = j.WorldNames[0]
@@ -147,7 +147,14 @@ func (j JoinGame) GameData(bedrock *minecraft.Conn, items []gtprotocol.ItemEntry
 	if mode < 0 || mode > 3 {
 		mode = 0
 	}
+	catalog := javaDimensionCatalog{}
+	if len(configurations) != 0 {
+		catalog = newJavaDimensionCatalog(configurations[0])
+	}
 	dimension := javaDimensionID(j.World.Name)
+	if id, ok := catalog.IDs[j.World.Name]; ok {
+		dimension = id
+	}
 	position := mgl32.Vec3{0.5, 80, 0.5}
 	baseVersion := "1.26.30"
 	if bedrock != nil && bedrock.Proto() != nil {
@@ -164,6 +171,7 @@ func (j JoinGame) GameData(bedrock *minecraft.Conn, items []gtprotocol.ItemEntry
 		PlayerMovementSettings: gtprotocol.PlayerMovementSettings{
 			ServerAuthoritativeBlockBreaking: true,
 		},
+		Dimensions: catalog.Definitions,
 	}
 }
 

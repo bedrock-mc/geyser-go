@@ -41,6 +41,19 @@ type ConfigurationData struct {
 	ResetChat    bool
 }
 
+// Registry returns the first retained registry with the requested resource
+// location. Java sends each registry at most once in a normal configuration,
+// but returning the first entry keeps this accessor deterministic if a
+// lenient server repeats a registry packet.
+func (c ConfigurationData) Registry(id string) (RegistryData, bool) {
+	for _, registry := range c.Registries {
+		if registry.ID == id {
+			return registry, true
+		}
+	}
+	return RegistryData{}, false
+}
+
 // DecodeRegistryData decodes Java's configuration registry_data packet. A
 // malformed length, NBT value, or trailing byte is a wire error; an unknown
 // registry identifier is valid and is preserved for the caller.

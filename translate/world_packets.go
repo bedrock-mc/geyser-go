@@ -797,7 +797,7 @@ func (b *Basic) translateJavaRespawn(bedrock *minecraft.Conn, data []byte) error
 		b.logSemanticAnomaly("skipping Java respawn with unknown game mode", "mode", respawn.World.GameMode)
 		return nil
 	}
-	newDimension := javaDimensionID(respawn.World.Name)
+	newDimension := b.javaDimensionID(respawn.World.Name)
 	b.mu.Lock()
 	oldDimension := b.gameData.Dimension
 	position := mgl32.Vec3{float32(b.position.x), float32(b.position.y), float32(b.position.z)}

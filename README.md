@@ -118,9 +118,10 @@ protocol parity.
   server-backed suggestions, registry-backed argument enums, and command
   descriptions remain open.
   Java configuration registry_data, feature flags, reset-chat, and tag packets
-  are now decoded and retained on the negotiated client, leaving dynamic
-  dimension/biome translation and Bedrock registry projection as follow-up
-  work.
+  are now decoded and retained on the negotiated client. Valid custom
+  `dimension_type` entries receive deterministic Bedrock data-driven IDs and
+  vertical layouts for joins, respawns, chunks, and unloads; dynamic biome
+  translation and broader Bedrock registry projection remain follow-up work.
   Java 1.21.4 resource-pack push/pop packets now have bounded decoders, and
   required packs receive the Java accepted/downloaded/successfully-loaded
   status sequence while optional packs receive declined. Bedrock pack hosting,
@@ -197,9 +198,10 @@ and the bridge emitted no translation errors.
 
 The same listener also passed a cross-dimension Paper teleport: the probe
 received `ChangeDimension` for Bedrock Nether dimension `1`, `Respawn` state
-`1`, and the subsequent Java advancement without a bridge error. Dynamic
-dimension registries, dimension-specific world settings, and full respawn
-inventory/entity reconciliation remain open.
+`1`, and the subsequent Java advancement without a bridge error. Custom
+dimension registry projection is covered by focused tests; a live custom-world
+readback, dimension-specific world settings, and full respawn inventory/entity
+reconciliation remain open.
 
 The temporary Paper plugin also created a segmented boss bar and changed its
 health, color, and title. The Snappy probe on `127.0.0.1:19155` observed typed

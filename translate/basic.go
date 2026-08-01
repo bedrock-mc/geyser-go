@@ -39,6 +39,8 @@ type Basic struct {
 
 	mu                    sync.Mutex
 	gameData              minecraft.GameData
+	dimensionIDs          map[string]int32
+	dimensionLayouts      map[int32]javaDimensionLayout
 	position              javaPosition
 	playerItems           [46]gtprotocol.ItemInstance
 	cursorItem            gtprotocol.ItemInstance
@@ -92,6 +94,8 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 	return &Basic{
 		Profile:               profile,
 		Logger:                logger,
+		dimensionIDs:          make(map[string]int32),
+		dimensionLayouts:      make(map[int32]javaDimensionLayout),
 		entities:              make(map[int32]*javaEntityState),
 		players:               make(map[[16]byte]*javaPlayerState),
 		bossBars:              make(map[[16]byte]*javaBossBarState),
@@ -135,18 +139,24 @@ func (b *Basic) Bootstrap(ctx context.Context, bedrock *minecraft.Conn, java *ja
 			if err != nil {
 				return err
 			}
-			b.gameData = join.GameData(bedrock, items)
+			catalog := newJavaDimensionCatalog(java.Configuration)
+			gameData := join.GameData(bedrock, items, java.Configuration)
+			b.mu.Lock()
+			b.dimensionIDs = catalog.IDs
+			b.dimensionLayouts = catalog.Layouts
+			b.gameData = gameData
 			b.position = javaPosition{
 				x:   float64(b.gameData.PlayerPosition.X()),
 				y:   float64(b.gameData.PlayerPosition.Y()),
 				z:   float64(b.gameData.PlayerPosition.Z()),
 				yaw: b.gameData.Yaw, pitch: b.gameData.Pitch,
 			}
-			if err := bedrock.SendStartGame(b.gameData); err != nil {
+			b.mu.Unlock()
+			if err := bedrock.SendStartGame(gameData); err != nil {
 				return fmt.Errorf("translate: send Bedrock StartGame: %w", err)
 			}
 			if err := bedrock.WritePacket(&packet.NetworkChunkPublisherUpdate{
-				Position: b.gameData.WorldSpawn,
+				Position: gameData.WorldSpawn,
 				Radius:   defaultChunkRadius * 16,
 			}); err != nil {
 				return fmt.Errorf("translate: send chunk publisher: %w", err)
@@ -291,7 +301,17 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		if err != nil {
 			return err
 		}
-		raw, sections, err := EncodeBedrockChunk(chunk, b.gameData.Dimension)
+		b.mu.Lock()
+		dimension := b.gameData.Dimension
+		layout, hasLayout := b.dimensionLayouts[dimension]
+		b.mu.Unlock()
+		var raw []byte
+		var sections uint32
+		if hasLayout {
+			raw, sections, err = EncodeBedrockChunkWithLayout(chunk, dimension, layout)
+		} else {
+			raw, sections, err = EncodeBedrockChunk(chunk, dimension)
+		}
 		if err != nil {
 			return err
 		}
@@ -302,7 +322,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		}
 		return bedrock.WritePacket(&packet.LevelChunk{
 			Position:      gtprotocol.ChunkPos{chunk.X, chunk.Z},
-			Dimension:     b.gameData.Dimension,
+			Dimension:     dimension,
 			SubChunkCount: sections,
 			RawPayload:    raw,
 		})
@@ -433,11 +453,19 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		if err != nil {
 			return err
 		}
+		b.mu.Lock()
+		dimension := b.gameData.Dimension
+		layout, hasLayout := b.dimensionLayouts[dimension]
+		b.mu.Unlock()
+		emptyPayload := EmptyBedrockChunkPayload(dimension)
+		if hasLayout {
+			emptyPayload = EmptyBedrockChunkPayloadWithLayout(layout)
+		}
 		return bedrock.WritePacket(&packet.LevelChunk{
 			Position:      gtprotocol.ChunkPos{chunk.X, chunk.Z},
-			Dimension:     b.gameData.Dimension,
+			Dimension:     dimension,
 			SubChunkCount: 0,
-			RawPayload:    EmptyBedrockChunkPayload(b.gameData.Dimension),
+			RawPayload:    emptyPayload,
 		})
 	case b.Profile.PlayClientboundOpenWindowID:
 		window, err := DecodeJavaOpenWindow(pk.Data)

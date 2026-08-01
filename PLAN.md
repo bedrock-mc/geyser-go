@@ -117,8 +117,10 @@ native Bedrock validation, and performance evidence are separate gates.
   Bedrock translation packets, with bounded plain-text fallback for nested
   components; locale coverage, styling, and exact key mappings remain open.
 - [x] Retain Java 1.21.4 configuration registry data, feature flags, reset-chat,
-  and tag registries with bounded decoders; dynamic dimension/biome translation
-  and Bedrock registry projection remain open.
+  and tag registries with bounded decoders; project valid custom
+  `dimension_type` entries to deterministic Bedrock data-driven definitions and
+  matching vertical chunk layouts. Dynamic biome translation and broader Bedrock
+  registry projection remain open.
 - [x] Decode Java 1.21.4 resource-pack push/pop packets and acknowledge the
   required accepted/downloaded/successfully-loaded sequence plus optional
   declined status; Bedrock pack hosting, download, cache, stack delivery, and
@@ -165,8 +167,9 @@ virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration. Java difficulty, game-state
 mode/credits/weather cues, default spawn position, title/action-bar packets,
-and the initial respawn/dimension path now have typed bounded paths, but dynamic
-dimension registries, native particle rendering, and the remaining world-event
+and the initial respawn/dimension path now have typed bounded paths, including
+custom dimension definitions and vertical layouts, but dynamic biome registries,
+native particle rendering, and the remaining world-event
 mappings are still open. Boss-bar add/remove/health/title/style packets have a typed,
 live-tested path, and positional/entity sound plus stop-sound packets now have
 a generated, live-tested path; flags, custom sound packs, and broader

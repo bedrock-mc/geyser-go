@@ -291,6 +291,23 @@ func skipByteArrays(r *javaprotocol.Reader, what string) error {
 // sections with empty sections.
 func EncodeBedrockChunk(chunk JavaChunk, dimension int32) ([]byte, uint32, error) {
 	sectionCount, minSection := bedrockDimensionSections(dimension)
+	return encodeBedrockChunk(chunk, dimension, sectionCount, minSection)
+}
+
+// EncodeBedrockChunkWithLayout uses a dimension_type layout retained from
+// Java's configuration registry. The caller must use the same layout for the
+// LevelChunk dimension field and its StartGame dimension definition.
+func EncodeBedrockChunkWithLayout(chunk JavaChunk, dimension int32, layout javaDimensionLayout) ([]byte, uint32, error) {
+	return encodeBedrockChunk(chunk, dimension, layout.SectionCount, layout.MinSection)
+}
+
+func encodeBedrockChunk(chunk JavaChunk, dimension int32, sectionCount, minSection int) ([]byte, uint32, error) {
+	if sectionCount <= 0 || sectionCount > maxChunkSections {
+		return nil, 0, fmt.Errorf("translate: invalid Bedrock section count %d for dimension %d", sectionCount, dimension)
+	}
+	if minSection < -128 || minSection+sectionCount-1 > 127 {
+		return nil, 0, fmt.Errorf("translate: Bedrock section range %d..%d cannot be represented for dimension %d", minSection, minSection+sectionCount-1, dimension)
+	}
 	if len(chunk.Sections) > maxChunkSections {
 		return nil, 0, fmt.Errorf("translate: Java chunk has %d sections", len(chunk.Sections))
 	}
@@ -352,6 +369,19 @@ func EncodeBedrockChunk(chunk JavaChunk, dimension int32) ([]byte, uint32, error
 // vertical sections.
 func EmptyBedrockChunkPayload(dimension int32) []byte {
 	sectionCount, _ := bedrockDimensionSections(dimension)
+	return emptyBedrockChunkPayload(sectionCount)
+}
+
+// EmptyBedrockChunkPayloadWithLayout returns the empty-chunk payload for a
+// custom Java dimension layout.
+func EmptyBedrockChunkPayloadWithLayout(layout javaDimensionLayout) []byte {
+	return emptyBedrockChunkPayload(layout.SectionCount)
+}
+
+func emptyBedrockChunkPayload(sectionCount int) []byte {
+	if sectionCount <= 0 || sectionCount > maxChunkSections {
+		return []byte{1, 0, 0}
+	}
 	payload := make([]byte, 0, sectionCount+2)
 	payload = append(payload, 1, 0) // singleton biome palette, runtime ID 0
 	for i := 1; i < sectionCount; i++ {
