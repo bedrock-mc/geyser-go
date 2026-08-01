@@ -24,8 +24,9 @@ native Bedrock validation, and performance evidence are separate gates.
   packets. Forward Bedrock held-slot, arm-swing, and basic interact/attack
   packets to their Java equivalents; stack requests, target-specific entity
   semantics, vehicles, and reconciliation remain open.
-- [x] Forward Java 1.21.4 single-block changes, chunk unloads, world time, and
-  the basic non-player entity lifecycle with generated Java registry lookups.
+- [x] Forward Java 1.21.4 single-block and section multi-block changes, chunk
+  unloads, world time, and the basic non-player entity lifecycle with generated
+  Java registry lookups.
 - [x] Translate the Java player-window inventory snapshot/slot slice and the
   common Java system/player/profileless chat packets into typed Bedrock
   packets; cover the wire decoders, unsupported-component skip behavior, and
@@ -54,7 +55,8 @@ windows, cursor/transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
 block/item/selection/entity-action path is present, but stack requests,
 target-specific entity semantics, vehicle input, and client prediction
-reconciliation remain open. The inventory slice is
+reconciliation remain open. Java section block updates and auth-input state
+edges are present. The inventory slice is
 limited to the Java player window and safely skips updates containing components
 it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,

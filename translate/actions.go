@@ -13,6 +13,9 @@ func (b *Basic) translatePlayerAuthInputActions(java *javaprotocol.Client, input
 	if input == nil {
 		return nil
 	}
+	if err := b.translatePlayerAuthInputState(java, input); err != nil {
+		return err
+	}
 	for _, action := range input.BlockActions {
 		status, ok := javaPlayerActionStatus(action.Action)
 		if !ok {
@@ -71,6 +74,63 @@ func (b *Basic) translatePlayerAuthInputActions(java *javaprotocol.Client, input
 		b.logSemanticAnomaly("skipping Bedrock item stack request until Java inventory transactions are implemented", "actions", len(input.ItemStackRequest.Actions))
 	}
 	return nil
+}
+
+// translatePlayerAuthInputState forwards the edge-triggered movement state
+// carried by modern Bedrock clients. The client can include both edges in one
+// bitset; in that case the state already held by the bridge determines whether
+// a Java transition is needed, matching Geyser's last-known-state behavior.
+func (b *Basic) translatePlayerAuthInputState(java *javaprotocol.Client, input *packet.PlayerAuthInput) error {
+	if err := b.translateAuthBooleanState(java, input, packet.InputFlagStartSprinting, packet.InputFlagStopSprinting, &b.sprinting, 3, 4); err != nil {
+		return err
+	}
+	if err := b.translateAuthBooleanState(java, input, packet.InputFlagStartSneaking, packet.InputFlagStopSneaking, &b.sneaking, 0, 1); err != nil {
+		return err
+	}
+	startGliding := loadInputFlag(input, packet.InputFlagStartGliding)
+	stopGliding := loadInputFlag(input, packet.InputFlagStopGliding)
+	if startGliding && !stopGliding {
+		if err := b.translateTrackedState(java, &b.gliding, true, 8); err != nil { // START_ELYTRA_FLYING
+			return err
+		}
+	} else if stopGliding {
+		b.mu.Lock()
+		b.gliding = false
+		b.mu.Unlock()
+	}
+	return nil
+}
+
+func (b *Basic) translateAuthBooleanState(java *javaprotocol.Client, input *packet.PlayerAuthInput, startFlag, stopFlag int, state *bool, startAction, stopAction int32) error {
+	start := loadInputFlag(input, startFlag)
+	stop := loadInputFlag(input, stopFlag)
+	if !start && !stop {
+		return nil
+	}
+	desired := start
+	if start && stop {
+		desired = false
+	}
+	if desired {
+		return b.translateTrackedState(java, state, true, startAction)
+	}
+	return b.translateTrackedState(java, state, false, stopAction)
+}
+
+func (b *Basic) translateTrackedState(java *javaprotocol.Client, state *bool, desired bool, action int32) error {
+	b.mu.Lock()
+	if *state == desired {
+		b.mu.Unlock()
+		return nil
+	}
+	*state = desired
+	entityID := int32(uint32(b.gameData.EntityRuntimeID))
+	b.mu.Unlock()
+	data, err := encodeJavaEntityAction(entityID, action, 0)
+	if err != nil {
+		return err
+	}
+	return java.Conn.WritePacket(b.Profile.PlayServerboundEntityActionID, data)
 }
 
 func javaPlayerActionStatus(action int32) (int32, bool) {

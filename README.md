@@ -44,10 +44,12 @@ protocol parity.
   open. Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
-  also emitted as Java packets. Bedrock held-slot changes, arm swings, and
-  basic interact/attack actions now emit Java held-item, arm-animation, and
-  use-entity packets. Full stack-request validation, target-specific entity
-  semantics, vehicle input, and prediction reconciliation remain open.
+  also emitted as Java packets. Bedrock auth-input sprint/sneak/glide edges,
+  held-slot changes, arm swings, and basic interact/attack actions now emit
+  Java state, held-item, arm-animation, and use-entity packets. Java section
+  multi-block updates are emitted as one Bedrock subchunk update. Full
+  stack-request validation, target-specific entity semantics, vehicle input,
+  and prediction reconciliation remain open.
 
 ## Authoritative references
 

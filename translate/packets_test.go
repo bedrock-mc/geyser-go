@@ -1,6 +1,7 @@
 package translate
 
 import (
+	"math"
 	"testing"
 
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
@@ -116,5 +117,17 @@ func TestDecodePositionAndHealth(t *testing.T) {
 	}
 	if health != 18.5 {
 		t.Fatalf("health=%v", health)
+	}
+}
+
+func TestFinitePositionUpdate(t *testing.T) {
+	valid := PositionUpdate{X: 1, Y: 2, Z: 3, DeltaX: 0.1, DeltaY: 0.2, DeltaZ: 0.3, Yaw: 90, Pitch: -15}
+	if !finitePositionUpdate(valid) {
+		t.Fatal("finite position update was rejected")
+	}
+	invalid := valid
+	invalid.DeltaY = math.NaN()
+	if finitePositionUpdate(invalid) {
+		t.Fatal("non-finite position update was accepted")
 	}
 }

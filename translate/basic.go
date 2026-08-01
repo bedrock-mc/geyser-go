@@ -46,6 +46,9 @@ type Basic struct {
 	players      map[[16]byte]*javaPlayerState
 	nextStackID  int32
 	nextSequence int32
+	sprinting    bool
+	sneaking     bool
+	gliding      bool
 	unknown      map[int32]uint64
 }
 
@@ -217,6 +220,30 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			Flags:             packet.BlockUpdateNeighbours | packet.BlockUpdateNetwork,
 			Layer:             0,
 		})
+	case b.Profile.PlayClientboundMultiBlockChangeID:
+		update, err := DecodeMultiBlockChange(pk.Data)
+		if err != nil {
+			return err
+		}
+		entries := make([]gtprotocol.BlockChangeEntry, 0, len(update.Changes))
+		for _, change := range update.Changes {
+			runtimeID, known := JavaBlockRuntimeID(change.StateID)
+			if !known {
+				b.logSemanticAnomaly("Java multi-block state outside generated registry", "state", change.StateID)
+			}
+			entries = append(entries, gtprotocol.BlockChangeEntry{
+				BlockPos:       change.Position,
+				BlockRuntimeID: runtimeID,
+				Flags:          packet.BlockUpdateNeighbours | packet.BlockUpdateNetwork,
+			})
+		}
+		if len(entries) == 0 {
+			return nil
+		}
+		return bedrock.WritePacket(&packet.UpdateSubChunkBlocks{
+			Position: gtprotocol.BlockPos{update.SectionX * 16, update.SectionY * 16, update.SectionZ * 16},
+			Blocks:   entries,
+		})
 	case b.Profile.PlayClientboundBlockEntityDataID:
 		update, err := DecodeBlockEntityUpdate(pk.Data)
 		if err != nil {
@@ -261,6 +288,10 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		position, err := DecodePositionUpdate(pk.Data)
 		if err != nil {
 			return err
+		}
+		if !finitePositionUpdate(position) {
+			b.logSemanticAnomaly("skipping Java position update with non-finite movement", "teleport_id", position.TeleportID)
+			return nil
 		}
 		b.applyPosition(position)
 		if err := java.Conn.WritePacket(b.Profile.PlayServerboundTeleportConfirmID, encodeTeleportConfirm(position.TeleportID)); err != nil {
@@ -957,6 +988,17 @@ func (b *Basic) applyPosition(update PositionUpdate) {
 	} else {
 		b.position.pitch = update.Pitch
 	}
+}
+
+func finitePositionUpdate(update PositionUpdate) bool {
+	values := []float64{update.X, update.Y, update.Z, update.DeltaX, update.DeltaY, update.DeltaZ,
+		float64(update.Yaw), float64(update.Pitch)}
+	for _, value := range values {
+		if math.IsNaN(value) || math.IsInf(value, 0) {
+			return false
+		}
+	}
+	return true
 }
 
 func (b *Basic) logUnknown(id int32, state string) {

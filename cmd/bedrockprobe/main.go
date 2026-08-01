@@ -20,6 +20,7 @@ func main() {
 	sendAuthInput := flag.Bool("send-auth-input", false, "send one PlayerAuthInput movement packet after spawn")
 	sendBlockAction := flag.Bool("send-block-action", false, "include one block-break action in the auth-input packet")
 	sendItemUse := flag.Bool("send-item-use", false, "include one click-air item interaction in the auth-input packet")
+	sendStateActions := flag.Bool("send-state-actions", false, "include sprint, sneak, and glide state edges in the auth-input packet")
 	sendHeldSlot := flag.Bool("send-held-slot", false, "send one held-hotbar-slot update after spawn")
 	sendArm := flag.Bool("send-arm", false, "send one arm-swing animation after spawn")
 	sendEntityInteract := flag.Bool("send-entity-interact", false, "send one self entity interaction after spawn")
@@ -66,6 +67,11 @@ func main() {
 				ActionType: protocol.UseItemActionClickAir,
 				Position:   auth.Position,
 			}
+		}
+		if *sendStateActions {
+			input.Set(packet.InputFlagStartSprinting)
+			input.Set(packet.InputFlagStartSneaking)
+			input.Set(packet.InputFlagStartGliding)
 		}
 		if err := conn.WritePacket(auth); err != nil {
 			panic(err)
