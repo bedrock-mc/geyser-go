@@ -300,6 +300,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			return err
 		}
 		b.mu.Lock()
+		publisherPosition := floorBlockPosition(b.position)
 		move := packet.MovePlayer{
 			EntityRuntimeID: b.gameData.EntityRuntimeID,
 			Position:        mgl32.Vec3{float32(b.position.x), float32(b.position.y), float32(b.position.z)},
@@ -310,6 +311,12 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			TeleportCause:   0,
 		}
 		b.mu.Unlock()
+		if err := bedrock.WritePacket(&packet.NetworkChunkPublisherUpdate{
+			Position: publisherPosition,
+			Radius:   defaultChunkRadius * 16,
+		}); err != nil {
+			return fmt.Errorf("translate: send chunk publisher update: %w", err)
+		}
 		return bedrock.WritePacket(&move)
 	case b.Profile.PlayClientboundUpdateHealthID:
 		health, err := DecodeHealthUpdate(pk.Data)
@@ -993,6 +1000,14 @@ func (b *Basic) applyPosition(update PositionUpdate) {
 		b.position.pitch += update.Pitch
 	} else {
 		b.position.pitch = update.Pitch
+	}
+}
+
+func floorBlockPosition(position javaPosition) gtprotocol.BlockPos {
+	return gtprotocol.BlockPos{
+		int32(math.Floor(position.x)),
+		int32(math.Floor(position.y)),
+		int32(math.Floor(position.z)),
 	}
 }
 

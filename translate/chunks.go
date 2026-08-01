@@ -432,6 +432,9 @@ func writeBedrockStorage(out *bytes.Buffer, values []uint32) {
 }
 
 func bedrockBitsForPalette(size int) int {
+	if size <= 1 {
+		return 0
+	}
 	for _, bits := range []int{1, 2, 3, 4, 5, 6, 8, 16} {
 		if size <= 1<<bits {
 			return bits
