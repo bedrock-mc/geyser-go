@@ -52,6 +52,62 @@ func projectJavaBlockEntityPayloadWithResolver(javaName string, tag map[string]a
 		}
 	case "shulker_box":
 		projectJavaShulkerBox(tag, stateName)
+	case "chest", "trapped_chest":
+		projectJavaChest(tag, stateName)
+	}
+}
+
+// projectJavaChest adds the Bedrock-only pairing fields used for Java double
+// chests. Geyser derives the partner position from the Java chest state; a
+// missing or malformed state is intentionally left as a valid single chest.
+func projectJavaChest(tag map[string]any, stateName string) {
+	chestType, ok := javaBlockStateProperty(stateName, "type")
+	if !ok || (chestType != "left" && chestType != "right") {
+		return
+	}
+	facing, ok := javaBlockStateProperty(stateName, "facing")
+	if !ok {
+		return
+	}
+	xValue, xOK := javaNBTInt64Value(tag["x"])
+	zValue, zOK := javaNBTInt64Value(tag["z"])
+	if !xOK || !zOK || xValue < -1<<31 || xValue > 1<<31-1 || zValue < -1<<31 || zValue > 1<<31-1 {
+		return
+	}
+	x, z := int32(xValue), int32(zValue)
+	isLeft := chestType == "left"
+	switch facing {
+	case "east":
+		if isLeft {
+			z++
+		} else {
+			z--
+		}
+	case "west":
+		if isLeft {
+			z--
+		} else {
+			z++
+		}
+	case "south":
+		if isLeft {
+			x--
+		} else {
+			x++
+		}
+	case "north":
+		if isLeft {
+			x++
+		} else {
+			x--
+		}
+	default:
+		return
+	}
+	tag["pairx"] = x
+	tag["pairz"] = z
+	if !isLeft {
+		tag["pairlead"] = byte(1)
 	}
 }
 

@@ -47,9 +47,10 @@ native Bedrock validation, and performance evidence are separate gates.
   runtime crosswalk, retain a bounded recent block-state cache for standalone
   block-entity updates, and use section palette context for chunk records.
   Project Geyser's state-dependent banner base/patterns, skull rotation and
-  powered mouth, jigsaw joint, command conditional mode, and core structure
-  metadata; cover string/numeric NBT variants with focused tests and validate
-  banner/skull `BlockActorData` over a live Paper/Snappy session. Custom-skull
+  powered mouth, jigsaw joint, command conditional mode, core structure
+  metadata, and state-derived Bedrock double-chest pairing coordinates; cover
+  string/numeric NBT variants with focused tests and validate banner/skull
+  `BlockActorData` over a live Paper/Snappy session. Custom-skull
   profile resolution, structure UI/control flow, and the remaining block
   entity types remain open.
 - [x] Translate Java `brushable_block` item/type/dusting payloads and compact

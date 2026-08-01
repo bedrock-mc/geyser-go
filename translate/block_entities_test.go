@@ -414,6 +414,45 @@ func TestStateAwareBlockEntityProjection(t *testing.T) {
 	}
 }
 
+func TestBedrockDoubleChestProjectsPairPosition(t *testing.T) {
+	tests := []struct {
+		name       string
+		state      string
+		pair       gtprotocol.BlockPos
+		pairLeader bool
+	}{
+		{name: "north left", state: "minecraft:chest[facing=north,type=left,waterlogged=false]", pair: gtprotocol.BlockPos{11, 64, 20}},
+		{name: "south right", state: "minecraft:chest[facing=south,type=right,waterlogged=false]", pair: gtprotocol.BlockPos{11, 64, 20}, pairLeader: true},
+		{name: "east left", state: "minecraft:chest[facing=east,type=left,waterlogged=false]", pair: gtprotocol.BlockPos{10, 64, 21}},
+		{name: "west right", state: "minecraft:chest[facing=west,type=right,waterlogged=false]", pair: gtprotocol.BlockPos{10, 64, 21}, pairLeader: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tag, ok := BedrockBlockEntityTagWithState(1, 10, 64, 20, nil, findJavaState(t, func(name string) bool { return name == test.state }))
+			if !ok || tag["pairx"] != test.pair[0] || tag["pairz"] != test.pair[2] {
+				t.Fatalf("double chest pair = %#v, want (%d,%d)", tag, test.pair[0], test.pair[2])
+			}
+			if test.pairLeader {
+				if tag["pairlead"] != byte(1) {
+					t.Fatalf("right chest pairlead = %#v", tag["pairlead"])
+				}
+			} else if _, exists := tag["pairlead"]; exists {
+				t.Fatalf("left chest unexpectedly has pairlead: %#v", tag["pairlead"])
+			}
+		})
+	}
+
+	single, ok := BedrockBlockEntityTagWithState(2, 10, 64, 20, nil, findJavaState(t, func(name string) bool {
+		return name == "minecraft:trapped_chest[facing=north,type=single,waterlogged=false]"
+	}))
+	if !ok {
+		t.Fatal("single trapped chest did not translate")
+	}
+	if _, exists := single["pairx"]; exists {
+		t.Fatalf("single trapped chest unexpectedly paired: %#v", single)
+	}
+}
+
 func TestBlockEntityStateCacheUsesPriorBlockChange(t *testing.T) {
 	b := NewBasic(javaprotocol.Java1214, nil)
 	position := gtprotocol.BlockPos{14, 65, 0}
