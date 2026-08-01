@@ -341,12 +341,16 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		}
 		b.rememberBlockEntityPosition(update.Position)
 		stateID, hasState := b.cachedBlockEntityState(update.Position)
+		var actorRuntimeIDs map[[16]byte]int64
+		if javaName, ok := JavaBlockEntityTypeName(update.Type); ok && javaName == "vault" {
+			actorRuntimeIDs = b.snapshotJavaVaultActorRuntimeIDs()
+		}
 		var tag map[string]any
 		var known bool
 		if hasState {
-			tag, known = BedrockBlockEntityTagWithState(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data, stateID)
+			tag, known = bedrockBlockEntityTagWithStateAndResolver(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data, stateID, actorRuntimeIDs)
 		} else {
-			tag, known = BedrockBlockEntityTag(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data)
+			tag, known = bedrockBlockEntityTagWithResolver(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data, actorRuntimeIDs)
 		}
 		if !known {
 			b.logSemanticAnomaly("Java block entity type outside generated registry", "type", update.Type)
@@ -370,6 +374,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		dimension := b.gameData.Dimension
 		layout, hasLayout := b.dimensionLayouts[dimension]
 		biomeRuntimeIDs := b.biomeRuntimeIDs
+		actorRuntimeIDs := b.snapshotJavaVaultActorRuntimeIDsLocked()
 		b.mu.Unlock()
 		minSection := 0
 		if hasLayout {
@@ -381,9 +386,10 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		var raw []byte
 		var sections uint32
 		if hasLayout {
-			raw, sections, err = EncodeBedrockChunkWithLayoutAndBiomes(chunk, dimension, layout, biomeRuntimeIDs)
+			raw, sections, err = encodeBedrockChunkWithResolver(chunk, dimension, layout.SectionCount, layout.MinSection, biomeRuntimeIDs, actorRuntimeIDs)
 		} else {
-			raw, sections, err = EncodeBedrockChunkWithBiomes(chunk, dimension, biomeRuntimeIDs)
+			sectionCount, minSection := bedrockDimensionSections(dimension)
+			raw, sections, err = encodeBedrockChunkWithResolver(chunk, dimension, sectionCount, minSection, biomeRuntimeIDs, actorRuntimeIDs)
 		}
 		if err != nil {
 			return err

@@ -116,6 +116,14 @@ func BedrockBlockEntityTag(typeID int32, x, y, z int32, data map[string]any) (ma
 // command-block conditional mode, and jigsaw orientation) in the block state
 // rather than in the NBT payload.
 func BedrockBlockEntityTagWithState(typeID int32, x, y, z int32, payload map[string]any, stateID int32) (map[string]any, bool) {
+	return bedrockBlockEntityTagWithStateAndResolver(typeID, x, y, z, payload, stateID, nil)
+}
+
+func bedrockBlockEntityTagWithResolver(typeID int32, x, y, z int32, payload map[string]any, actorRuntimeIDs map[[16]byte]int64) (map[string]any, bool) {
+	return bedrockBlockEntityTagWithStateAndResolver(typeID, x, y, z, payload, -1, actorRuntimeIDs)
+}
+
+func bedrockBlockEntityTagWithStateAndResolver(typeID int32, x, y, z int32, payload map[string]any, stateID int32, actorRuntimeIDs map[[16]byte]int64) (map[string]any, bool) {
 	javaName, ok := JavaBlockEntityTypeName(typeID)
 	if !ok {
 		return nil, false
@@ -129,7 +137,11 @@ func BedrockBlockEntityTagWithState(typeID int32, x, y, z int32, payload map[str
 	tag["z"] = z
 	tag["id"] = bedrockBlockEntityID(javaName)
 	stateName, _ := data.JavaBlockStateName(stateID)
-	projectJavaBlockEntityPayload(javaName, tag, stateName)
+	if actorRuntimeIDs == nil {
+		projectJavaBlockEntityPayload(javaName, tag, stateName)
+	} else {
+		projectJavaBlockEntityPayloadWithResolver(javaName, tag, stateName, actorRuntimeIDs)
+	}
 	return tag, true
 }
 
@@ -154,11 +166,15 @@ func BedrockBlockEntityForChunk(chunkX, chunkZ int32, entity JavaBlockEntity) (g
 // BedrockBlockEntityTagWithState. A negative state ID means that the section
 // context was unavailable, so the translator falls back to NBT-only fields.
 func BedrockBlockEntityForChunkWithState(chunkX, chunkZ int32, entity JavaBlockEntity, stateID int32) (gtprotocol.BlockPos, map[string]any, bool) {
+	return bedrockBlockEntityForChunkWithStateAndResolver(chunkX, chunkZ, entity, stateID, nil)
+}
+
+func bedrockBlockEntityForChunkWithStateAndResolver(chunkX, chunkZ int32, entity JavaBlockEntity, stateID int32, actorRuntimeIDs map[[16]byte]int64) (gtprotocol.BlockPos, map[string]any, bool) {
 	position, ok := chunkBlockEntityPosition(chunkX, chunkZ, entity)
 	if !ok {
 		return gtprotocol.BlockPos{}, nil, false
 	}
-	tag, ok := BedrockBlockEntityTagWithState(entity.Type, position[0], position[1], position[2], entity.Data, stateID)
+	tag, ok := bedrockBlockEntityTagWithStateAndResolver(entity.Type, position[0], position[1], position[2], entity.Data, stateID, actorRuntimeIDs)
 	return position, tag, ok
 }
 

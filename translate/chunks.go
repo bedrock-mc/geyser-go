@@ -315,6 +315,10 @@ func EncodeBedrockChunkWithLayoutAndBiomes(chunk JavaChunk, dimension int32, lay
 }
 
 func encodeBedrockChunk(chunk JavaChunk, dimension int32, sectionCount, minSection int, biomeRuntimeIDs []uint32) ([]byte, uint32, error) {
+	return encodeBedrockChunkWithResolver(chunk, dimension, sectionCount, minSection, biomeRuntimeIDs, nil)
+}
+
+func encodeBedrockChunkWithResolver(chunk JavaChunk, dimension int32, sectionCount, minSection int, biomeRuntimeIDs []uint32, actorRuntimeIDs map[[16]byte]int64) ([]byte, uint32, error) {
 	if sectionCount <= 0 || sectionCount > maxChunkSections {
 		return nil, 0, fmt.Errorf("translate: invalid Bedrock section count %d for dimension %d", sectionCount, dimension)
 	}
@@ -366,10 +370,10 @@ func encodeBedrockChunk(chunk JavaChunk, dimension int32, sectionCount, minSecti
 	}
 	payload.WriteByte(0) // Education Edition border blocks marker.
 	for _, entity := range chunk.BlockEntities {
-		position, tag, ok := BedrockBlockEntityForChunk(chunk.X, chunk.Z, entity)
+		position, tag, ok := bedrockBlockEntityForChunkWithStateAndResolver(chunk.X, chunk.Z, entity, -1, actorRuntimeIDs)
 		if ok {
 			if stateID, hasState := JavaChunkBlockStateAt(chunk, position, minSection); hasState {
-				_, tag, ok = BedrockBlockEntityForChunkWithState(chunk.X, chunk.Z, entity, stateID)
+				_, tag, ok = bedrockBlockEntityForChunkWithStateAndResolver(chunk.X, chunk.Z, entity, stateID, actorRuntimeIDs)
 			}
 		}
 		if !ok {

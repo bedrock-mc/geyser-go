@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 	gtpacket "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
@@ -167,5 +168,101 @@ func TestBedrockVaultUsesSharedChunkAndActorProjection(t *testing.T) {
 	}
 	if _, ok := decodedTag["connected_players"].([]int64); !ok {
 		t.Fatalf("vault actor connected players type = %T", decodedTag["connected_players"])
+	}
+}
+
+func TestBedrockVaultResolvesSessionActorIDsInStandaloneAndChunkNBT(t *testing.T) {
+	localWords := [4]int32{0x01020304, 0x05060708, 0x090a0b0c, 0x0d0e0f10}
+	visibleWords := [4]int32{0x11121314, 0x15161718, 0x191a1b1c, 0x1d1e1f20}
+	unknownWords := [4]int32{0x21222324, 0x25262728, 0x292a2b2c, 0x2d2e2f30}
+	localUUID, ok := javaVaultUUID(localWords)
+	if !ok || localUUID != ([16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) {
+		t.Fatalf("decoded local vault UUID = %x", localUUID)
+	}
+	visibleUUID, ok := javaVaultUUID(visibleWords)
+	if !ok {
+		t.Fatal("visible UUID did not decode")
+	}
+
+	b := NewBasic(javaprotocol.Java1214, nil)
+	b.playerUUID = localUUID
+	b.gameData.EntityRuntimeID = 501
+	b.entities[17] = &javaEntityState{entityUUID: visibleUUID, runtimeID: 702}
+	actorRuntimeIDs := b.snapshotJavaVaultActorRuntimeIDs()
+
+	payload := map[string]any{
+		"shared_data": map[string]any{
+			"display_item":              map[string]any{"id": "minecraft:diamond", "count": int32(2)},
+			"connected_players":         []any{localWords, visibleWords, unknownWords, [3]int32{1, 2, 3}, []int32{1, 2, 3, 4}, int64(999), "malformed"},
+			"connected_particles_range": float64(7.25),
+		},
+	}
+	standalone, ok := bedrockBlockEntityTagWithResolver(44, 37, 70, -34, payload, actorRuntimeIDs)
+	if !ok {
+		t.Fatal("resolver-aware standalone vault did not translate")
+	}
+	players, ok := standalone["connected_players"].([]int64)
+	if !ok || len(players) != 2 || players[0] != 501 || players[1] != 702 {
+		t.Fatalf("resolver-aware standalone players = %#v", standalone["connected_players"])
+	}
+	item, ok := standalone["display_item"].(map[string]any)
+	if !ok || item["Name"] != "minecraft:diamond" || item["Count"] != byte(2) || standalone["connected_particle_range"] != float32(7.25) {
+		t.Fatalf("resolver-aware standalone projection = %#v", standalone)
+	}
+
+	wirePayload := map[string]any{
+		"shared_data": map[string]any{
+			"display_item":              map[string]any{"id": "minecraft:diamond", "count": int32(2)},
+			"connected_players":         []any{localWords, visibleWords, unknownWords},
+			"connected_particles_range": float64(7.25),
+		},
+	}
+	wireStandalone, ok := bedrockBlockEntityTagWithResolver(44, 37, 70, -34, wirePayload, actorRuntimeIDs)
+	if !ok {
+		t.Fatal("resolver-aware wire vault did not translate")
+	}
+	position := gtprotocol.BlockPos{37, 70, -34}
+	blockActor := &gtpacket.BlockActorData{Position: position, NBTData: wireStandalone}
+	var wire bytes.Buffer
+	if err := (&gtpacket.Header{PacketID: blockActor.ID()}).Write(&wire); err != nil {
+		t.Fatal(err)
+	}
+	blockActor.Marshal(gtprotocol.NewWriter(&wire, 0))
+	var header gtpacket.Header
+	if err := header.Read(&wire); err != nil {
+		t.Fatal(err)
+	}
+	reader := gtprotocol.NewReader(&wire, 0, false)
+	var decodedPosition gtprotocol.BlockPos
+	var decodedTag map[string]any
+	reader.BlockPos(&decodedPosition)
+	reader.NBT(&decodedTag, nbt.NetworkLittleEndian)
+	decodedPlayers, ok := decodedTag["connected_players"].([]int64)
+	if !ok || decodedPosition != position || len(decodedPlayers) != 2 || decodedPlayers[0] != 501 || decodedPlayers[1] != 702 {
+		t.Fatalf("standalone vault actor NBT position=%v players=%#v", decodedPosition, decodedTag["connected_players"])
+	}
+
+	chunk := JavaChunk{
+		X: 2, Z: -3,
+		BlockEntities: []JavaBlockEntity{{
+			X: 5, Y: 70, Z: 14, Type: 44, Data: wirePayload,
+		}},
+	}
+	base, _, err := EncodeBedrockChunk(JavaChunk{X: chunk.X, Z: chunk.Z}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sectionCount, minSection := bedrockDimensionSections(0)
+	withVault, _, err := encodeBedrockChunkWithResolver(chunk, 0, sectionCount, minSection, nil, actorRuntimeIDs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var chunkTag map[string]any
+	if err := nbt.UnmarshalEncoding(withVault[len(base):], &chunkTag, nbt.NetworkLittleEndian); err != nil {
+		t.Fatal(err)
+	}
+	chunkPlayers, ok := chunkTag["connected_players"].([]int64)
+	if !ok || chunkTag["x"] != int32(37) || chunkTag["z"] != int32(-34) || len(chunkPlayers) != 2 || chunkPlayers[0] != 501 || chunkPlayers[1] != 702 {
+		t.Fatalf("chunk vault actor NBT = %#v", chunkTag)
 	}
 }

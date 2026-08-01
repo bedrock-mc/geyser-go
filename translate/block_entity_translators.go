@@ -13,6 +13,10 @@ import (
 // and unknown fields are assembled by BedrockBlockEntityTag first so this
 // helper can be shared by chunk payloads and standalone updates.
 func projectJavaBlockEntityPayload(javaName string, tag map[string]any, stateName string) {
+	projectJavaBlockEntityPayloadWithResolver(javaName, tag, stateName, nil)
+}
+
+func projectJavaBlockEntityPayloadWithResolver(javaName string, tag map[string]any, stateName string, actorRuntimeIDs map[[16]byte]int64) {
 	switch javaName {
 	case "sign", "hanging_sign":
 		projectJavaSign(tag)
@@ -41,7 +45,11 @@ func projectJavaBlockEntityPayload(javaName string, tag map[string]any, stateNam
 	case "trial_spawner":
 		projectJavaTrialSpawner(tag)
 	case "vault":
-		projectJavaVault(tag)
+		if actorRuntimeIDs == nil {
+			projectJavaVault(tag)
+		} else {
+			projectJavaVaultWithResolver(tag, actorRuntimeIDs)
+		}
 	case "shulker_box":
 		projectJavaShulkerBox(tag, stateName)
 	}
