@@ -134,8 +134,12 @@ native Bedrock validation, and performance evidence are separate gates.
   tranche complete.
 
 The current implementation is an explicitly incomplete bootstrap/world
-tranche. It does not claim Geyser gameplay parity: 318 Java block states still
-fall back to Bedrock air in the generated 1.21.4 mapping, and lighting,
+tranche. It does not claim Geyser gameplay parity: 200 Java block states still
+fall back to Bedrock air in the generated 1.21.4 mapping. The generator now
+resolves 118 palette-checked Java-to-Bedrock name/state transforms (including
+chains, standing pale-oak signs, and skeleton/wither skull variants); the
+remaining head states require Geyser's custom-skull/entity path rather than an
+arbitrary static block alias. Lighting,
 type-specific block-entity transforms, item components, arbitrary container
 windows, complex transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded

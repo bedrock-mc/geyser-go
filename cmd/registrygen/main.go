@@ -31,6 +31,11 @@ type namedID struct {
 	name string
 }
 
+type blockMappingTarget struct {
+	name   string
+	states map[string]any
+}
+
 type itemMappingResult struct {
 	mapping     []int32
 	exact       int
@@ -74,6 +79,8 @@ func main() {
 	for i, state := range java {
 		desiredKeys[i] = state.key
 	}
+	mappedTargets := make([]blockMappingTarget, len(java))
+	hasGeyserMappings := false
 	var geyserHash string
 	if *geyserPath != "" {
 		geyserBytes, err := readMaybeGzip(*geyserPath)
@@ -88,6 +95,7 @@ func main() {
 		if !ok || len(rawMappings) < len(java) {
 			panic(fmt.Sprintf("Geyser block mappings have %d entries, need %d", len(rawMappings), len(java)))
 		}
+		hasGeyserMappings = true
 		for i, state := range java {
 			entry, ok := rawMappings[i].(map[string]any)
 			if !ok {
@@ -101,7 +109,7 @@ func main() {
 				name = override
 			}
 			states, _ := entry["state"].(map[string]any)
-			desiredKeys[i] = stateKey(name, states)
+			mappedTargets[i] = blockMappingTarget{name: name, states: states}
 		}
 		geyserSource, _ := os.ReadFile(*geyserPath)
 		geyserHash = sha256Hex(geyserSource)
@@ -122,6 +130,17 @@ func main() {
 		key := stateKey(name, states)
 		exact[key] = uint32(runtimeID)
 		byName[name] = append(byName[name], uint32(runtimeID))
+	}
+
+	normalized := 0
+	if hasGeyserMappings {
+		for _, state := range java {
+			target := mappedTargets[state.id]
+			if normalizeBlockMapping(state.key, &target, byName) {
+				normalized++
+			}
+			desiredKeys[state.id] = stateKey(target.name, target.states)
+		}
 	}
 
 	air, ok := exact["minecraft:air"]
@@ -180,7 +199,7 @@ func main() {
 
 	sourceJava, _ := os.ReadFile(*javaPath)
 	sourcePalette, _ := os.ReadFile(*palettePath)
-	output := render(mapping, len(rawBlocks), exactCount, nameFallback, airFallback,
+	output := render(mapping, len(rawBlocks), exactCount, normalized, nameFallback, airFallback,
 		sha256Hex(sourceJava), sha256Hex(sourcePalette), geyserHash, itemResult, entityNames, entityHash)
 	formatted, err := format.Source([]byte(output))
 	if err != nil {
@@ -189,7 +208,7 @@ func main() {
 	if err := os.WriteFile(*outPath, formatted, 0o644); err != nil {
 		panic(err)
 	}
-	fmt.Printf("java states=%d bedrock states=%d exact=%d name-fallback=%d air-fallback=%d", len(java), len(rawBlocks), exactCount, nameFallback, airFallback)
+	fmt.Printf("java states=%d bedrock states=%d exact=%d normalized=%d name-fallback=%d air-fallback=%d", len(java), len(rawBlocks), exactCount, normalized, nameFallback, airFallback)
 	if len(itemResult.mapping) > 0 {
 		fmt.Printf(" java items=%d item-exact=%d item-air-fallback=%d", len(itemResult.mapping), itemResult.exact, itemResult.airFallback)
 	}
@@ -415,6 +434,63 @@ func gunzip(b []byte, path string) ([]byte, error) {
 	return decoded, nil
 }
 
+func normalizeBlockMapping(javaKey string, target *blockMappingTarget, palette map[string][]uint32) bool {
+	javaName := javaKey
+	if bracket := strings.IndexByte(javaName, '['); bracket >= 0 {
+		javaName = javaName[:bracket]
+	}
+	changed := false
+	setNameIfPresent := func(name string) {
+		if len(palette[name]) == 0 || target.name == name {
+			return
+		}
+		target.name = name
+		changed = true
+	}
+
+	switch javaName {
+	case "minecraft:chain":
+		// Cloudburst's complete Bedrock palette calls the Java chain block
+		// iron_chain. The item crosswalk in the same source uses this alias.
+		setNameIfPresent("minecraft:iron_chain")
+	case "minecraft:pale_oak_sign":
+		// Java's floor sign stores rotation and waterlogged; Bedrock stores
+		// the floor variant under its explicit standing-sign name and drops
+		// waterlogged from the runtime state.
+		if len(palette["minecraft:pale_oak_standing_sign"]) != 0 {
+			if rotation, ok := javaStateProperty(javaKey, "rotation"); ok {
+				target.name = "minecraft:pale_oak_standing_sign"
+				target.states = map[string]any{"ground_sign_direction": int32(rotation)}
+				changed = true
+			}
+		}
+	case "minecraft:skeleton_skull", "minecraft:skeleton_wall_skull":
+		// Java has separate wall block names; Bedrock uses one typed
+		// skeleton_skull palette with facing_direction 1..5.
+		setNameIfPresent("minecraft:skeleton_skull")
+	case "minecraft:wither_skeleton_skull", "minecraft:wither_skeleton_wall_skull":
+		setNameIfPresent("minecraft:wither_skeleton_skull")
+	}
+	return changed
+}
+
+func javaStateProperty(key, property string) (int, bool) {
+	start := strings.IndexByte(key, '[')
+	end := strings.LastIndexByte(key, ']')
+	if start < 0 || end <= start {
+		return 0, false
+	}
+	for _, field := range strings.Split(key[start+1:end], ",") {
+		parts := strings.SplitN(field, "=", 2)
+		if len(parts) != 2 || parts[0] != property {
+			continue
+		}
+		value, err := strconv.Atoi(parts[1])
+		return value, err == nil
+	}
+	return 0, false
+}
+
 func stateKey(name string, states map[string]any) string {
 	if !strings.Contains(name, ":") {
 		name = "minecraft:" + name
@@ -469,7 +545,7 @@ func nbtValue(value any) string {
 	}
 }
 
-func render(mapping []uint32, paletteCount, exact, nameFallback, airFallback int, javaHash, paletteHash, geyserHash string, items itemMappingResult, entities []string, entityHash string) string {
+func render(mapping []uint32, paletteCount, exact, normalized, nameFallback, airFallback int, javaHash, paletteHash, geyserHash string, items itemMappingResult, entities []string, entityHash string) string {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "// Code generated by cmd/registrygen; DO NOT EDIT.\n")
 	fmt.Fprintf(&builder, "// Java state source SHA-256: %s\n", javaHash)
@@ -477,7 +553,7 @@ func render(mapping []uint32, paletteCount, exact, nameFallback, airFallback int
 	if geyserHash != "" {
 		fmt.Fprintf(&builder, "// Geyser block mapping source SHA-256: %s\n", geyserHash)
 	}
-	fmt.Fprintf(&builder, "// Mapping coverage: exact=%d name-fallback=%d air-fallback=%d; Bedrock palette states=%d.\n\n", exact, nameFallback, airFallback, paletteCount)
+	fmt.Fprintf(&builder, "// Mapping coverage: exact=%d normalized=%d name-fallback=%d air-fallback=%d; Bedrock palette states=%d.\n\n", exact, normalized, nameFallback, airFallback, paletteCount)
 	if len(items.mapping) > 0 {
 		fmt.Fprintf(&builder, "// Java item source SHA-256: %s\n", items.javaHash)
 		fmt.Fprintf(&builder, "// CloudburstMC/Data item source SHA-256: %s\n", items.bedrockHash)
