@@ -16,6 +16,20 @@ import (
 // but these object/entity definitions do not.
 func bedrockEntityType(javaType string) string {
 	switch javaType {
+	case "minecraft:acacia_boat", "minecraft:bamboo_raft", "minecraft:birch_boat",
+		"minecraft:cherry_boat", "minecraft:dark_oak_boat", "minecraft:jungle_boat",
+		"minecraft:mangrove_boat", "minecraft:oak_boat", "minecraft:pale_oak_boat",
+		"minecraft:spruce_boat":
+		return "minecraft:boat"
+	case "minecraft:acacia_chest_boat", "minecraft:bamboo_chest_raft", "minecraft:birch_chest_boat",
+		"minecraft:cherry_chest_boat", "minecraft:dark_oak_chest_boat", "minecraft:jungle_chest_boat",
+		"minecraft:mangrove_chest_boat", "minecraft:oak_chest_boat", "minecraft:pale_oak_chest_boat",
+		"minecraft:spruce_chest_boat":
+		return "minecraft:chest_boat"
+	case "minecraft:chest_minecart", "minecraft:command_block_minecart", "minecraft:furnace_minecart",
+		"minecraft:hopper_minecart", "minecraft:minecart", "minecraft:spawner_minecart",
+		"minecraft:tnt_minecart":
+		return "minecraft:minecart"
 	case "minecraft:end_crystal", "minecraft:ender_crystal":
 		return "minecraft:ender_crystal"
 	case "minecraft:evoker_fangs":
@@ -71,6 +85,15 @@ func javaEntitySpawnPosition(entityType string, position mgl32.Vec3) mgl32.Vec3 
 // spawn rather than emitting a hook with a broken fishing line.
 func javaSpawnEntityProjection(entityType string, objectData int32) (gtprotocol.EntityMetadata, bool) {
 	metadata := gtprotocol.NewEntityMetadataWithCapacity(8)
+	if javaBoatEntity(entityType) {
+		if variant, ok := javaBoatVariant(entityType); ok {
+			metadata[gtprotocol.EntityDataKeyVariant] = variant
+		}
+		metadata[gtprotocol.EntityDataKeyIsBuoyant] = byte(1)
+		metadata[gtprotocol.EntityDataKeyBuoyancyData] = javaBoatBuoyancyData
+		setProjectedFlag(metadata, gtprotocol.EntityDataFlagCollidable, true)
+		return metadata, true
+	}
 	switch entityType {
 	case "minecraft:text_display":
 		metadata[gtprotocol.EntityDataKeyHitBox] = map[string]any{}

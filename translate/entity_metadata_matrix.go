@@ -14,6 +14,14 @@ import (
 // of these concrete indexes.
 func translateEntityMetadataMatrix(entityType string, entries []JavaEntityMetadataEntry) gtprotocol.EntityMetadata {
 	metadata := make(gtprotocol.EntityMetadata, 8)
+	if javaBoatEntity(entityType) {
+		translateJavaBoatMetadata(entries, metadata)
+		return metadata
+	}
+	if javaMinecartEntity(entityType) {
+		translateJavaMinecartMetadata(entityType, entries, metadata)
+		return metadata
+	}
 	for _, entry := range entries {
 		switch {
 		case entry.Index == 6:

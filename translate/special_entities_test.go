@@ -11,6 +11,9 @@ import (
 
 func TestBedrockEntityTypeOverrides(t *testing.T) {
 	cases := map[string]string{
+		"minecraft:oak_boat":          "minecraft:boat",
+		"minecraft:oak_chest_boat":    "minecraft:chest_boat",
+		"minecraft:chest_minecart":    "minecraft:minecart",
 		"minecraft:end_crystal":       "minecraft:ender_crystal",
 		"minecraft:ender_crystal":     "minecraft:ender_crystal",
 		"minecraft:evoker_fangs":      "minecraft:evocation_fang",
@@ -55,6 +58,10 @@ func TestJavaEntitySpawnProjectionDefaults(t *testing.T) {
 	interaction, ok := javaSpawnEntityProjection("minecraft:interaction", 0)
 	if !ok || !interaction.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagInvisible) || interaction[gtprotocol.EntityDataKeyWidth] != float32(1) || interaction[gtprotocol.EntityDataKeyHeight] != float32(1) {
 		t.Fatalf("interaction spawn metadata = %#v, ok=%t", interaction, ok)
+	}
+	boat, ok := javaSpawnEntityProjection("minecraft:pale_oak_boat", 0)
+	if !ok || boat[gtprotocol.EntityDataKeyVariant] != int32(9) || boat[gtprotocol.EntityDataKeyIsBuoyant] != byte(1) || boat[gtprotocol.EntityDataKeyBuoyancyData] != javaBoatBuoyancyData || !boat.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagCollidable-64) {
+		t.Fatalf("boat spawn metadata = %#v, ok=%t", boat, ok)
 	}
 
 	if got := javaEntitySpawnPosition("minecraft:leash_knot", mgl32.Vec3{10, 20, 30}); got != (mgl32.Vec3{10.5, 20.25, 30.5}) {
@@ -276,6 +283,31 @@ func TestTranslateEntityMetadataMatrix(t *testing.T) {
 	wither := translateSpecialEntityMetadata("minecraft:wither", []JavaEntityMetadataEntry{{Index: 19, Type: 1, Value: int32(200)}})
 	if wither[gtprotocol.EntityDataKeyInvulnerableTicks] != int32(200) || wither[gtprotocol.EntityDataKeyAerialAttack] != int16(0) {
 		t.Fatalf("wither metadata = %#v", wither)
+	}
+
+	boat := translateSpecialEntityMetadata("minecraft:oak_boat", []JavaEntityMetadataEntry{
+		{Index: 8, Type: 1, Value: int32(4)},
+		{Index: 9, Type: 1, Value: int32(2)},
+		{Index: 10, Type: 3, Value: float32(5)},
+		{Index: 11, Type: 8, Value: true},
+		{Index: 12, Type: 8, Value: false},
+		{Index: 13, Type: 1, Value: int32(7)},
+	})
+	if boat[gtprotocol.EntityDataKeyHurt] != int32(4) || boat[gtprotocol.EntityDataKeyHurtDirection] != int32(2) || boat[gtprotocol.EntityDataKeyStructuralIntegrity] != int32(35) || boat[gtprotocol.EntityDataKeyRowTimeLeft] != float32(0.04) || boat[gtprotocol.EntityDataKeyRowTimeRight] != float32(0) || boat[gtprotocol.EntityDataKeyBubbleTime] != int32(7) {
+		t.Fatalf("boat metadata = %#v", boat)
+	}
+
+	minecart := translateSpecialEntityMetadata("minecraft:minecart", []JavaEntityMetadataEntry{
+		{Index: 8, Type: 1, Value: int32(3)},
+		{Index: 9, Type: 1, Value: int32(1)},
+		{Index: 10, Type: 3, Value: float32(20)},
+		{Index: 11, Type: 1, Value: int32(1)},
+		{Index: 12, Type: 1, Value: int32(6)},
+		{Index: 13, Type: 8, Value: true},
+	})
+	blockRuntime, known := JavaBlockRuntimeID(1)
+	if !known || minecart[gtprotocol.EntityDataKeyStructuralIntegrity] != int32(3) || minecart[gtprotocol.EntityDataKeyHurtDirection] != int32(1) || minecart[gtprotocol.EntityDataKeyHurt] != int32(15) || minecart[gtprotocol.EntityDataKeyDisplayTileRuntimeID] != int32(blockRuntime) || minecart[gtprotocol.EntityDataKeyDisplayOffset] != int32(6) || minecart[gtprotocol.EntityDataKeyCustomDisplay] != byte(1) {
+		t.Fatalf("minecart metadata = %#v", minecart)
 	}
 }
 

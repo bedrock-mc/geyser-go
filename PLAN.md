@@ -81,6 +81,12 @@ native Bedrock validation, and performance evidence are separate gates.
   `127.0.0.1:19194`.
   Display transforms, equipment-driven saddle state, animation timing, custom
   assets, and the remaining entity matrix remain open.
+- [x] Normalize Java 1.21.4 wood/chest-boat and minecart identifiers to their
+  Bedrock vehicle actor families, and project bounded boat buoyancy/variant and
+  minecart display/damage metadata; cover the mapping with focused tests and a
+  live Paper/Snappy probe on `127.0.0.1:19195`. Vehicle movement and paddling,
+  vehicle input/riding offsets, and minecart container/furnace/command behavior
+  remain open.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -203,7 +209,7 @@ requests now have a Java hashed-click bridge, and Java attribute/rotation
 updates now have typed paths,
 entity effects now have a typed add/remove path, and common non-player-window
 close events are forwarded to Java, but complex transactions, recipes,
-target-specific entity semantics, vehicle input, and client prediction
+target-specific entity semantics, vehicle movement/input, and client prediction
 reconciliation remain open. The inventory slice covers the Java player window
 and the initial mapped common-menu path, and safely skips updates containing
 components whose behavior it cannot yet project. Generic
@@ -215,7 +221,11 @@ item frames have a typed Bedrock block/actor projection. Experience orbs use a
 dedicated Bedrock spawn packet, falling blocks carry complete display-tile
 runtime metadata, and owned fishing-hook metadata is projected; broader
 entity-specific metadata, Java skin properties, equipment fidelity, and
-animation are not yet parity-complete. Common Java menu open/close/content
+animation are not yet parity-complete. Java wood/chest boats and minecart
+variants now use the Bedrock vehicle actor families with bounded spawn and
+metadata projection, but movement, paddling, riding offsets, input, and
+vehicle-specific container/behavior semantics are not yet parity-complete.
+Common Java menu open/close/content
 packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported

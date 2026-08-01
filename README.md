@@ -70,6 +70,10 @@ protocol parity.
   and stale-flag replacement. Late owner discovery, equipment-driven saddle
   state, custom variant assets, animation timing, and the broader entity matrix
   remain open.
+  Java wood/chest boats and minecart variants now normalize to Bedrock's
+  vehicle actor families, with bounded boat buoyancy/variant and minecart
+  display/damage metadata projection; movement, paddling, riding offsets,
+  vehicle input, and vehicle-specific container behavior remain open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
@@ -368,6 +372,13 @@ Paper 1.21.4 and received the matrix actors, including strider, pufferfish,
 polar bear, shulker, turtle, and the special-entity fixture, with no bridge
 translation error. Native client rendering, equipment-driven saddle state,
 and the remaining entity matrix are still open.
+
+The temporary Paper fixture then spawned an oak boat, a stone-display minecart,
+and a chest minecart. The Snappy probe on `127.0.0.1:19195` received Bedrock
+`minecraft:boat` and `minecraft:minecart` actors, including the boat's variant,
+buoyancy, and collidable metadata plus the minecart display runtime/offset and
+damage updates, with a clean bridge disconnect. Vehicle movement, paddling,
+riding offsets, input, container behavior, and native rendering remain open.
 
 ## Local checks
 
