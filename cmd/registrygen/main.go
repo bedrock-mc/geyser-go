@@ -329,6 +329,26 @@ var bedrockEntityAliases = map[string]string{
 	"zombified_piglin":   "zombie_pigman",
 }
 
+// bedrockItemAliases covers complete-palette renames where Java's item name
+// is retained by Geyser's mapping source but the Bedrock runtime catalog uses
+// a distinct canonical identifier. These aliases are data-level mappings;
+// they do not depend on Dragonfly implementing the item behavior.
+var bedrockItemAliases = map[string]string{
+	"minecraft:chain": "minecraft:iron_chain",
+}
+
+func normalizeBedrockItemName(name string, bedrock map[string]int32) string {
+	if _, ok := bedrock[name]; ok {
+		return name
+	}
+	if alias, ok := bedrockItemAliases[name]; ok {
+		if _, exists := bedrock[alias]; exists {
+			return alias
+		}
+	}
+	return name
+}
+
 func buildItemMapping(javaPath, bedrockPath, geyserPath string) (itemMappingResult, error) {
 	java, err := readNamedIDs(javaPath, "items")
 	if err != nil {
@@ -384,6 +404,7 @@ func buildItemMapping(javaPath, bedrockPath, geyserPath string) (itemMappingResu
 		if alias := aliases[name]; alias != "" {
 			name = alias
 		}
+		name = normalizeBedrockItemName(name, bedrock)
 		if id, found := bedrock[name]; found {
 			mapping[item.id] = id
 			exact++

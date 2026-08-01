@@ -118,3 +118,19 @@ func TestJavaStatePropertyIsBounded(t *testing.T) {
 		t.Fatalf("rotation = (%d, %v), want (15, true)", value, ok)
 	}
 }
+
+func TestNormalizeBedrockItemNameUsesCompletePaletteAliases(t *testing.T) {
+	bedrock := map[string]int32{
+		"minecraft:iron_chain": -286,
+		"minecraft:diamond":    -100,
+	}
+	if got := normalizeBedrockItemName("minecraft:chain", bedrock); got != "minecraft:iron_chain" {
+		t.Fatalf("chain item alias = %q, want minecraft:iron_chain", got)
+	}
+	if got := normalizeBedrockItemName("minecraft:diamond", bedrock); got != "minecraft:diamond" {
+		t.Fatalf("known item name changed to %q", got)
+	}
+	if got := normalizeBedrockItemName("minecraft:missing", bedrock); got != "minecraft:missing" {
+		t.Fatalf("unknown item name changed to %q", got)
+	}
+}

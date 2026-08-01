@@ -23,6 +23,9 @@ native Bedrock validation, and performance evidence are separate gates.
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and
   `void_air` aliases intentional and versioned, and cover each alias in the
   registry-generator tests.
+- [x] Resolve the Java 1.21.4 `chain` item through the complete Bedrock item
+  palette's `iron_chain` identifier; cover the data-level alias without
+  coupling support to Dragonfly item behavior.
 - [x] Translate Bedrock `PlayerAuthInput` and legacy `MovePlayer` positions and
   rotations to Java position/look packets, including eye-height and collision
   flag conversion, and emit bounded Java block-dig/block-place/use-item
@@ -270,6 +273,11 @@ Java cooldown packets and common direct block-event projections now have typed
 bounded paths and focused tests; the real Paper fixture observes cooldown start
 and clear packets, while active cooldown state and piston/bell/pot semantics
 remain open.
+
+The same live fixture placed a Java `chain` item in the player's inventory.
+The Snappy probe on `127.0.0.1:19213` observed Bedrock item runtime `-286`
+(`minecraft:iron_chain`) with count `2` in the translated inventory content,
+and the bridge reported zero translation errors.
 The Java level-particle envelope and common mapping path are also typed and
 covered by focused wire/mapping tests; native rendering and broad particle
 coverage remain open.
