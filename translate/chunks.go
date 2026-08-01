@@ -224,18 +224,18 @@ func decodeJavaPalettedContainer(r *javaprotocol.Reader, size int) ([]int32, err
 }
 
 func decodeOptionalNBT(r *javaprotocol.Reader) (map[string]any, error) {
-	present, err := r.Bool()
+	value, err := decodeJavaNBTValue(r)
 	if err != nil {
 		return nil, err
 	}
-	if !present {
+	if value == nil {
 		return nil, nil
 	}
-	var value map[string]any
-	if err := nbt.NewDecoderWithEncoding(r, nbt.NetworkBigEndian).Decode(&value); err != nil {
-		return nil, err
+	compound, ok := value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("translate: expected optional NBT compound, got %T", value)
 	}
-	return value, nil
+	return compound, nil
 }
 
 func readCollectionCount(r *javaprotocol.Reader, what string) (int, error) {
@@ -329,6 +329,21 @@ func EncodeBedrockChunk(chunk JavaChunk, dimension int32) ([]byte, uint32, error
 	}
 	payload.WriteByte(0) // Education Edition border blocks marker.
 	return payload.Bytes(), uint32(sectionCount), nil
+}
+
+// EmptyBedrockChunkPayload is the Bedrock biome-and-border payload used with
+// a LevelChunk whose SubChunkCount is zero. Bedrock still expects one biome
+// storage followed by carry-forward markers for the dimension's remaining
+// vertical sections.
+func EmptyBedrockChunkPayload(dimension int32) []byte {
+	sectionCount, _ := bedrockDimensionSections(dimension)
+	payload := make([]byte, 0, sectionCount+2)
+	payload = append(payload, 1, 0) // singleton biome palette, runtime ID 0
+	for i := 1; i < sectionCount; i++ {
+		payload = append(payload, 0xff) // (127 << 1) | 1: carry prior biome
+	}
+	payload = append(payload, 0) // Education Edition border blocks marker.
+	return payload
 }
 
 func bedrockDimensionSections(dimension int32) (count, minSection int) {

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/format"
@@ -25,10 +26,28 @@ type javaState struct {
 	key string
 }
 
+type namedID struct {
+	id   int
+	name string
+}
+
+type itemMappingResult struct {
+	mapping     []int32
+	exact       int
+	airFallback int
+	javaHash    string
+	bedrockHash string
+	geyserHash  string
+}
+
 func main() {
 	javaPath := flag.String("java-tsv", "", "TSV containing Java state ID and canonical state key")
 	palettePath := flag.String("bedrock-palette", "", "gzip-compressed Bedrock block palette NBT")
 	geyserPath := flag.String("geyser-mappings", "", "Geyser mappings blocks.nbt for the same Java protocol")
+	javaItemsPath := flag.String("java-items", "", "minecraft-data items.json for the same Java protocol")
+	bedrockItemsPath := flag.String("bedrock-items", "", "Cloudburst runtime_item_states.json")
+	geyserItemsPath := flag.String("geyser-items", "", "Geyser mappings items.json for the same Java protocol")
+	javaEntitiesPath := flag.String("java-entities", "", "minecraft-data entities.json for the same Java protocol")
 	outPath := flag.String("out", "", "generated Go file")
 	flag.Parse()
 	if *javaPath == "" || *palettePath == "" || *outPath == "" {
@@ -133,10 +152,36 @@ func main() {
 	if mapping[0] != air {
 		panic(fmt.Sprintf("Java air mapped to Bedrock runtime %d, expected %d", mapping[0], air))
 	}
+
+	var itemResult itemMappingResult
+	if *javaItemsPath != "" || *bedrockItemsPath != "" || *geyserItemsPath != "" {
+		if *javaItemsPath == "" || *bedrockItemsPath == "" {
+			panic("item mapping requires -java-items and -bedrock-items together")
+		}
+		itemResult, err = buildItemMapping(*javaItemsPath, *bedrockItemsPath, *geyserItemsPath)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	var entityNames []string
+	var entityHash string
+	if *javaEntitiesPath != "" {
+		entityNames, err = readEntityNames(*javaEntitiesPath)
+		if err != nil {
+			panic(err)
+		}
+		entitySource, readErr := os.ReadFile(*javaEntitiesPath)
+		if readErr != nil {
+			panic(fmt.Errorf("read Java entities source: %w", readErr))
+		}
+		entityHash = sha256Hex(entitySource)
+	}
+
 	sourceJava, _ := os.ReadFile(*javaPath)
 	sourcePalette, _ := os.ReadFile(*palettePath)
 	output := render(mapping, len(rawBlocks), exactCount, nameFallback, airFallback,
-		sha256Hex(sourceJava), sha256Hex(sourcePalette), geyserHash)
+		sha256Hex(sourceJava), sha256Hex(sourcePalette), geyserHash, itemResult, entityNames, entityHash)
 	formatted, err := format.Source([]byte(output))
 	if err != nil {
 		panic(fmt.Errorf("format generated Go: %w", err))
@@ -144,7 +189,14 @@ func main() {
 	if err := os.WriteFile(*outPath, formatted, 0o644); err != nil {
 		panic(err)
 	}
-	fmt.Printf("java states=%d bedrock states=%d exact=%d name-fallback=%d air-fallback=%d\n", len(java), len(rawBlocks), exactCount, nameFallback, airFallback)
+	fmt.Printf("java states=%d bedrock states=%d exact=%d name-fallback=%d air-fallback=%d", len(java), len(rawBlocks), exactCount, nameFallback, airFallback)
+	if len(itemResult.mapping) > 0 {
+		fmt.Printf(" java items=%d item-exact=%d item-air-fallback=%d", len(itemResult.mapping), itemResult.exact, itemResult.airFallback)
+	}
+	if len(entityNames) > 0 {
+		fmt.Printf(" java entities=%d", len(entityNames))
+	}
+	fmt.Println()
 }
 
 func readJavaStates(path string) ([]javaState, error) {
@@ -180,6 +232,152 @@ func readJavaStates(path string) ([]javaState, error) {
 		}
 	}
 	return states, nil
+}
+
+func readNamedIDs(path, kind string) ([]namedID, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read Java %s: %w", kind, err)
+	}
+	var raw []struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, fmt.Errorf("decode Java %s: %w", kind, err)
+	}
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("Java %s is empty", kind)
+	}
+	maxID := -1
+	for _, value := range raw {
+		if value.ID < 0 || value.Name == "" {
+			return nil, fmt.Errorf("invalid Java %s entry id=%d name=%q", kind, value.ID, value.Name)
+		}
+		if value.ID > maxID {
+			maxID = value.ID
+		}
+	}
+	values := make([]namedID, maxID+1)
+	seen := make([]bool, maxID+1)
+	for _, value := range raw {
+		if seen[value.ID] {
+			return nil, fmt.Errorf("duplicate Java %s id %d", kind, value.ID)
+		}
+		values[value.ID] = namedID{id: value.ID, name: value.Name}
+		seen[value.ID] = true
+	}
+	for id, value := range values {
+		if !seen[id] {
+			return nil, fmt.Errorf("Java %s id %d is missing", kind, id)
+		}
+		if !strings.Contains(value.name, ":") {
+			values[id].name = "minecraft:" + value.name
+		}
+	}
+	return values, nil
+}
+
+func readEntityNames(path string) ([]string, error) {
+	values, err := readNamedIDs(path, "entities")
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(values))
+	for _, value := range values {
+		name := strings.TrimPrefix(value.name, "minecraft:")
+		if alias, ok := bedrockEntityAliases[name]; ok {
+			name = alias
+		}
+		names[value.id] = "minecraft:" + name
+	}
+	return names, nil
+}
+
+var bedrockEntityAliases = map[string]string{
+	"end_crystal":        "ender_crystal",
+	"evoker_fangs":       "evocation_fang",
+	"experience_bottle":  "xp_bottle",
+	"experience_orb":     "xp_orb",
+	"eye_of_ender":       "eye_of_ender_signal",
+	"firework_rocket":    "fireworks_rocket",
+	"fishing_bobber":     "fishing_hook",
+	"tropical_fish":      "tropicalfish",
+	"villager":           "villager_v2",
+	"wind_charge":        "wind_charge_projectile",
+	"breeze_wind_charge": "breeze_wind_charge_projectile",
+	"zombie_villager":    "zombie_villager_v2",
+	"zombified_piglin":   "zombie_pigman",
+}
+
+func buildItemMapping(javaPath, bedrockPath, geyserPath string) (itemMappingResult, error) {
+	java, err := readNamedIDs(javaPath, "items")
+	if err != nil {
+		return itemMappingResult{}, err
+	}
+	bedrockBytes, err := os.ReadFile(bedrockPath)
+	if err != nil {
+		return itemMappingResult{}, fmt.Errorf("read Bedrock items: %w", err)
+	}
+	var rawBedrock []struct {
+		Name string `json:"name"`
+		ID   int32  `json:"id"`
+	}
+	if err := json.Unmarshal(bedrockBytes, &rawBedrock); err != nil {
+		return itemMappingResult{}, fmt.Errorf("decode Bedrock items: %w", err)
+	}
+	bedrock := make(map[string]int32, len(rawBedrock))
+	for _, item := range rawBedrock {
+		if item.Name == "" {
+			return itemMappingResult{}, fmt.Errorf("invalid Bedrock item id=%d name=%q", item.ID, item.Name)
+		}
+		bedrock[item.Name] = item.ID
+	}
+	air, ok := bedrock["minecraft:air"]
+	if !ok {
+		return itemMappingResult{}, fmt.Errorf("Bedrock item table has no minecraft:air")
+	}
+	aliases := make(map[string]string)
+	var geyserHash string
+	if geyserPath != "" {
+		geyserBytes, readErr := os.ReadFile(geyserPath)
+		if readErr != nil {
+			return itemMappingResult{}, fmt.Errorf("read Geyser items: %w", readErr)
+		}
+		var raw map[string]struct {
+			BedrockIdentifier string `json:"bedrock_identifier"`
+		}
+		if err := json.Unmarshal(geyserBytes, &raw); err != nil {
+			return itemMappingResult{}, fmt.Errorf("decode Geyser items: %w", err)
+		}
+		for name, item := range raw {
+			if item.BedrockIdentifier != "" && item.BedrockIdentifier != "unknown" {
+				aliases[name] = item.BedrockIdentifier
+			}
+		}
+		geyserHash = sha256Hex(geyserBytes)
+	}
+	mapping := make([]int32, len(java))
+	exact := 0
+	fallback := 0
+	for _, item := range java {
+		name := item.name
+		if alias := aliases[name]; alias != "" {
+			name = alias
+		}
+		if id, found := bedrock[name]; found {
+			mapping[item.id] = id
+			exact++
+		} else {
+			mapping[item.id] = air
+			fallback++
+		}
+	}
+	javaBytes, _ := os.ReadFile(javaPath)
+	return itemMappingResult{
+		mapping: mapping, exact: exact, airFallback: fallback,
+		javaHash: sha256Hex(javaBytes), bedrockHash: sha256Hex(bedrockBytes), geyserHash: geyserHash,
+	}, nil
 }
 
 func readGzip(path string) ([]byte, error) {
@@ -271,7 +469,7 @@ func nbtValue(value any) string {
 	}
 }
 
-func render(mapping []uint32, paletteCount, exact, nameFallback, airFallback int, javaHash, paletteHash, geyserHash string) string {
+func render(mapping []uint32, paletteCount, exact, nameFallback, airFallback int, javaHash, paletteHash, geyserHash string, items itemMappingResult, entities []string, entityHash string) string {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "// Code generated by cmd/registrygen; DO NOT EDIT.\n")
 	fmt.Fprintf(&builder, "// Java state source SHA-256: %s\n", javaHash)
@@ -280,6 +478,19 @@ func render(mapping []uint32, paletteCount, exact, nameFallback, airFallback int
 		fmt.Fprintf(&builder, "// Geyser block mapping source SHA-256: %s\n", geyserHash)
 	}
 	fmt.Fprintf(&builder, "// Mapping coverage: exact=%d name-fallback=%d air-fallback=%d; Bedrock palette states=%d.\n\n", exact, nameFallback, airFallback, paletteCount)
+	if len(items.mapping) > 0 {
+		fmt.Fprintf(&builder, "// Java item source SHA-256: %s\n", items.javaHash)
+		fmt.Fprintf(&builder, "// CloudburstMC/Data item source SHA-256: %s\n", items.bedrockHash)
+		if items.geyserHash != "" {
+			fmt.Fprintf(&builder, "// Geyser item mapping source SHA-256: %s\n", items.geyserHash)
+		}
+		fmt.Fprintf(&builder, "// Item coverage: exact=%d air-fallback=%d.\n", items.exact, items.airFallback)
+	}
+	if len(entities) > 0 {
+		fmt.Fprintf(&builder, "// Java entity source SHA-256: %s\n", entityHash)
+		builder.WriteString("// Entity identifiers use Geyser's versioned Bedrock aliases where Java and Bedrock names differ.\n")
+	}
+	builder.WriteByte('\n')
 	builder.WriteString("package data\n\n")
 	fmt.Fprintf(&builder, "const Java1214BlockStateCount = %d\n\n", len(mapping))
 	builder.WriteString("var Java1214ToBedrock = [...]uint32{\n")
@@ -296,6 +507,40 @@ func render(mapping []uint32, paletteCount, exact, nameFallback, airFallback int
 		builder.WriteByte('\n')
 	}
 	builder.WriteString("}\n")
+	if len(items.mapping) > 0 {
+		builder.WriteString("\n")
+		fmt.Fprintf(&builder, "const Java1214ItemCount = %d\n\n", len(items.mapping))
+		builder.WriteString("var Java1214ToBedrockItem = [...]int32{\n")
+		for i, id := range items.mapping {
+			if i%16 == 0 {
+				builder.WriteString("\t")
+			}
+			fmt.Fprintf(&builder, "%d, ", id)
+			if i%16 == 15 {
+				builder.WriteByte('\n')
+			}
+		}
+		if len(items.mapping)%16 != 0 {
+			builder.WriteByte('\n')
+		}
+		builder.WriteString("}\n")
+	}
+	if len(entities) > 0 {
+		builder.WriteString("\nvar Java1214EntityTypeNames = [...]string{\n")
+		for i, name := range entities {
+			if i%4 == 0 {
+				builder.WriteString("\t")
+			}
+			fmt.Fprintf(&builder, "%q, ", name)
+			if i%4 == 3 {
+				builder.WriteByte('\n')
+			}
+		}
+		if len(entities)%4 != 0 {
+			builder.WriteByte('\n')
+		}
+		builder.WriteString("}\n")
+	}
 	return builder.String()
 }
 

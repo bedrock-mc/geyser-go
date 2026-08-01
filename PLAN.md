@@ -15,6 +15,12 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Decode Java 1.21.4 paletted chunk sections and forward typed Bedrock
   `LevelChunk` packets through the lunar Gophertunnel fork; cover the codec and
   Bedrock subchunk writer with focused tests.
+- [x] Forward Java 1.21.4 single-block changes, chunk unloads, world time, and
+  the basic non-player entity lifecycle with generated Java registry lookups.
+- [x] Translate the Java player-window inventory snapshot/slot slice and the
+  common Java system/player/profileless chat packets into typed Bedrock
+  packets; cover the wire decoders, unsupported-component skip behavior, and
+  a live Paper readback.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -31,8 +37,12 @@ native Bedrock validation, and performance evidence are separate gates.
 The current implementation is an explicitly incomplete bootstrap/world
 tranche. It does not claim Geyser gameplay parity: 318 Java block states still
 fall back to Bedrock air in the generated 1.21.4 mapping, and lighting, block
-entities, entities, inventory, interactions, and most Java play protocol remain
-open.
+entities, item components, arbitrary container windows, cursor/transaction
+state, player/entity metadata, interactions, and most Java play protocol remain
+open. The inventory slice is limited to the Java player window and safely skips
+updates containing components it cannot yet decode. The entity lifecycle slice
+currently covers generic non-player AddActor state; entity-specific metadata,
+item actors, players, equipment, and animation are not yet parity-complete.
 
 ## Non-negotiable contracts
 
@@ -63,5 +73,6 @@ Windows 11, bridge listener `127.0.0.1:19132`, and the lunar fork at
 `60c66ae560608f209f67b7c432cbc5e29e38170a`. Both the automated client and the
 native client reached the bridge; the native client reached the in-world HUD.
 The visible empty world is an expected incomplete-state finding, not a parity
-pass. The automated probe now receives translated Java chunks; native terrain
-rendering, BDS, and gameplay behavior remain acceptance gates.
+pass. The automated probe now receives translated Java chunks, inventory/chat,
+and generic entity updates; native terrain rendering, BDS, and gameplay
+behavior remain acceptance gates.

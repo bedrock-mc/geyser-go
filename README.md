@@ -28,6 +28,15 @@ protocol parity.
   `data/generated_java1214.go` table is built from the matching Geyser mapping
   revision and Cloudburst's Bedrock palette; unresolved state aliases remain
   explicitly incomplete rather than silently being called parity.
+- The current play translator also forwards versioned single-block changes,
+  chunk unloads, time, and the basic non-player entity lifecycle (spawn,
+  absolute/relative movement, rotation, and removal). It translates Java
+  player-window snapshots and slot updates into Bedrock inventory, armor,
+  offhand, and crafting containers, and converts Java system/player/profileless
+  chat into Bedrock `Text` packets. Java item and entity registries are
+  generated alongside the block table; component-bearing items, arbitrary
+  container windows, cursor state, metadata, players, and richer
+  entity-specific behavior are still open.
 
 ## Authoritative references
 
@@ -52,15 +61,19 @@ The Java 1.21.4 block mapping was generated from Geyser mappings commit
 The initial real-connection gate now passes locally. Paper `1.21.4-232` was run
 in offline mode with Temurin Java `21.0.12`; the automated Gophertunnel client
 joined through the bridge as Bedrock protocol `1.26.33` and received a complete
-1,933-entry item table. The installed Bedrock client (`1.26.3301.0`) also joined
-the same listener through the native UI, and the Paper log recorded the native
-player entering the Java world. The native capture is intentionally temporary
-and ignored by Git.
+1,933-entry item table. A current readback run also observed translated
+`InventoryContent`, `InventorySlot`, `Text`, `LevelChunk`, `AddActor`, movement,
+block-update, and actor-removal packets before its bounded read window ended.
+The installed Bedrock client (`1.26.3301.0`) also joined the same listener
+through the native UI, and the Paper log recorded the native player entering
+the Java world. The native capture is intentionally temporary and ignored by
+Git.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
-probe receives forwarded Java chunk packets, while native terrain rendering,
-lighting, block entities, entities, inventory, interaction, and the rest of
-the Geyser gameplay translators are still open acceptance work.
+probe receives forwarded Java chunks and the partial play-state updates, while
+native terrain rendering, lighting, block entities, item components, arbitrary
+inventory windows, player/entity metadata, interaction, and the rest of the
+Geyser gameplay translators are still open acceptance work.
 
 ## Local checks
 

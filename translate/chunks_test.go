@@ -80,6 +80,34 @@ func TestEncodeBedrockChunkCarriesMappedTerrain(t *testing.T) {
 	}
 }
 
+func TestDecodeOptionalNBTSupportsEndAndCompoundRoots(t *testing.T) {
+	end := javaprotocol.NewWriter()
+	_ = end.Byte(0)
+	value, err := decodeOptionalNBT(javaprotocol.NewReader(end.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value != nil {
+		t.Fatalf("TAG_End optional NBT = %#v, want nil", value)
+	}
+
+	compound := javaprotocol.NewWriter()
+	_ = compound.Byte(10) // TAG_Compound, anonymous root.
+	_ = compound.Byte(8)  // TAG_String.
+	_ = compound.Int16(4)
+	_ = compound.BytesValue([]byte("text"))
+	_ = compound.Int16(5)
+	_ = compound.BytesValue([]byte("hello"))
+	_ = compound.Byte(0) // TAG_End.
+	value, err = decodeOptionalNBT(javaprotocol.NewReader(compound.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value["text"] != "hello" {
+		t.Fatalf("compound optional NBT text = %#v, want hello", value["text"])
+	}
+}
+
 func minTest(a, b int) int {
 	if a < b {
 		return a

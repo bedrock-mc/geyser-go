@@ -40,16 +40,31 @@ type Profile struct {
 	ConfigServerboundPongPacketID           int32
 	ConfigServerboundSelectKnownPacksID     int32
 
-	PlayClientboundDisconnectPacketID int32
-	PlayClientboundKeepAlivePacketID  int32
-	PlayClientboundLoginPacketID      int32
-	PlayClientboundMapChunkPacketID   int32
-	PlayClientboundPositionPacketID   int32
-	PlayClientboundUpdateHealthID     int32
-	PlayServerboundKeepAlivePacketID  int32
-	PlayServerboundTeleportConfirmID  int32
-	PlayServerboundPositionLookID     int32
-	PlayServerboundChatMessageID      int32
+	PlayClientboundDisconnectPacketID   int32
+	PlayClientboundKeepAlivePacketID    int32
+	PlayClientboundLoginPacketID        int32
+	PlayClientboundMapChunkPacketID     int32
+	PlayClientboundPositionPacketID     int32
+	PlayClientboundUpdateHealthID       int32
+	PlayClientboundBlockChangeID        int32
+	PlayClientboundSpawnEntityID        int32
+	PlayClientboundEntityTeleportID     int32
+	PlayClientboundEntityDestroyID      int32
+	PlayClientboundEntityRelMoveID      int32
+	PlayClientboundEntityMoveLookID     int32
+	PlayClientboundEntityLookID         int32
+	PlayClientboundEntityHeadRotationID int32
+	PlayClientboundUpdateTimeID         int32
+	PlayClientboundUnloadChunkID        int32
+	PlayClientboundWindowItemsID        int32
+	PlayClientboundSetSlotID            int32
+	PlayClientboundProfilelessChatID    int32
+	PlayClientboundPlayerChatID         int32
+	PlayClientboundSystemChatID         int32
+	PlayServerboundKeepAlivePacketID    int32
+	PlayServerboundTeleportConfirmID    int32
+	PlayServerboundPositionLookID       int32
+	PlayServerboundChatMessageID        int32
 }
 
 // Java1214 is the 1.21.4 protocol profile (protocol 769), sourced from the
@@ -88,16 +103,31 @@ var Java1214 = Profile{
 	ConfigServerboundPongPacketID:           5,
 	ConfigServerboundSelectKnownPacksID:     7,
 
-	PlayClientboundDisconnectPacketID: 0x1d,
-	PlayClientboundKeepAlivePacketID:  0x27,
-	PlayClientboundLoginPacketID:      0x2c,
-	PlayClientboundMapChunkPacketID:   0x28,
-	PlayClientboundPositionPacketID:   0x42,
-	PlayClientboundUpdateHealthID:     0x62,
-	PlayServerboundKeepAlivePacketID:  0x1a,
-	PlayServerboundTeleportConfirmID:  0x00,
-	PlayServerboundPositionLookID:     0x1d,
-	PlayServerboundChatMessageID:      0x07,
+	PlayClientboundDisconnectPacketID:   0x1d,
+	PlayClientboundKeepAlivePacketID:    0x27,
+	PlayClientboundLoginPacketID:        0x2c,
+	PlayClientboundMapChunkPacketID:     0x28,
+	PlayClientboundPositionPacketID:     0x42,
+	PlayClientboundUpdateHealthID:       0x62,
+	PlayClientboundBlockChangeID:        0x09,
+	PlayClientboundSpawnEntityID:        0x01,
+	PlayClientboundEntityTeleportID:     0x77,
+	PlayClientboundEntityDestroyID:      0x47,
+	PlayClientboundEntityRelMoveID:      0x2f,
+	PlayClientboundEntityMoveLookID:     0x30,
+	PlayClientboundEntityLookID:         0x32,
+	PlayClientboundEntityHeadRotationID: 0x4d,
+	PlayClientboundUpdateTimeID:         0x6b,
+	PlayClientboundUnloadChunkID:        0x22,
+	PlayClientboundWindowItemsID:        0x13,
+	PlayClientboundSetSlotID:            0x15,
+	PlayClientboundProfilelessChatID:    0x1e,
+	PlayClientboundPlayerChatID:         0x3b,
+	PlayClientboundSystemChatID:         0x73,
+	PlayServerboundKeepAlivePacketID:    0x1a,
+	PlayServerboundTeleportConfirmID:    0x00,
+	PlayServerboundPositionLookID:       0x1d,
+	PlayServerboundChatMessageID:        0x07,
 }
 
 func (p Profile) Validate() error {

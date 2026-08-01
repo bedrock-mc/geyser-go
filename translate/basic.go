@@ -1,8 +1,7 @@
 // Package translate contains versioned Java/Bedrock packet translators.
-// Basic is deliberately a narrow first slice: it establishes a real Java
-// play session and Bedrock world bootstrap, then translates movement and
-// keep-alives. Unsupported gameplay packets are counted and ignored until a
-// typed translator is added for their protocol revision.
+// Basic owns the versioned packet pumps for the current implementation slice.
+// It is intentionally explicit: packets without a translator are counted and
+// logged rather than copied across incompatible wire formats.
 package translate
 
 import (
@@ -38,15 +37,23 @@ type Basic struct {
 	Profile javaprotocol.Profile
 	Logger  *slog.Logger
 
-	mu       sync.Mutex
-	gameData minecraft.GameData
-	position javaPosition
-	unknown  map[int32]uint64
+	mu          sync.Mutex
+	gameData    minecraft.GameData
+	position    javaPosition
+	entities    map[int32]*javaEntityState
+	nextStackID int32
+	unknown     map[int32]uint64
 }
 
 type javaPosition struct {
 	x, y, z    float64
 	yaw, pitch float32
+}
+
+type javaEntityState struct {
+	runtimeID uint64
+	position  mgl32.Vec3
+	rotation  mgl32.Vec3 // pitch, yaw, head yaw
 }
 
 func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
@@ -56,7 +63,13 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Basic{Profile: profile, Logger: logger, unknown: make(map[int32]uint64)}
+	return &Basic{
+		Profile:     profile,
+		Logger:      logger,
+		entities:    make(map[int32]*javaEntityState),
+		nextStackID: 1,
+		unknown:     make(map[int32]uint64),
+	}
 }
 
 // Bootstrap reads Java play packets until Login is received, builds a full
@@ -179,6 +192,21 @@ func (b *Basic) pumpBedrock(ctx context.Context, bedrock *minecraft.Conn, java *
 
 func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.Client, pk javaprotocol.Packet) error {
 	switch pk.ID {
+	case b.Profile.PlayClientboundBlockChangeID:
+		change, err := DecodeBlockChange(pk.Data)
+		if err != nil {
+			return err
+		}
+		runtimeID, known := JavaBlockRuntimeID(change.StateID)
+		if !known {
+			b.logSemanticAnomaly("Java block state outside generated registry", "state", change.StateID)
+		}
+		return bedrock.WritePacket(&packet.UpdateBlock{
+			Position:          gtprotocol.BlockPos{change.Position[0], change.Position[1], change.Position[2]},
+			NewBlockRuntimeID: runtimeID,
+			Flags:             packet.BlockUpdateNeighbours | packet.BlockUpdateNetwork,
+			Layer:             0,
+		})
 	case b.Profile.PlayClientboundMapChunkPacketID:
 		chunk, err := DecodeMapChunk(pk.Data)
 		if err != nil {
@@ -227,6 +255,109 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			return err
 		}
 		return bedrock.WritePacket(&packet.SetHealth{Health: int32(math.Round(float64(health)))})
+	case b.Profile.PlayClientboundUpdateTimeID:
+		update, err := DecodeTimeUpdate(pk.Data)
+		if err != nil {
+			return err
+		}
+		value := int32(-1)
+		if update.TickDayTime {
+			value = clampJavaTime(update.Time)
+		}
+		return bedrock.WritePacket(&packet.SetTime{Time: value})
+	case b.Profile.PlayClientboundUnloadChunkID:
+		chunk, err := DecodeUnloadChunk(pk.Data)
+		if err != nil {
+			return err
+		}
+		return bedrock.WritePacket(&packet.LevelChunk{
+			Position:      gtprotocol.ChunkPos{chunk.X, chunk.Z},
+			Dimension:     b.gameData.Dimension,
+			SubChunkCount: 0,
+			RawPayload:    EmptyBedrockChunkPayload(b.gameData.Dimension),
+		})
+	case b.Profile.PlayClientboundWindowItemsID:
+		items, err := DecodeJavaWindowItems(pk.Data, b.nextStackNetworkID)
+		if err != nil {
+			if errors.Is(err, ErrUnsupportedJavaItemComponent) {
+				b.logSemanticAnomaly("skipping inventory update with unsupported Java item component", "error", err)
+				return nil
+			}
+			return err
+		}
+		if items.UnknownItems != 0 {
+			b.logSemanticAnomaly("Java inventory contains unknown item IDs", "count", items.UnknownItems)
+		}
+		return b.translateWindowItems(bedrock, items)
+	case b.Profile.PlayClientboundSetSlotID:
+		update, err := DecodeJavaSetSlot(pk.Data, b.nextStackNetworkID)
+		if err != nil {
+			if errors.Is(err, ErrUnsupportedJavaItemComponent) {
+				b.logSemanticAnomaly("skipping slot update with unsupported Java item component", "error", err)
+				return nil
+			}
+			return err
+		}
+		if !update.Known {
+			b.logSemanticAnomaly("Java slot update contains an unknown item ID", "slot", update.Slot)
+		}
+		return b.translateSetSlot(bedrock, update)
+	case b.Profile.PlayClientboundSystemChatID:
+		chat, err := DecodeSystemChat(pk.Data)
+		if err != nil {
+			return err
+		}
+		message := JavaTextComponentText(chat.Content)
+		if message == "" {
+			b.logSemanticAnomaly("skipping empty Java system chat component")
+			return nil
+		}
+		textType := byte(packet.TextTypeSystem)
+		if chat.ActionBar {
+			textType = packet.TextTypeTip
+		}
+		return bedrock.WritePacket(&packet.Text{TextType: textType, Message: message})
+	case b.Profile.PlayClientboundPlayerChatID:
+		chat, err := DecodePlayerChat(pk.Data)
+		if err != nil {
+			return err
+		}
+		if chat.Message == "" {
+			return nil
+		}
+		return bedrock.WritePacket(&packet.Text{
+			TextType:   packet.TextTypeChat,
+			SourceName: JavaTextComponentText(chat.NetworkName),
+			Message:    chat.Message,
+		})
+	case b.Profile.PlayClientboundProfilelessChatID:
+		chat, err := DecodeProfilelessChat(pk.Data)
+		if err != nil {
+			return err
+		}
+		message := JavaTextComponentText(chat.Message)
+		if message == "" {
+			return nil
+		}
+		return bedrock.WritePacket(&packet.Text{
+			TextType:   packet.TextTypeChat,
+			SourceName: JavaTextComponentText(chat.Name),
+			Message:    message,
+		})
+	case b.Profile.PlayClientboundSpawnEntityID:
+		return b.translateSpawnEntity(bedrock, pk.Data)
+	case b.Profile.PlayClientboundEntityTeleportID:
+		return b.translateEntityTeleport(bedrock, pk.Data)
+	case b.Profile.PlayClientboundEntityRelMoveID:
+		return b.translateEntityRelativeMove(bedrock, pk.Data, false)
+	case b.Profile.PlayClientboundEntityMoveLookID:
+		return b.translateEntityRelativeMove(bedrock, pk.Data, true)
+	case b.Profile.PlayClientboundEntityLookID:
+		return b.translateEntityLook(bedrock, pk.Data)
+	case b.Profile.PlayClientboundEntityHeadRotationID:
+		return b.translateEntityHeadRotation(bedrock, pk.Data)
+	case b.Profile.PlayClientboundEntityDestroyID:
+		return b.translateEntityDestroy(bedrock, pk.Data)
 	case b.Profile.PlayClientboundDisconnectPacketID:
 		_ = bedrock.Disconnect("The Java server disconnected")
 		return fmt.Errorf("translate: Java server disconnected")
@@ -234,6 +365,300 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		b.logUnknown(pk.ID, "Java play")
 		return nil
 	}
+}
+
+func (b *Basic) nextStackNetworkID() int32 {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	id := b.nextStackID
+	if id <= 0 {
+		id = 1
+	}
+	b.nextStackID = id + 1
+	if b.nextStackID <= 0 {
+		b.nextStackID = 1
+	}
+	return id
+}
+
+func (b *Basic) translateWindowItems(bedrock *minecraft.Conn, update JavaWindowItems) error {
+	if update.WindowID != 0 {
+		b.logSemanticAnomaly("skipping inventory content for unsupported Java window", "window", update.WindowID)
+		return nil
+	}
+	contents := make([]gtprotocol.ItemInstance, 36)
+	for slot := 9; slot <= 35 && slot < len(update.Items); slot++ {
+		contents[slot] = update.Items[slot]
+	}
+	for slot := 36; slot <= 44 && slot < len(update.Items); slot++ {
+		contents[slot-36] = update.Items[slot]
+	}
+	if err := bedrock.WritePacket(&packet.InventoryContent{
+		WindowID: 0,
+		Content:  contents,
+		Container: gtprotocol.FullContainerName{
+			ContainerID: gtprotocol.ContainerInventory,
+		},
+	}); err != nil {
+		return err
+	}
+	armor := make([]gtprotocol.ItemInstance, 4)
+	for slot := 5; slot <= 8 && slot < len(update.Items); slot++ {
+		armor[slot-5] = update.Items[slot]
+	}
+	if err := bedrock.WritePacket(&packet.InventoryContent{
+		WindowID: 0, Content: armor,
+		Container: gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerArmor},
+	}); err != nil {
+		return err
+	}
+	var offhand gtprotocol.ItemInstance
+	if len(update.Items) > 45 {
+		offhand = update.Items[45]
+	}
+	if err := bedrock.WritePacket(&packet.InventoryContent{
+		WindowID: 0, Content: []gtprotocol.ItemInstance{offhand},
+		Container: gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerOffhand},
+	}); err != nil {
+		return err
+	}
+	for slot := 1; slot <= 4 && slot < len(update.Items); slot++ {
+		if err := bedrock.WritePacket(&packet.InventorySlot{
+			WindowID: 0,
+			Slot:     uint32(slot + 27),
+			Container: gtprotocol.Option(gtprotocol.FullContainerName{
+				ContainerID: gtprotocol.ContainerCraftingInput,
+			}),
+			NewItem: update.Items[slot],
+		}); err != nil {
+			return err
+		}
+	}
+	if update.CarriedItem.Stack.NetworkID != 0 {
+		b.logSemanticAnomaly("Java carried item is not forwarded until a cursor translator is available")
+	}
+	return nil
+}
+
+func (b *Basic) translateSetSlot(bedrock *minecraft.Conn, update JavaSetSlot) error {
+	if update.WindowID == -1 && update.Slot == -1 {
+		b.logSemanticAnomaly("Java cursor slot is not forwarded until a cursor translator is available")
+		return nil
+	}
+	if update.WindowID != 0 && update.WindowID != -2 {
+		b.logSemanticAnomaly("skipping slot update for unsupported Java window", "window", update.WindowID)
+		return nil
+	}
+	containerID, slot, ok := javaPlayerSlot(update.Slot)
+	if !ok {
+		b.logSemanticAnomaly("skipping Java player slot outside Bedrock containers", "slot", update.Slot)
+		return nil
+	}
+	return bedrock.WritePacket(&packet.InventorySlot{
+		WindowID:  0,
+		Slot:      slot,
+		Container: gtprotocol.Option(gtprotocol.FullContainerName{ContainerID: containerID}),
+		NewItem:   update.Item,
+	})
+}
+
+func javaPlayerSlot(slot int16) (containerID byte, bedrockSlot uint32, ok bool) {
+	switch {
+	case slot >= 9 && slot <= 35:
+		return gtprotocol.ContainerInventory, uint32(slot), true
+	case slot >= 36 && slot <= 44:
+		return gtprotocol.ContainerHotBar, uint32(slot - 36), true
+	case slot >= 5 && slot <= 8:
+		return gtprotocol.ContainerArmor, uint32(slot - 5), true
+	case slot == 45:
+		return gtprotocol.ContainerOffhand, 0, true
+	case slot >= 1 && slot <= 4:
+		return gtprotocol.ContainerCraftingInput, uint32(slot + 27), true
+	case slot == 0:
+		return gtprotocol.ContainerCreatedOutput, 0, true
+	default:
+		return 0, 0, false
+	}
+}
+
+func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) error {
+	spawn, err := DecodeSpawnEntity(payload)
+	if err != nil {
+		return err
+	}
+	if !finiteVec3(spawn.Position) {
+		b.logSemanticAnomaly("skipping entity spawn with non-finite position", "entity", spawn.EntityID)
+		return nil
+	}
+	entityType, known := data.JavaEntityTypeName(spawn.Type)
+	if !known {
+		b.logSemanticAnomaly("Java entity type outside generated registry", "type", spawn.Type)
+		return nil
+	}
+	runtimeID := uint64(uint32(spawn.EntityID))
+	b.mu.Lock()
+	b.entities[spawn.EntityID] = &javaEntityState{
+		runtimeID: runtimeID,
+		position:  spawn.Position,
+		rotation:  mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
+	}
+	b.mu.Unlock()
+	return bedrock.WritePacket(&packet.AddActor{
+		EntityUniqueID:  int64(spawn.EntityID),
+		EntityRuntimeID: runtimeID,
+		EntityType:      entityType,
+		Position:        spawn.Position,
+		Velocity:        spawn.Velocity,
+		Pitch:           spawn.Pitch,
+		Yaw:             spawn.Yaw,
+		HeadYaw:         spawn.HeadYaw,
+		BodyYaw:         spawn.Yaw,
+		EntityMetadata:  gtprotocol.NewEntityMetadata(),
+	})
+}
+
+func (b *Basic) translateEntityTeleport(bedrock *minecraft.Conn, payload []byte) error {
+	teleport, err := DecodeEntityTeleport(payload)
+	if err != nil {
+		return err
+	}
+	if !finiteVec3(teleport.Position) {
+		b.logSemanticAnomaly("skipping entity teleport with non-finite position", "entity", teleport.EntityID)
+		return nil
+	}
+	b.mu.Lock()
+	entity := b.entities[teleport.EntityID]
+	if entity != nil {
+		entity.position = teleport.Position
+		entity.rotation[0] = teleport.Pitch
+		entity.rotation[1] = teleport.Yaw
+	}
+	b.mu.Unlock()
+	if entity == nil {
+		return nil
+	}
+	flags := byte(0)
+	if teleport.OnGround {
+		flags |= packet.MoveFlagOnGround
+	}
+	return bedrock.WritePacket(&packet.MoveActorAbsolute{
+		EntityRuntimeID: entity.runtimeID,
+		Flags:           flags,
+		Position:        teleport.Position,
+		Rotation:        entity.rotation,
+	})
+}
+
+func (b *Basic) translateEntityRelativeMove(bedrock *minecraft.Conn, payload []byte, hasRotation bool) error {
+	move, err := DecodeEntityRelativeMove(payload, hasRotation)
+	if err != nil {
+		return err
+	}
+	b.mu.Lock()
+	entity := b.entities[move.EntityID]
+	if entity != nil {
+		entity.position = entity.position.Add(move.Delta)
+		if move.HasRotation {
+			entity.rotation[0], entity.rotation[1] = move.Pitch, move.Yaw
+		}
+	}
+	b.mu.Unlock()
+	if entity == nil {
+		return nil
+	}
+	flags := uint16(packet.MoveActorDeltaFlagHasX | packet.MoveActorDeltaFlagHasY | packet.MoveActorDeltaFlagHasZ)
+	if move.HasRotation {
+		flags |= packet.MoveActorDeltaFlagHasRotX | packet.MoveActorDeltaFlagHasRotY
+	}
+	if move.OnGround {
+		flags |= packet.MoveActorDeltaFlagOnGround
+	}
+	return bedrock.WritePacket(&packet.MoveActorDelta{
+		EntityRuntimeID: entity.runtimeID,
+		Flags:           flags,
+		Position:        entity.position,
+		Rotation:        entity.rotation,
+	})
+}
+
+func (b *Basic) translateEntityLook(bedrock *minecraft.Conn, payload []byte) error {
+	look, err := DecodeEntityLook(payload)
+	if err != nil {
+		return err
+	}
+	b.mu.Lock()
+	entity := b.entities[look.EntityID]
+	if entity != nil {
+		entity.rotation[0], entity.rotation[1] = look.Pitch, look.Yaw
+	}
+	b.mu.Unlock()
+	if entity == nil {
+		return nil
+	}
+	flags := uint16(packet.MoveActorDeltaFlagHasRotX | packet.MoveActorDeltaFlagHasRotY)
+	if look.OnGround {
+		flags |= packet.MoveActorDeltaFlagOnGround
+	}
+	return bedrock.WritePacket(&packet.MoveActorDelta{
+		EntityRuntimeID: entity.runtimeID,
+		Flags:           flags,
+		Rotation:        entity.rotation,
+	})
+}
+
+func (b *Basic) translateEntityHeadRotation(bedrock *minecraft.Conn, payload []byte) error {
+	rotation, err := DecodeEntityHeadRotation(payload)
+	if err != nil {
+		return err
+	}
+	b.mu.Lock()
+	entity := b.entities[rotation.EntityID]
+	if entity != nil {
+		entity.rotation[2] = rotation.HeadYaw
+	}
+	b.mu.Unlock()
+	if entity == nil {
+		return nil
+	}
+	return bedrock.WritePacket(&packet.MoveActorDelta{
+		EntityRuntimeID: entity.runtimeID,
+		Flags:           packet.MoveActorDeltaFlagHasRotZ,
+		Rotation:        entity.rotation,
+	})
+}
+
+func (b *Basic) translateEntityDestroy(bedrock *minecraft.Conn, payload []byte) error {
+	ids, err := DecodeEntityDestroy(payload)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		b.mu.Lock()
+		entity := b.entities[id]
+		delete(b.entities, id)
+		b.mu.Unlock()
+		if entity == nil {
+			continue
+		}
+		if err := bedrock.WritePacket(&packet.RemoveActor{EntityUniqueID: int64(id)}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func clampJavaTime(value int64) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(value)
+}
+
+func (b *Basic) logSemanticAnomaly(message string, args ...any) {
+	b.Logger.Debug(message, args...)
 }
 
 func (b *Basic) translateBedrockPacket(java *javaprotocol.Client, pk packet.Packet) error {

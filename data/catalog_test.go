@@ -40,3 +40,21 @@ func TestLoadCloudburstAndGenerate(t *testing.T) {
 		t.Fatalf("generated source missing catalog: %s", output.String())
 	}
 }
+
+func TestGeneratedJavaLookups(t *testing.T) {
+	if got, ok := JavaItemRuntimeID(0); !ok || got != 0 {
+		t.Fatalf("air item lookup is not stable: id=%d ok=%v", got, ok)
+	}
+	if got, ok := JavaItemRuntimeID(Java1214ItemCount - 1); !ok || got == 0 {
+		t.Fatalf("last generated item lookup missing: id=%d ok=%v", got, ok)
+	}
+	if _, ok := JavaItemRuntimeID(-1); ok {
+		t.Fatal("negative Java item ID unexpectedly reported as known")
+	}
+	if got, ok := JavaEntityTypeName(47); !ok || got != "minecraft:xp_orb" {
+		t.Fatalf("experience orb mapping = %q, ok=%v", got, ok)
+	}
+	if _, ok := JavaEntityTypeName(9999); ok {
+		t.Fatal("out-of-range Java entity ID unexpectedly reported as known")
+	}
+}
