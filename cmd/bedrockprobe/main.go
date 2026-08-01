@@ -18,6 +18,8 @@ func main() {
 	username := flag.String("username", "GeyserProbe", "offline-mode Bedrock username")
 	readFor := flag.Duration("read-for", 0, "after spawn, read and print Bedrock packets for this duration")
 	sendAuthInput := flag.Bool("send-auth-input", false, "send one PlayerAuthInput movement packet after spawn")
+	sendBlockAction := flag.Bool("send-block-action", false, "include one block-break action in the auth-input packet")
+	sendItemUse := flag.Bool("send-item-use", false, "include one click-air item interaction in the auth-input packet")
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -38,13 +40,31 @@ func main() {
 	if *sendAuthInput {
 		input := protocol.NewBitset(packet.PlayerAuthInputBitsetSize)
 		input.Set(packet.InputFlagVerticalCollision)
-		if err := conn.WritePacket(&packet.PlayerAuthInput{
+		auth := &packet.PlayerAuthInput{
 			Position:  conn.GameData().PlayerPosition,
 			Yaw:       conn.GameData().Yaw,
 			Pitch:     conn.GameData().Pitch,
 			HeadYaw:   conn.GameData().Yaw,
 			InputData: input,
-		}); err != nil {
+		}
+		if *sendBlockAction {
+			input.Set(packet.InputFlagPerformBlockActions)
+			auth.BlockActions = []protocol.PlayerBlockAction{{
+				Action:   protocol.PlayerActionStartBreak,
+				BlockPos: protocol.BlockPos{int32(auth.Position.X()), int32(auth.Position.Y()) - 2, int32(auth.Position.Z())},
+				Face:     1,
+			}}
+		}
+		if *sendItemUse {
+			input.Set(packet.InputFlagPerformItemInteraction)
+			auth.InteractYaw = auth.Yaw
+			auth.InteractPitch = auth.Pitch
+			auth.ItemInteractionData = protocol.UseItemTransactionData{
+				ActionType: protocol.UseItemActionClickAir,
+				Position:   auth.Position,
+			}
+		}
+		if err := conn.WritePacket(auth); err != nil {
 			panic(err)
 		}
 	}

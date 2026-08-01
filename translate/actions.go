@@ -1,0 +1,175 @@
+package translate
+
+import (
+	"fmt"
+
+	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
+	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+)
+
+func (b *Basic) translatePlayerAuthInputActions(java *javaprotocol.Client, input *packet.PlayerAuthInput) error {
+	if input == nil {
+		return nil
+	}
+	for _, action := range input.BlockActions {
+		status, ok := javaPlayerActionStatus(action.Action)
+		if !ok {
+			b.logSemanticAnomaly("skipping unsupported Bedrock block action", "action", action.Action)
+			continue
+		}
+		if action.Face < 0 || action.Face > 5 {
+			b.logSemanticAnomaly("skipping Bedrock block action with invalid face", "face", action.Face)
+			continue
+		}
+		data, err := encodeJavaBlockDig(status, action.BlockPos, action.Face, b.nextInteractionSequence())
+		if err != nil {
+			return err
+		}
+		if err := java.Conn.WritePacket(b.Profile.PlayServerboundBlockDigID, data); err != nil {
+			return err
+		}
+	}
+
+	if loadInputFlag(input, packet.InputFlagPerformItemInteraction) {
+		transaction := input.ItemInteractionData
+		sequence := b.nextInteractionSequence()
+		switch transaction.ActionType {
+		case gtprotocol.UseItemActionClickBlock:
+			if transaction.BlockFace < 0 || transaction.BlockFace > 5 {
+				b.logSemanticAnomaly("skipping Bedrock item interaction with invalid face", "face", transaction.BlockFace)
+				break
+			}
+			data, err := encodeJavaBlockPlace(transaction, sequence)
+			if err != nil {
+				b.logSemanticAnomaly("skipping Bedrock block place with invalid cursor", "error", err)
+				break
+			}
+			if err := java.Conn.WritePacket(b.Profile.PlayServerboundBlockPlaceID, data); err != nil {
+				return err
+			}
+		case gtprotocol.UseItemActionClickAir:
+			data, err := encodeJavaUseItem(input.InteractYaw, input.InteractPitch, sequence)
+			if err != nil {
+				b.logSemanticAnomaly("skipping Bedrock air interaction with invalid rotation", "error", err)
+				break
+			}
+			if err := java.Conn.WritePacket(b.Profile.PlayServerboundUseItemID, data); err != nil {
+				return err
+			}
+		case gtprotocol.UseItemActionBreakBlock:
+			// Server-authoritative breaking is carried by BlockActions above.
+		case gtprotocol.UseItemActionUseAsAttack:
+			b.logSemanticAnomaly("skipping Bedrock attack without a target entity")
+		default:
+			b.logSemanticAnomaly("skipping unknown Bedrock item interaction", "action", transaction.ActionType)
+		}
+	}
+
+	if loadInputFlag(input, packet.InputFlagPerformItemStackRequest) && len(input.ItemStackRequest.Actions) != 0 {
+		b.logSemanticAnomaly("skipping Bedrock item stack request until Java inventory transactions are implemented", "actions", len(input.ItemStackRequest.Actions))
+	}
+	return nil
+}
+
+func javaPlayerActionStatus(action int32) (int32, bool) {
+	switch action {
+	case gtprotocol.PlayerActionStartBreak:
+		return 0, true // START_DESTROY_BLOCK
+	case gtprotocol.PlayerActionAbortBreak:
+		return 1, true // ABORT_DESTROY_BLOCK
+	case gtprotocol.PlayerActionPredictDestroyBlock:
+		return 2, true // STOP_DESTROY_BLOCK
+	default:
+		return 0, false
+	}
+}
+
+func (b *Basic) nextInteractionSequence() int32 {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	sequence := b.nextSequence
+	if sequence <= 0 {
+		sequence = 1
+	}
+	b.nextSequence = sequence + 1
+	if b.nextSequence <= 0 {
+		b.nextSequence = 1
+	}
+	return sequence
+}
+
+func encodeJavaBlockDig(status int32, position gtprotocol.BlockPos, face, sequence int32) ([]byte, error) {
+	if status < 0 || status > 6 {
+		return nil, fmt.Errorf("translate: invalid Java block-dig status %d", status)
+	}
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(status); err != nil {
+		return nil, err
+	}
+	if err := w.Int64(encodeJavaPosition(position)); err != nil {
+		return nil, err
+	}
+	if err := w.Byte(byte(int8(face))); err != nil {
+		return nil, err
+	}
+	if err := w.VarInt(sequence); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}
+
+func encodeJavaBlockPlace(transaction gtprotocol.UseItemTransactionData, sequence int32) ([]byte, error) {
+	if !finiteVec3(transaction.ClickedPosition) {
+		return nil, fmt.Errorf("translate: Bedrock block place cursor is non-finite")
+	}
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(0); err != nil { // MAIN_HAND
+		return nil, err
+	}
+	if err := w.Int64(encodeJavaPosition(transaction.BlockPosition)); err != nil {
+		return nil, err
+	}
+	if err := w.VarInt(transaction.BlockFace); err != nil {
+		return nil, err
+	}
+	if err := w.Float32(transaction.ClickedPosition.X()); err != nil {
+		return nil, err
+	}
+	if err := w.Float32(transaction.ClickedPosition.Y()); err != nil {
+		return nil, err
+	}
+	if err := w.Float32(transaction.ClickedPosition.Z()); err != nil {
+		return nil, err
+	}
+	if err := w.Bool(false); err != nil {
+		return nil, err
+	}
+	if err := w.Bool(false); err != nil {
+		return nil, err
+	}
+	if err := w.VarInt(sequence); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}
+
+func encodeJavaUseItem(yaw, pitch float32, sequence int32) ([]byte, error) {
+	if !finiteRotation(yaw, pitch) {
+		return nil, fmt.Errorf("translate: Bedrock use-item rotation is non-finite")
+	}
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(0); err != nil { // MAIN_HAND
+		return nil, err
+	}
+	if err := w.VarInt(sequence); err != nil {
+		return nil, err
+	}
+	if err := w.Float32(yaw); err != nil {
+		return nil, err
+	}
+	if err := w.Float32(pitch); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}

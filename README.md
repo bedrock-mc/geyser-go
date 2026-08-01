@@ -42,7 +42,10 @@ protocol parity.
   open. Component-bearing items, arbitrary container windows, cursor state,
   Java skin properties, and richer entity-specific behavior are also still
   open. Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
-  position/look packet with Bedrock's eye-height and collision conversion.
+  position/look packet with Bedrock's eye-height and collision conversion;
+  bounded server-authoritative block-break and click-air/block item actions are
+  also emitted as Java packets. Full stack-request validation, entity attacks,
+  vehicle input, and prediction reconciliation remain open.
 
 ## Authoritative references
 

@@ -20,7 +20,9 @@ native Bedrock validation, and performance evidence are separate gates.
   type-specific Geyser transforms remain explicitly incomplete.
 - [x] Translate Bedrock `PlayerAuthInput` and legacy `MovePlayer` positions and
   rotations to Java position/look packets, including eye-height and collision
-  flag conversion; item/block actions remain open.
+  flag conversion, and emit bounded Java block-dig/block-place/use-item
+  packets; stack requests, entity attacks, vehicles, and reconciliation remain
+  open.
 - [x] Forward Java 1.21.4 single-block changes, chunk unloads, world time, and
   the basic non-player entity lifecycle with generated Java registry lookups.
 - [x] Translate the Java player-window inventory snapshot/slot slice and the
@@ -48,10 +50,11 @@ tranche. It does not claim Geyser gameplay parity: 318 Java block states still
 fall back to Bedrock air in the generated 1.21.4 mapping, and lighting,
 type-specific block-entity transforms, item components, arbitrary container
 windows, cursor/transaction state, player/entity metadata, interactions, and
-most Java play protocol remain open. Bedrock auth-input movement is present but
-does not yet carry item use, block actions, vehicle input, or client prediction
-reconciliation. The inventory slice is limited to the Java player window and
-safely skips updates containing components it cannot yet decode. Generic
+most Java play protocol remain open. Bedrock auth-input movement and a bounded
+block/item action path are present, but stack requests, entity attacks, vehicle
+input, and client prediction reconciliation remain open. The inventory slice is
+limited to the Java player window and safely skips updates containing components
+it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
 and player-list/player-actor packets are present, but entity-specific metadata,
 Java skin properties, item actors, equipment fidelity, and animation are not

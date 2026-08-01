@@ -45,6 +45,7 @@ type Basic struct {
 	entities     map[int32]*javaEntityState
 	players      map[[16]byte]*javaPlayerState
 	nextStackID  int32
+	nextSequence int32
 	unknown      map[int32]uint64
 }
 
@@ -71,12 +72,13 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		logger = slog.Default()
 	}
 	return &Basic{
-		Profile:     profile,
-		Logger:      logger,
-		entities:    make(map[int32]*javaEntityState),
-		players:     make(map[[16]byte]*javaPlayerState),
-		nextStackID: 1,
-		unknown:     make(map[int32]uint64),
+		Profile:      profile,
+		Logger:       logger,
+		entities:     make(map[int32]*javaEntityState),
+		players:      make(map[[16]byte]*javaPlayerState),
+		nextStackID:  1,
+		nextSequence: 1,
+		unknown:      make(map[int32]uint64),
 	}
 }
 
@@ -883,6 +885,9 @@ func (b *Basic) logSemanticAnomaly(message string, args ...any) {
 func (b *Basic) translateBedrockPacket(java *javaprotocol.Client, pk packet.Packet) error {
 	switch pk := pk.(type) {
 	case *packet.PlayerAuthInput:
+		if err := b.translatePlayerAuthInputActions(java, pk); err != nil {
+			return err
+		}
 		data, err := encodePlayerAuthInput(pk)
 		if err != nil {
 			b.logSemanticAnomaly("skipping Bedrock player auth input with invalid movement", "error", err)
