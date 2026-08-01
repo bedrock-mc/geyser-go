@@ -90,7 +90,7 @@ func DialAndLogin(ctx context.Context, address string, profile Profile, username
 	}
 	conn.SetState(StateLogin)
 
-	loginStart, err := (LoginStart{Username: username, UUID: playerUUID}).Encode(profile.LoginStartHasUUID)
+	loginStart, err := (LoginStart{Username: username, UUID: playerUUID}).Encode(profile.LoginStartUUIDOptional)
 	if err != nil {
 		return nil, err
 	}

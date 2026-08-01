@@ -50,13 +50,8 @@ func TestDialAndLoginNegotiatesConfiguration(t *testing.T) {
 			serverErrors <- err
 			return
 		}
-		hasUUID, err := startReader.Bool()
-		if err != nil {
-			serverErrors <- err
-			return
-		}
-		if packet.ID != Java1214.LoginStartPacketID || username != "Tester" || !hasUUID || startReader.Remaining() != 16 {
-			serverErrors <- fmt.Errorf("unexpected login start: id=%d username=%q hasUUID=%t remaining=%d", packet.ID, username, hasUUID, startReader.Remaining())
+		if packet.ID != Java1214.LoginStartPacketID || username != "Tester" || startReader.Remaining() != 16 {
+			serverErrors <- fmt.Errorf("unexpected login start: id=%d username=%q remaining=%d", packet.ID, username, startReader.Remaining())
 			return
 		}
 		if _, err := startReader.Bytes(16); err != nil {

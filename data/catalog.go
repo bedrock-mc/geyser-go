@@ -11,6 +11,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/df-mc/dragonfly/server/world"
+	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 )
 
 type Catalog struct {
@@ -35,10 +38,35 @@ type ItemDefinition struct {
 	RuntimeID      int32
 	Version        int32
 	ComponentBased bool
+	Data           map[string]any
 	// SourceJSON retains fields introduced by newer Bedrock releases until a
 	// typed consumer is added. This prevents the generator from silently
 	// dropping authoritative data.
 	SourceJSON string
+}
+
+// DragonflyItemEntries adapts Lunar's Dragonfly fork to Gophertunnel's
+// StartGame item table. The fork embeds the complete vanilla item dictionary,
+// including items that have no Dragonfly gameplay behavior.
+func DragonflyItemEntries() ([]gtprotocol.ItemEntry, error) {
+	vanilla := world.VanillaItemEntries()
+	names := make([]string, 0, len(vanilla))
+	for name := range vanilla {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	entries := make([]gtprotocol.ItemEntry, 0, len(names))
+	for _, name := range names {
+		item := vanilla[name]
+		if item.RuntimeID < -32768 || item.RuntimeID > 32767 {
+			return nil, fmt.Errorf("data: item %q runtime ID %d does not fit Bedrock ItemEntry", name, item.RuntimeID)
+		}
+		entries = append(entries, gtprotocol.ItemEntry{
+			Name: name, RuntimeID: int16(item.RuntimeID),
+			ComponentBased: item.ComponentBased, Version: item.Version, Data: item.Data,
+		})
+	}
+	return entries, nil
 }
 
 type BlockDefinition struct {

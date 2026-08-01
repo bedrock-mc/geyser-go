@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
+	"github.com/bedrock-mc/geyser-go/translate"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
 
@@ -33,6 +34,9 @@ func (c *Config) setDefaults() {
 	}
 	if c.MaxDecompressedLen == 0 {
 		c.MaxDecompressedLen = 16 * 1024 * 1024
+	}
+	if c.Translator == nil {
+		c.Translator = translate.NewBasic(c.JavaProfile, c.Logger)
 	}
 }
 

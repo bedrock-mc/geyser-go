@@ -76,6 +76,14 @@ func (p LoginStart) Encode(includeUUID bool) ([]byte, error) {
 				return nil, err
 			}
 		}
+	} else {
+		var uuid [16]byte
+		if p.UUID != nil {
+			uuid = *p.UUID
+		}
+		if err := w.BytesValue(uuid[:]); err != nil {
+			return nil, err
+		}
 	}
 	return append([]byte(nil), w.Bytes()...), nil
 }

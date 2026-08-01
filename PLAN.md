@@ -9,6 +9,9 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Create a separate Go repository and pin the requested Gophertunnel fork.
 - [x] Establish bounded Java packet framing, cryptographic transport seams, and
   a tested Java 1.21.4 handshake/login/configuration slice.
+- [x] Close the first local Bedrock bootstrap gate with both an automated
+  Gophertunnel client and the installed native Bedrock client against Paper
+  1.21.4; record the native result as bootstrap-only evidence.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java↔Bedrock translator registries.
@@ -23,9 +26,8 @@ native Bedrock validation, and performance evidence are separate gates.
   tranche complete.
 
 The current implementation is an explicitly incomplete bootstrap tranche. It
-does not claim Geyser gameplay parity: the translator registry, Java play
-protocol, Bedrock StartGame/world state, and live native-client gate remain
-open.
+does not claim Geyser gameplay parity: the translator registry, most Java play
+protocol, Bedrock chunk/world state, and gameplay feature gates remain open.
 
 ## Non-negotiable contracts
 
@@ -49,3 +51,11 @@ protocol profile and a real Bedrock client joining through `geyser-go`. Record
 the Java server version, Bedrock client version, protocol profile, OS, exact
 binary, connection duration, visible result, and any disconnect reason. A unit
 test or Java-only socket test cannot close this gate.
+
+Recorded result: Paper `1.21.4-232` on Temurin `21.0.12`, Bedrock client
+`1.26.3301.0` / protocol `1.26.33`, Java profile `java-1.21.4` / protocol 769,
+Windows 11, bridge listener `127.0.0.1:19132`, and the lunar fork at
+`60c66ae560608f209f67b7c432cbc5e29e38170a`. Both the automated client and the
+native client reached the bridge; the native client reached the in-world HUD.
+The visible empty world is an expected incomplete-state finding, not a parity
+pass. BDS, chunks, and gameplay behavior remain acceptance gates.

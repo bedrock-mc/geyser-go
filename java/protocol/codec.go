@@ -78,6 +78,13 @@ func (r *Reader) Byte() (byte, error) {
 	return b[0], nil
 }
 
+func (r *Reader) Int8() (int8, error) {
+	b, err := r.Byte()
+	return int8(b), err
+}
+
+func (r *Reader) Uint8() (uint8, error) { return r.Byte() }
+
 func (r *Reader) Int16() (int16, error) {
 	var b [2]byte
 	if err := r.readFull(b[:]); err != nil {

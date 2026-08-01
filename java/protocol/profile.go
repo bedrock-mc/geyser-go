@@ -9,7 +9,9 @@ type Profile struct {
 	Name            string
 	ProtocolVersion int32
 
-	LoginStartHasUUID bool
+	// LoginStartUUIDOptional selects the older boolean-plus-optional-UUID
+	// encoding. Java 1.21.4 uses a direct 16-byte UUID field.
+	LoginStartUUIDOptional bool
 
 	LoginStartPacketID          int32
 	LoginDisconnectPacketID     int32
@@ -37,6 +39,16 @@ type Profile struct {
 	ConfigServerboundKeepAlivePacketID      int32
 	ConfigServerboundPongPacketID           int32
 	ConfigServerboundSelectKnownPacksID     int32
+
+	PlayClientboundDisconnectPacketID int32
+	PlayClientboundKeepAlivePacketID  int32
+	PlayClientboundLoginPacketID      int32
+	PlayClientboundPositionPacketID   int32
+	PlayClientboundUpdateHealthID     int32
+	PlayServerboundKeepAlivePacketID  int32
+	PlayServerboundTeleportConfirmID  int32
+	PlayServerboundPositionLookID     int32
+	PlayServerboundChatMessageID      int32
 }
 
 // Java1214 is the 1.21.4 protocol profile (protocol 769), sourced from the
@@ -46,7 +58,7 @@ var Java1214 = Profile{
 	Name:            "java-1.21.4",
 	ProtocolVersion: 769,
 
-	LoginStartHasUUID: true,
+	LoginStartUUIDOptional: false,
 
 	LoginStartPacketID:          0,
 	LoginDisconnectPacketID:     0,
@@ -74,6 +86,16 @@ var Java1214 = Profile{
 	ConfigServerboundKeepAlivePacketID:      4,
 	ConfigServerboundPongPacketID:           5,
 	ConfigServerboundSelectKnownPacksID:     7,
+
+	PlayClientboundDisconnectPacketID: 0x1d,
+	PlayClientboundKeepAlivePacketID:  0x27,
+	PlayClientboundLoginPacketID:      0x2c,
+	PlayClientboundPositionPacketID:   0x42,
+	PlayClientboundUpdateHealthID:     0x62,
+	PlayServerboundKeepAlivePacketID:  0x1a,
+	PlayServerboundTeleportConfirmID:  0x00,
+	PlayServerboundPositionLookID:     0x1d,
+	PlayServerboundChatMessageID:      0x07,
 }
 
 func (p Profile) Validate() error {

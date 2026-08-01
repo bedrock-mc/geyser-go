@@ -20,7 +20,7 @@ func main() {
 	flag.Parse()
 
 	if *javaAddress == "" {
-		fmt.Fprintln(os.Stderr, "-java-address is required until a translator implementation is configured")
+		fmt.Fprintln(os.Stderr, "-java-address is required")
 		os.Exit(2)
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))

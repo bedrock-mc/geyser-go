@@ -40,6 +40,21 @@ The generated catalog command was exercised against Cloudburst data commit
 `619483eb88140f46b8933506c6263861c0d8fa43` and produced 1,933 item records and
 16,913 block-state records; the payload checkout remains external to this repo.
 
+## Live bootstrap evidence
+
+The initial real-connection gate now passes locally. Paper `1.21.4-232` was run
+in offline mode with Temurin Java `21.0.12`; the automated Gophertunnel client
+joined through the bridge as Bedrock protocol `1.26.33` and received a complete
+1,933-entry item table. The installed Bedrock client (`1.26.3301.0`) also joined
+the same listener through the native UI, and the Paper log recorded the native
+player entering the Java world. The native capture is intentionally temporary
+and ignored by Git.
+
+This is only a transport/bootstrap gate: the native client currently reaches a
+visible in-world HUD with diagnostic empty world space because chunk, entity,
+inventory, interaction, and the rest of the Geyser gameplay translators are
+still open work.
+
 ## Local checks
 
 ```powershell
