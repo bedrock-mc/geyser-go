@@ -29,6 +29,12 @@ native Bedrock validation, and performance evidence are separate gates.
   cover malformed records with focused tests and a live Paper/Snappy
   `BlockActorData` readback. The remaining type-specific block-entity
   translators remain open.
+- [x] Normalize Java `beacon` effect-holder names to Bedrock's legacy effect
+  IDs, project Java `end_gateway` ages and lower-case exit arrays to Bedrock's
+  bounded `Age`/`ExitPortal` fields, and normalize decorated-pot sherd lists;
+  cover legacy and modern NBT forms with focused tests and a live
+  Paper/Snappy block-actor readback. The remaining type-specific translators
+  remain open.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and
@@ -305,6 +311,11 @@ on `127.0.0.1:19216` observed Bedrock `Campfire` block actors with `Item1`
 `minecraft:cod` and `Item4` `minecraft:iron_chain`, and the bridge reported
 zero translation errors. Java item names are resolved through the generated
 1.21.4 table, so this path does not depend on Dragonfly behavior coverage.
+The same fixture emitted beacon, end-gateway, and decorated-pot updates. The
+clean-source Snappy probe on `127.0.0.1:19218` observed beacon `primary=1` and
+`secondary=8`, end-gateway `Age=1234` with `ExitPortal=[12,64,-8]`, and the
+normalized four-entry pot sherd list; the bridge reported zero translation
+errors.
 The Java level-particle envelope and common mapping path are also typed and
 covered by focused wire/mapping tests; native rendering and broad particle
 coverage remain open.

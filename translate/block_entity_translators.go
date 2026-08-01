@@ -18,7 +18,169 @@ func projectJavaBlockEntityPayload(javaName string, tag map[string]any) {
 		projectJavaSign(tag)
 	case "campfire":
 		projectJavaCampfire(tag)
+	case "beacon":
+		projectJavaBeacon(tag)
+	case "end_gateway":
+		projectJavaEndGateway(tag)
+	case "decorated_pot":
+		projectJavaDecoratedPot(tag)
 	}
+}
+
+func projectJavaBeacon(tag map[string]any) {
+	for _, key := range []string{"primary", "secondary"} {
+		value, ok := javaNBTInt64Value(tag[key])
+		if !ok {
+			continue
+		}
+		if value < 0 {
+			value = 0
+		}
+		tag[key] = int32(clampJavaNBTInt32(value))
+	}
+	for javaKey, bedrockKey := range map[string]string{
+		"primary_effect":   "primary",
+		"secondary_effect": "secondary",
+	} {
+		value, exists := tag[javaKey]
+		if !exists {
+			continue
+		}
+		effectID, ok := javaBeaconEffectID(value)
+		if !ok {
+			if _, hasNumericValue := tag[bedrockKey]; !hasNumericValue {
+				tag[bedrockKey] = int32(0)
+			}
+		} else {
+			tag[bedrockKey] = effectID
+		}
+		delete(tag, javaKey)
+	}
+}
+
+func projectJavaEndGateway(tag map[string]any) {
+	if value, ok := javaNBTInt64Value(tag["Age"]); ok {
+		tag["Age"] = clampJavaNBTInt32(value)
+	}
+
+	exitPortal := []int32{0, 0, 0}
+	rawExitPortal, hasExitPortal := tag["ExitPortal"]
+	if !hasExitPortal {
+		rawExitPortal, hasExitPortal = tag["exit_portal"]
+	}
+	switch value := rawExitPortal.(type) {
+	case [3]int32:
+		exitPortal = value[:]
+	case [3]int64:
+		for index, coordinate := range value {
+			exitPortal[index] = clampJavaNBTInt32(coordinate)
+		}
+	case []int32:
+		copy(exitPortal, value)
+	case []int64:
+		for index := 0; index < len(value) && index < len(exitPortal); index++ {
+			exitPortal[index] = clampJavaNBTInt32(value[index])
+		}
+	case map[string]any:
+		projectJavaEndGatewayExitCompound(exitPortal, value)
+	}
+	if hasExitPortal {
+		delete(tag, "exit_portal")
+	}
+	if !hasExitPortal {
+		if raw, ok := javaNBTCompound(tag["ExitPortal"]); ok {
+			projectJavaEndGatewayExitCompound(exitPortal, raw)
+		}
+	}
+	// Bedrock expects a three-element INT list even when Java omits the
+	// optional exit portal compound.
+	tag["ExitPortal"] = exitPortal
+}
+
+func projectJavaEndGatewayExitCompound(exitPortal []int32, raw map[string]any) {
+	for index, key := range []string{"X", "Y", "Z"} {
+		if value, found := javaNBTInt64Value(raw[key]); found {
+			exitPortal[index] = clampJavaNBTInt32(value)
+		}
+	}
+}
+
+func projectJavaDecoratedPot(tag map[string]any) {
+	values, ok := javaNBTAnyList(tag["sherds"])
+	if !ok {
+		return
+	}
+	sherds := make([]string, 0, len(values))
+	for _, value := range values {
+		if sherd, ok := value.(string); ok {
+			sherds = append(sherds, sherd)
+		}
+	}
+	tag["sherds"] = sherds
+}
+
+func clampJavaNBTInt32(value int64) int32 {
+	if value < -1<<31 {
+		return -1 << 31
+	}
+	if value > 1<<31-1 {
+		return 1<<31 - 1
+	}
+	return int32(value)
+}
+
+func javaBeaconEffectID(value any) (int32, bool) {
+	name, ok := javaNBTStringValue(value)
+	if !ok {
+		return 0, false
+	}
+	name = strings.TrimPrefix(name, "minecraft:")
+	id, ok := javaBeaconEffectIDs[name]
+	return id, ok
+}
+
+// Java's modern beacon NBT stores a namespaced MobEffect holder while
+// Bedrock's tile entity expects the legacy one-based effect ID.
+var javaBeaconEffectIDs = map[string]int32{
+	"speed":               1,
+	"slowness":            2,
+	"haste":               3,
+	"mining_fatigue":      4,
+	"strength":            5,
+	"instant_health":      6,
+	"instant_damage":      7,
+	"jump_boost":          8,
+	"nausea":              9,
+	"regeneration":        10,
+	"resistance":          11,
+	"fire_resistance":     12,
+	"water_breathing":     13,
+	"invisibility":        14,
+	"blindness":           15,
+	"night_vision":        16,
+	"hunger":              17,
+	"weakness":            18,
+	"poison":              19,
+	"wither":              20,
+	"health_boost":        21,
+	"absorption":          22,
+	"saturation":          23,
+	"glowing":             24,
+	"levitation":          25,
+	"luck":                26,
+	"unluck":              27,
+	"slow_falling":        28,
+	"conduit_power":       29,
+	"dolphins_grace":      30,
+	"bad_omen":            31,
+	"hero_of_the_village": 32,
+	"darkness":            33,
+	"trial_omen":          34,
+	"raid_omen":           35,
+	"wind_charged":        36,
+	"weaving":             37,
+	"oozing":              38,
+	"infested":            39,
 }
 
 const javaCampfireSlotCount = 4

@@ -183,6 +183,67 @@ func TestBedrockCampfireClampsMalformedCount(t *testing.T) {
 	}
 }
 
+func TestBedrockBeaconNormalizesEffectIDs(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(15, 0, 64, 0, map[string]any{
+		"primary_effect":   "minecraft:speed",
+		"secondary_effect": "minecraft:jump_boost",
+	})
+	if !ok {
+		t.Fatal("beacon block entity did not translate")
+	}
+	if tag["primary"] != int32(1) || tag["secondary"] != int32(8) || tag["primary_effect"] != nil || tag["secondary_effect"] != nil {
+		t.Fatalf("beacon effects = %#v", tag)
+	}
+	legacy, ok := BedrockBlockEntityTag(15, 0, 64, 0, map[string]any{
+		"primary":   int32(-1),
+		"secondary": int64(10),
+	})
+	if !ok || legacy["primary"] != int32(0) || legacy["secondary"] != int32(10) {
+		t.Fatalf("legacy beacon effects = %#v", legacy)
+	}
+}
+
+func TestBedrockEndGatewayProjectsSafeExitPortal(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(22, 0, 64, 0, map[string]any{
+		"Age":         int64(1 << 40),
+		"exit_portal": [3]int32{12, 64, -8},
+	})
+	if !ok {
+		t.Fatal("end gateway block entity did not translate")
+	}
+	if tag["Age"] != int32(1<<31-1) {
+		t.Fatalf("end gateway age = %#v", tag["Age"])
+	}
+	exitPortal, ok := tag["ExitPortal"].([]int32)
+	if !ok || len(exitPortal) != 3 || exitPortal[0] != 12 || exitPortal[1] != 64 || exitPortal[2] != -8 {
+		t.Fatalf("end gateway exit portal = %#v", tag["ExitPortal"])
+	}
+	if _, exists := tag["exit_portal"]; exists {
+		t.Fatalf("Java exit portal field was not removed: %#v", tag)
+	}
+
+	missing, ok := BedrockBlockEntityTag(22, 0, 64, 0, nil)
+	if !ok {
+		t.Fatal("missing exit portal block entity did not translate")
+	}
+	if exitPortal, ok := missing["ExitPortal"].([]int32); !ok || len(exitPortal) != 3 || exitPortal[0] != 0 || exitPortal[1] != 0 || exitPortal[2] != 0 {
+		t.Fatalf("missing exit portal = %#v", missing["ExitPortal"])
+	}
+}
+
+func TestBedrockDecoratedPotNormalizesSherds(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(41, 0, 64, 0, map[string]any{
+		"sherds": []any{"minecraft:brick", "minecraft:arms_up", int32(7)},
+	})
+	if !ok {
+		t.Fatal("decorated pot block entity did not translate")
+	}
+	sherds, ok := tag["sherds"].([]string)
+	if !ok || len(sherds) != 2 || sherds[0] != "minecraft:brick" || sherds[1] != "minecraft:arms_up" {
+		t.Fatalf("decorated pot sherds = %#v", tag["sherds"])
+	}
+}
+
 func TestDecodeBlockEntityUpdate(t *testing.T) {
 	data, err := nbt.MarshalEncoding(map[string]any{"Custom": int32(9)}, nbt.NetworkBigEndian)
 	if err != nil {
