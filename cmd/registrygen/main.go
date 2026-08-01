@@ -38,6 +38,7 @@ type blockMappingTarget struct {
 
 type itemMappingResult struct {
 	mapping     []int32
+	names       []string
 	exact       int
 	airFallback int
 	javaHash    string
@@ -415,9 +416,17 @@ func buildItemMapping(javaPath, bedrockPath, geyserPath string) (itemMappingResu
 	}
 	javaBytes, _ := os.ReadFile(javaPath)
 	return itemMappingResult{
-		mapping: mapping, exact: exact, airFallback: fallback,
+		mapping: mapping, names: namedIDNames(java), exact: exact, airFallback: fallback,
 		javaHash: sha256Hex(javaBytes), bedrockHash: sha256Hex(bedrockBytes), geyserHash: geyserHash,
 	}, nil
+}
+
+func namedIDNames(values []namedID) []string {
+	names := make([]string, len(values))
+	for _, value := range values {
+		names[value.id] = value.name
+	}
+	return names
 }
 
 func readGzip(path string) ([]byte, error) {
@@ -617,6 +626,20 @@ func render(mapping []uint32, paletteCount, exact, normalized, nameFallback, air
 	if len(items.mapping) > 0 {
 		builder.WriteString("\n")
 		fmt.Fprintf(&builder, "const Java1214ItemCount = %d\n\n", len(items.mapping))
+		builder.WriteString("var Java1214ItemNames = [...]string{\n")
+		for i, name := range items.names {
+			if i%4 == 0 {
+				builder.WriteString("\t")
+			}
+			fmt.Fprintf(&builder, "%q, ", name)
+			if i%4 == 3 {
+				builder.WriteByte('\n')
+			}
+		}
+		if len(items.names)%4 != 0 {
+			builder.WriteByte('\n')
+		}
+		builder.WriteString("}\n\n")
 		builder.WriteString("var Java1214ToBedrockItem = [...]int32{\n")
 		for i, id := range items.mapping {
 			if i%16 == 0 {

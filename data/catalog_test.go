@@ -42,6 +42,15 @@ func TestLoadCloudburstAndGenerate(t *testing.T) {
 }
 
 func TestGeneratedJavaLookups(t *testing.T) {
+	if got, ok := JavaItemID("minecraft:stone"); !ok || got != 1 {
+		t.Fatalf("stone item name lookup = id=%d ok=%v", got, ok)
+	}
+	if got, ok := JavaItemID("minecraft:chain"); !ok || got == 0 {
+		t.Fatalf("chain item name lookup = id=%d ok=%v", got, ok)
+	}
+	if _, ok := JavaItemID("minecraft:not_an_item"); ok {
+		t.Fatal("unknown Java item name unexpectedly resolved")
+	}
 	if got, ok := JavaItemRuntimeID(0); !ok || got != 0 {
 		t.Fatalf("air item lookup is not stable: id=%d ok=%v", got, ok)
 	}

@@ -23,6 +23,12 @@ native Bedrock validation, and performance evidence are separate gates.
   JSON/plain text component forms and a live Paper/Snappy `BlockActorData`
   readback. Sign width clipping, editing, and the remaining type-specific
   block-entity translators remain open.
+- [x] Translate Java `campfire` block-entity item lists into Bedrock's named
+  `Item1`-`Item4` compounds using the generated complete item registry,
+  including item-name aliases and bounded custom-data/name/lore projection;
+  cover malformed records with focused tests and a live Paper/Snappy
+  `BlockActorData` readback. The remaining type-specific block-entity
+  translators remain open.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and
@@ -294,6 +300,11 @@ The clean-source Snappy probe on `127.0.0.1:19215` observed a Bedrock
 glowing text, and an empty four-line back side; the bridge reported zero
 translation errors. Both chunk-embedded and standalone sign NBT use the same
 projection helper.
+The fixture also placed cod×2 and chain×4 in a Java campfire. The Snappy probe
+on `127.0.0.1:19216` observed Bedrock `Campfire` block actors with `Item1`
+`minecraft:cod` and `Item4` `minecraft:iron_chain`, and the bridge reported
+zero translation errors. Java item names are resolved through the generated
+1.21.4 table, so this path does not depend on Dragonfly behavior coverage.
 The Java level-particle envelope and common mapping path are also typed and
 covered by focused wire/mapping tests; native rendering and broad particle
 coverage remain open.

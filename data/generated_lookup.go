@@ -1,5 +1,7 @@
 package data
 
+import "sync"
+
 var bedrockToJavaItem = func() map[int32]int32 {
 	lookup := make(map[int32]int32, len(Java1214ToBedrockItem))
 	for itemID, runtimeID := range Java1214ToBedrockItem {
@@ -12,6 +14,11 @@ var bedrockToJavaItem = func() map[int32]int32 {
 	}
 	return lookup
 }()
+
+var (
+	javaItemNamesOnce sync.Once
+	javaItemNames     map[string]int32
+)
 
 // JavaItemRuntimeID maps a Java item registry ID to the Bedrock item network
 // ID used by Gophertunnel's ItemInstance format. Unknown IDs are mapped to
@@ -28,6 +35,22 @@ func JavaItemRuntimeID(itemID int32) (int32, bool) {
 		return 0, false
 	}
 	return Java1214ToBedrockItem[itemID], true
+}
+
+// JavaItemID resolves a namespaced Java 1.21.4 item identifier to its
+// negotiated registry ID. The generated name table is used by NBT-backed
+// block entities whose item compounds carry names rather than registry IDs.
+func JavaItemID(name string) (int32, bool) {
+	javaItemNamesOnce.Do(func() {
+		javaItemNames = make(map[string]int32, len(Java1214ItemNames))
+		for itemID, itemName := range Java1214ItemNames {
+			if itemName != "" {
+				javaItemNames[itemName] = int32(itemID)
+			}
+		}
+	})
+	itemID, ok := javaItemNames[name]
+	return itemID, ok
 }
 
 // BedrockItemRuntimeID returns the first Java registry ID represented by a

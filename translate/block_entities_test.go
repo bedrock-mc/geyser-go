@@ -116,6 +116,73 @@ func TestBedrockHangingSignUsesSameProjection(t *testing.T) {
 	}
 }
 
+func TestBedrockCampfireProjectsJavaItems(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(33, 12, 64, -3, map[string]any{
+		"Items": []map[string]any{
+			{
+				"Slot":  int8(0),
+				"id":    "minecraft:cod",
+				"count": int32(2),
+				"components": map[string]any{
+					"minecraft:custom_name": `{"text":"Fresh cod"}`,
+					"minecraft:custom_data": map[string]any{"geyser_test": int32(1)},
+				},
+			},
+			{
+				"Slot":  int8(3),
+				"id":    "minecraft:chain",
+				"count": int32(4),
+			},
+			// These are semantically odd item records and must not create
+			// out-of-range Bedrock slot fields or disconnect the session.
+			{"Slot": int8(4), "id": "minecraft:stone", "count": int32(1)},
+			{"Slot": int8(1), "id": "minecraft:not_an_item", "count": int32(1)},
+		},
+	})
+	if !ok {
+		t.Fatal("campfire block entity did not translate")
+	}
+	if _, exists := tag["Items"]; exists {
+		t.Fatalf("Java campfire item list was not replaced: %#v", tag["Items"])
+	}
+
+	item, ok := tag["Item1"].(map[string]any)
+	if !ok || item["Name"] != "minecraft:cod" || item["Count"] != byte(2) || item["Damage"] != int16(0) {
+		t.Fatalf("campfire item 1 = %#v", tag["Item1"])
+	}
+	itemTag, ok := item["tag"].(map[string]any)
+	if !ok || itemTag["geyser_test"] != int32(1) {
+		t.Fatalf("campfire custom data = %#v", item["tag"])
+	}
+	display, ok := itemTag["display"].(map[string]any)
+	if !ok || display["Name"] != "Fresh cod" {
+		t.Fatalf("campfire custom name = %#v", itemTag["display"])
+	}
+
+	item, ok = tag["Item4"].(map[string]any)
+	if !ok || item["Name"] != "minecraft:iron_chain" || item["Count"] != byte(4) {
+		t.Fatalf("campfire aliased item = %#v", tag["Item4"])
+	}
+	if _, exists := tag["Item2"]; exists {
+		t.Fatalf("unknown item unexpectedly projected: %#v", tag["Item2"])
+	}
+}
+
+func TestBedrockCampfireClampsMalformedCount(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(33, 0, 0, 0, map[string]any{
+		"Items": []any{
+			map[string]any{"Slot": int8(0), "id": "minecraft:stone", "count": int64(9000)},
+		},
+	})
+	if !ok {
+		t.Fatal("campfire block entity did not translate")
+	}
+	item, ok := tag["Item1"].(map[string]any)
+	if !ok || item["Count"] != byte(127) {
+		t.Fatalf("clamped campfire item = %#v", tag["Item1"])
+	}
+}
+
 func TestDecodeBlockEntityUpdate(t *testing.T) {
 	data, err := nbt.MarshalEncoding(map[string]any{"Custom": int32(9)}, nbt.NetworkBigEndian)
 	if err != nil {

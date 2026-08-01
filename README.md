@@ -40,8 +40,10 @@ protocol parity.
   translators. Java 1.21.4 block-entity registry records are normalized into
   Bedrock tile-entity NBT in chunk payloads, and standalone Java tile-entity
   updates become `BlockActorData`. Sign and hanging-sign records now translate
-  front/back text, dye colors, glow, and wax state; most other type-specific
-  NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
+  front/back text, dye colors, glow, and wax state. Campfire records now
+  translate Java item lists into Bedrock `Item1`-`Item4` compounds through the
+  generated complete item registry, including safe custom-data/name/lore
+  fields; most other type-specific NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
   common custom NBT, names/lore, durability, enchantments, glint, repair cost,
   dyed colors, and map IDs into Gophertunnel item stacks. Java `textures`
   profile properties now resolve bounded Mojang skin/cape images with slim-arm
@@ -326,10 +328,18 @@ exact Java-to-Bedrock translation-key differences remain open.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
-native terrain rendering, lighting, type-specific block-entity transforms,
+native terrain rendering, lighting, the remaining type-specific block-entity transforms,
 behavior-heavy item components, arbitrary inventory windows, complex transaction state, Java skin fidelity,
 entity-specific metadata, item pickup/merge behavior, target-specific interaction semantics, and the rest of
 the Geyser gameplay translators are still open acceptance work.
+
+The temporary Paper fixture also sent a Java oak sign and a campfire containing
+cod×2 and chain×4. The Snappy probe on `127.0.0.1:19215` observed the translated
+sign text/color/glow state, and the probe on `127.0.0.1:19216` observed Bedrock
+`Campfire` NBT with `Item1` `minecraft:cod` and `Item4`
+`minecraft:iron_chain`; both sessions had zero bridge translation errors.
+The campfire item names use the generated Java 1.21.4 registry and complete
+Bedrock palette, independent of Dragonfly behavior coverage.
 
 The temporary Paper entity fixture also dropped a diamond stack and changed its
 count. The Snappy probe on `127.0.0.1:19171` received typed `AddItemActor`
