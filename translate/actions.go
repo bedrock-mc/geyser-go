@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
+	"github.com/go-gl/mathgl/mgl32"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
@@ -169,6 +170,175 @@ func encodeJavaUseItem(yaw, pitch float32, sequence int32) ([]byte, error) {
 		return nil, err
 	}
 	if err := w.Float32(pitch); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}
+
+func (b *Basic) translateBedrockEquipment(java *javaprotocol.Client, equipment *packet.MobEquipment) error {
+	if equipment.EntityRuntimeID != b.gameData.EntityRuntimeID {
+		b.logSemanticAnomaly("skipping Bedrock equipment update for another entity", "runtime_id", equipment.EntityRuntimeID)
+		return nil
+	}
+	if equipment.WindowID != 0 {
+		b.logSemanticAnomaly("skipping Bedrock offhand equipment update until Java hand-state translation is implemented", "window", equipment.WindowID)
+		return nil
+	}
+	if equipment.HotBarSlot > 8 {
+		b.logSemanticAnomaly("skipping Bedrock held slot outside Java hotbar", "slot", equipment.HotBarSlot)
+		return nil
+	}
+	data, err := encodeJavaHeldItemSlot(equipment.HotBarSlot)
+	if err != nil {
+		return err
+	}
+	return java.Conn.WritePacket(b.Profile.PlayServerboundHeldItemSlotID, data)
+}
+
+func (b *Basic) translateBedrockAnimate(java *javaprotocol.Client, animation *packet.Animate) error {
+	if animation.EntityRuntimeID != b.gameData.EntityRuntimeID {
+		b.logSemanticAnomaly("skipping Bedrock animation for another entity", "runtime_id", animation.EntityRuntimeID)
+		return nil
+	}
+	if animation.ActionType != packet.AnimateActionSwingArm {
+		b.logSemanticAnomaly("skipping unsupported Bedrock animation", "action", animation.ActionType)
+		return nil
+	}
+	data, err := encodeJavaArmAnimation(0)
+	if err != nil {
+		return err
+	}
+	return java.Conn.WritePacket(b.Profile.PlayServerboundArmAnimationID, data)
+}
+
+func (b *Basic) translateBedrockInteract(java *javaprotocol.Client, interaction *packet.Interact) error {
+	if interaction.TargetEntityRuntimeID == 0 {
+		b.logSemanticAnomaly("skipping Bedrock entity interaction without a target")
+		return nil
+	}
+	var mouse int32
+	switch interaction.ActionType {
+	case 1: // INTERACT
+		mouse = 0
+	case 2: // DAMAGE
+		mouse = 1
+	default:
+		b.logSemanticAnomaly("skipping unsupported Bedrock entity interaction", "action", interaction.ActionType)
+		return nil
+	}
+	var position gtprotocol.Optional[mgl32.Vec3]
+	if value, ok := interaction.Position.Value(); ok {
+		position = gtprotocol.Option(value)
+	}
+	data, err := encodeJavaUseEntity(int32(uint32(interaction.TargetEntityRuntimeID)), mouse, position)
+	if err != nil {
+		b.logSemanticAnomaly("skipping Bedrock entity interaction with invalid position", "error", err)
+		return nil
+	}
+	return java.Conn.WritePacket(b.Profile.PlayServerboundUseEntityID, data)
+}
+
+func (b *Basic) translateBedrockPlayerAction(java *javaprotocol.Client, action *packet.PlayerAction) error {
+	if action.EntityRuntimeID != b.gameData.EntityRuntimeID {
+		b.logSemanticAnomaly("skipping Bedrock player action for another entity", "runtime_id", action.EntityRuntimeID)
+		return nil
+	}
+	if status, ok := javaPlayerActionStatus(action.ActionType); ok {
+		if action.BlockFace < 0 || action.BlockFace > 5 {
+			b.logSemanticAnomaly("skipping Bedrock player action with invalid face", "face", action.BlockFace)
+			return nil
+		}
+		data, err := encodeJavaBlockDig(status, action.BlockPosition, action.BlockFace, b.nextInteractionSequence())
+		if err != nil {
+			return err
+		}
+		return java.Conn.WritePacket(b.Profile.PlayServerboundBlockDigID, data)
+	}
+	var javaAction int32
+	switch action.ActionType {
+	case gtprotocol.PlayerActionStartSneak:
+		javaAction = 0 // PRESS_SHIFT_KEY
+	case gtprotocol.PlayerActionStopSneak:
+		javaAction = 1 // RELEASE_SHIFT_KEY
+	case gtprotocol.PlayerActionStartSprint:
+		javaAction = 3 // START_SPRINTING
+	case gtprotocol.PlayerActionStopSprint:
+		javaAction = 4 // STOP_SPRINTING
+	case gtprotocol.PlayerActionStartGlide:
+		javaAction = 8 // START_ELYTRA_FLYING
+	default:
+		b.logSemanticAnomaly("skipping unsupported Bedrock player action", "action", action.ActionType)
+		return nil
+	}
+	data, err := encodeJavaEntityAction(int32(uint32(b.gameData.EntityRuntimeID)), javaAction, 0)
+	if err != nil {
+		return err
+	}
+	return java.Conn.WritePacket(b.Profile.PlayServerboundEntityActionID, data)
+}
+
+func encodeJavaHeldItemSlot(slot byte) ([]byte, error) {
+	w := javaprotocol.NewWriter()
+	if err := w.Int16(int16(slot)); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}
+
+func encodeJavaArmAnimation(hand int32) ([]byte, error) {
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(hand); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}
+
+func encodeJavaUseEntity(target, mouse int32, position gtprotocol.Optional[mgl32.Vec3]) ([]byte, error) {
+	if mouse < 0 || mouse > 2 {
+		return nil, fmt.Errorf("translate: invalid Java entity interaction action %d", mouse)
+	}
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(target); err != nil {
+		return nil, err
+	}
+	if err := w.VarInt(mouse); err != nil {
+		return nil, err
+	}
+	if mouse == 2 {
+		value, ok := position.Value()
+		if !ok || !finiteVec3(value) {
+			return nil, fmt.Errorf("translate: Java entity interaction is missing a finite hit position")
+		}
+		if err := w.Float32(value.X()); err != nil {
+			return nil, err
+		}
+		if err := w.Float32(value.Y()); err != nil {
+			return nil, err
+		}
+		if err := w.Float32(value.Z()); err != nil {
+			return nil, err
+		}
+	}
+	if mouse == 0 || mouse == 2 {
+		if err := w.VarInt(0); err != nil { // MAIN_HAND
+			return nil, err
+		}
+	}
+	if err := w.Bool(false); err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), w.Bytes()...), nil
+}
+
+func encodeJavaEntityAction(entityID, action, jumpBoost int32) ([]byte, error) {
+	w := javaprotocol.NewWriter()
+	if err := w.VarInt(entityID); err != nil {
+		return nil, err
+	}
+	if err := w.VarInt(action); err != nil {
+		return nil, err
+	}
+	if err := w.VarInt(jumpBoost); err != nil {
 		return nil, err
 	}
 	return append([]byte(nil), w.Bytes()...), nil

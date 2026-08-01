@@ -910,6 +910,14 @@ func (b *Basic) translateBedrockPacket(java *javaprotocol.Client, pk packet.Pack
 			return err
 		}
 		return java.Conn.WritePacket(b.Profile.PlayServerboundChatMessageID, data)
+	case *packet.MobEquipment:
+		return b.translateBedrockEquipment(java, pk)
+	case *packet.Animate:
+		return b.translateBedrockAnimate(java, pk)
+	case *packet.Interact:
+		return b.translateBedrockInteract(java, pk)
+	case *packet.PlayerAction:
+		return b.translateBedrockPlayerAction(java, pk)
 	case *packet.Unknown:
 		b.Logger.Debug("unknown Bedrock packet", "id", pk.ID())
 		return nil

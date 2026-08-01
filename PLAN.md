@@ -21,8 +21,9 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Translate Bedrock `PlayerAuthInput` and legacy `MovePlayer` positions and
   rotations to Java position/look packets, including eye-height and collision
   flag conversion, and emit bounded Java block-dig/block-place/use-item
-  packets; stack requests, entity attacks, vehicles, and reconciliation remain
-  open.
+  packets. Forward Bedrock held-slot, arm-swing, and basic interact/attack
+  packets to their Java equivalents; stack requests, target-specific entity
+  semantics, vehicles, and reconciliation remain open.
 - [x] Forward Java 1.21.4 single-block changes, chunk unloads, world time, and
   the basic non-player entity lifecycle with generated Java registry lookups.
 - [x] Translate the Java player-window inventory snapshot/slot slice and the
@@ -51,8 +52,9 @@ fall back to Bedrock air in the generated 1.21.4 mapping, and lighting,
 type-specific block-entity transforms, item components, arbitrary container
 windows, cursor/transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
-block/item action path are present, but stack requests, entity attacks, vehicle
-input, and client prediction reconciliation remain open. The inventory slice is
+block/item/selection/entity-action path is present, but stack requests,
+target-specific entity semantics, vehicle input, and client prediction
+reconciliation remain open. The inventory slice is
 limited to the Java player window and safely skips updates containing components
 it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
@@ -91,4 +93,7 @@ native client reached the bridge; the native client reached the in-world HUD.
 The visible empty world is an expected incomplete-state finding, not a parity
 pass. The automated probe now receives translated Java chunks, inventory/chat,
 generic metadata, equipment, velocity, and player-list updates; native terrain
-rendering, BDS, and gameplay behavior remain acceptance gates.
+rendering, BDS, and gameplay behavior remain acceptance gates. A separate
+Snappy-enabled probe on `127.0.0.1:19146` sent auth-input, held-slot,
+arm-swing, and self-interact packets; Paper recorded `GeyserHeld` joining and
+the bridge emitted no translation errors.

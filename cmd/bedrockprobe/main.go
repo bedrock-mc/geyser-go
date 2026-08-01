@@ -20,6 +20,9 @@ func main() {
 	sendAuthInput := flag.Bool("send-auth-input", false, "send one PlayerAuthInput movement packet after spawn")
 	sendBlockAction := flag.Bool("send-block-action", false, "include one block-break action in the auth-input packet")
 	sendItemUse := flag.Bool("send-item-use", false, "include one click-air item interaction in the auth-input packet")
+	sendHeldSlot := flag.Bool("send-held-slot", false, "send one held-hotbar-slot update after spawn")
+	sendArm := flag.Bool("send-arm", false, "send one arm-swing animation after spawn")
+	sendEntityInteract := flag.Bool("send-entity-interact", false, "send one self entity interaction after spawn")
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -65,6 +68,32 @@ func main() {
 			}
 		}
 		if err := conn.WritePacket(auth); err != nil {
+			panic(err)
+		}
+	}
+	if *sendHeldSlot {
+		if err := conn.WritePacket(&packet.MobEquipment{
+			EntityRuntimeID: conn.GameData().EntityRuntimeID,
+			InventorySlot:   0,
+			HotBarSlot:      0,
+		}); err != nil {
+			panic(err)
+		}
+	}
+	if *sendArm {
+		if err := conn.WritePacket(&packet.Animate{
+			ActionType:      packet.AnimateActionSwingArm,
+			EntityRuntimeID: conn.GameData().EntityRuntimeID,
+			SwingSource:     packet.AnimateSwingSourceAttack,
+		}); err != nil {
+			panic(err)
+		}
+	}
+	if *sendEntityInteract {
+		if err := conn.WritePacket(&packet.Interact{
+			ActionType:            1,
+			TargetEntityRuntimeID: conn.GameData().EntityRuntimeID,
+		}); err != nil {
 			panic(err)
 		}
 	}

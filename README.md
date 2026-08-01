@@ -44,8 +44,10 @@ protocol parity.
   open. Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
-  also emitted as Java packets. Full stack-request validation, entity attacks,
-  vehicle input, and prediction reconciliation remain open.
+  also emitted as Java packets. Bedrock held-slot changes, arm swings, and
+  basic interact/attack actions now emit Java held-item, arm-animation, and
+  use-entity packets. Full stack-request validation, target-specific entity
+  semantics, vehicle input, and prediction reconciliation remain open.
 
 ## Authoritative references
 
@@ -75,15 +77,18 @@ joined through the bridge as Bedrock protocol `1.26.33` and received a complete
 block-update, and actor-removal packets before its bounded read window ended.
 The installed Bedrock client (`1.26.3301.0`) also joined the same listener
 through the native UI, and the Paper log recorded the native player entering
-the Java world. The native capture is intentionally temporary and ignored by
-Git.
+the Java world. A Snappy-enabled automated Bedrock probe subsequently sent
+auth-input, held-slot, arm-swing, and self-interact packets on listener
+`127.0.0.1:19146`; Paper recorded `GeyserHeld` joining and the bridge reported
+no translation errors. The native capture and probe logs are intentionally
+temporary and ignored by Git.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
 native terrain rendering, lighting, type-specific block-entity transforms,
 item components, arbitrary inventory windows, cursor/transaction state, Java skin fidelity,
-entity-specific metadata, interaction, and the rest of the Geyser gameplay
-translators are still open acceptance work.
+entity-specific metadata, target-specific interaction semantics, and the rest of
+the Geyser gameplay translators are still open acceptance work.
 
 ## Local checks
 
