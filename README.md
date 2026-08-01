@@ -47,9 +47,10 @@ protocol parity.
   also emitted as Java packets. Bedrock auth-input sprint/sneak/glide edges,
   held-slot changes, arm swings, and basic interact/attack actions now emit
   Java state, held-item, arm-animation, and use-entity packets. Java section
-  multi-block updates are emitted as one Bedrock subchunk update. Full
-  stack-request validation, target-specific entity semantics, vehicle input,
-  and prediction reconciliation remain open.
+  multi-block updates are emitted as one Bedrock subchunk update. Java
+  experience, player-ability, and entity-animation updates now reach the
+  Bedrock HUD/player state. Full stack-request validation, target-specific
+  entity semantics, vehicle input, and prediction reconciliation remain open.
 
 ## Authoritative references
 
@@ -82,8 +83,10 @@ through the native UI, and the Paper log recorded the native player entering
 the Java world. A Snappy-enabled automated Bedrock probe subsequently sent
 auth-input, held-slot, arm-swing, and self-interact packets on listener
 `127.0.0.1:19146`; Paper recorded `GeyserHeld` joining and the bridge reported
-no translation errors. The native capture and probe logs are intentionally
-temporary and ignored by Git.
+no translation errors. A second Snappy probe on `127.0.0.1:19148` received
+`UpdateAbilities` and `UpdateAttributes` from the Java login path; Paper
+recorded `GeyserState` joining cleanly. The native capture and probe logs are
+intentionally temporary and ignored by Git.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while

@@ -244,6 +244,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			Position: gtprotocol.BlockPos{update.SectionX * 16, update.SectionY * 16, update.SectionZ * 16},
 			Blocks:   entries,
 		})
+	case b.Profile.PlayClientboundAnimationID:
+		return b.translateAnimation(bedrock, pk.Data)
 	case b.Profile.PlayClientboundBlockEntityDataID:
 		update, err := DecodeBlockEntityUpdate(pk.Data)
 		if err != nil {
@@ -315,6 +317,10 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			return err
 		}
 		return bedrock.WritePacket(&packet.SetHealth{Health: int32(math.Round(float64(health)))})
+	case b.Profile.PlayClientboundExperienceID:
+		return b.translateExperience(bedrock, pk.Data)
+	case b.Profile.PlayClientboundPlayerAbilitiesID:
+		return b.translatePlayerAbilities(bedrock, pk.Data)
 	case b.Profile.PlayClientboundUpdateTimeID:
 		update, err := DecodeTimeUpdate(pk.Data)
 		if err != nil {

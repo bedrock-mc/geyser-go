@@ -34,6 +34,9 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Forward Java entity velocity/equipment, held-slot/player-inventory
   updates, generic entity metadata, and the Java player-info/list lifecycle to
   typed Bedrock actor packets; cover bounded decoders and a live Paper readback.
+- [x] Translate Java experience, player abilities, and basic entity animation
+  packets into Gophertunnel player-state/animation packets; cover bounded
+  decoders and a live Snappy Paper readback.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -53,10 +56,10 @@ fall back to Bedrock air in the generated 1.21.4 mapping, and lighting,
 type-specific block-entity transforms, item components, arbitrary container
 windows, cursor/transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
-block/item/selection/entity-action path is present, but stack requests,
-target-specific entity semantics, vehicle input, and client prediction
-reconciliation remain open. Java section block updates and auth-input state
-edges are present. The inventory slice is
+block/item/selection/entity-action path is present, including auth-input
+sprint/sneak/glide edges, Java section block updates, experience, abilities,
+and basic animation, but stack requests, target-specific entity semantics,
+vehicle input, and client prediction reconciliation remain open. The inventory slice is
 limited to the Java player window and safely skips updates containing components
 it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
