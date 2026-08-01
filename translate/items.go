@@ -207,9 +207,8 @@ func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaI
 			item.Stack.MetadataValue = uint32(metadata)
 		}
 	}
-	if components.hasMetadata {
-		item.Stack.MetadataValue = components.metadata
-	}
+	// Java's damage component is durability, not Bedrock's metadata/variant
+	// value. It is projected into NBT by javaItemComponentState.finish.
 	item.Stack.NBTData = components.nbt
 	item = projectJavaFireworkItemNBT(item, components.fireworks, components.fireworkExplosion)
 	if nextStackID != nil {

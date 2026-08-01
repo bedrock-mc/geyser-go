@@ -30,6 +30,7 @@ const (
 	javaPositionRelativePitch = 1 << 4
 	defaultChunkRadius        = 8
 	maxJavaCollectionSize     = 4096
+	maxJavaItemDamage         = int32(1<<31 - 1)
 )
 
 // Basic owns the minimum session state needed to translate a Java world

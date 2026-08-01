@@ -82,8 +82,8 @@ const javaItemComponentCount = javaItemComponentContainerLoot + 1
 
 type javaItemComponentState struct {
 	nbt               map[string]any
-	metadata          uint32
-	hasMetadata       bool
+	damage            int32
+	hasDamage         bool
 	customName        bool
 	displayName       string
 	lore              []string
@@ -147,6 +147,11 @@ func (s *javaItemComponentState) finish() {
 		// for a glint-only item.
 		s.nbt["ench"] = []map[string]any{}
 	}
+	if s.hasDamage {
+		// Java's damage component is item durability. It is distinct from
+		// Bedrock's metadata value, which selects an item variant.
+		s.nbt["Damage"] = s.damage
+	}
 	if len(s.nbt) == 0 {
 		s.nbt = nil
 	}
@@ -196,11 +201,11 @@ func decodeJavaItemComponent(r *javaprotocol.Reader, componentType int32, state 
 		return false, err
 	case javaItemComponentDamage:
 		value, err := r.VarInt()
-		if err == nil && value >= 0 {
-			state.metadata = uint32(value)
-			state.hasMetadata = true
+		if err == nil && value >= 0 && value <= maxJavaItemDamage {
+			state.damage = value
+			state.hasDamage = true
 		}
-		return err == nil && value >= 0, err
+		return err == nil && value >= 0 && value <= maxJavaItemDamage, err
 	case javaItemComponentUnbreakable:
 		_, err := r.Bool()
 		if err == nil {

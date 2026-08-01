@@ -132,10 +132,10 @@ func TestDecodeJavaItemComponentsProjectsCommonData(t *testing.T) {
 		t.Fatal(err)
 	}
 	item := update.Items[0]
-	if item.Stack.MetadataValue != 5 || item.StackNetworkID != 91 {
+	if item.Stack.MetadataValue != 0 || item.StackNetworkID != 91 {
 		t.Fatalf("item metadata/network ID = %d/%d", item.Stack.MetadataValue, item.StackNetworkID)
 	}
-	if item.Stack.NBTData["Custom"] != int32(4) || item.Stack.NBTData["RepairCost"] != int32(2) || item.Stack.NBTData["customColor"] != int32(0x123456) {
+	if item.Stack.NBTData["Custom"] != int32(4) || item.Stack.NBTData["Damage"] != int32(5) || item.Stack.NBTData["RepairCost"] != int32(2) || item.Stack.NBTData["customColor"] != int32(0x123456) {
 		t.Fatalf("item custom NBT = %#v", item.Stack.NBTData)
 	}
 	display, ok := item.Stack.NBTData["display"].(map[string]any)
@@ -148,6 +148,28 @@ func TestDecodeJavaItemComponentsProjectsCommonData(t *testing.T) {
 	ench, ok := item.Stack.NBTData["ench"].([]map[string]any)
 	if !ok || len(ench) != 1 || ench[0]["id"] != int16(9) || ench[0]["lvl"] != int16(3) {
 		t.Fatalf("item enchantments = %#v", item.Stack.NBTData["ench"])
+	}
+}
+
+func TestDecodeJavaDamageComponentProjectsBedrockDurability(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(1) // item count
+	_ = w.VarInt(1) // stone registry ID
+	_ = w.VarInt(1) // added component count
+	_ = w.VarInt(0) // removed component count
+	_ = w.VarInt(javaItemComponentDamage)
+	_ = w.VarInt(5)
+
+	item, err := DecodeJavaCursorItem(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Item.Stack.MetadataValue != 0 {
+		t.Fatalf("damage projected as metadata value %d", item.Item.Stack.MetadataValue)
+	}
+	damage, ok := item.Item.Stack.NBTData["Damage"].(int32)
+	if !ok || damage != 5 {
+		t.Fatalf("projected Bedrock damage = %#v, want int32(5)", item.Item.Stack.NBTData["Damage"])
 	}
 }
 
@@ -228,6 +250,21 @@ func TestDecodeJavaItemComponentTruncationIsWireFatal(t *testing.T) {
 	_, err := DecodeJavaWindowItems(appendWindowItemPayload(w.Bytes()), nil)
 	if err == nil || errors.Is(err, ErrUnsupportedJavaItemComponent) {
 		t.Fatalf("error = %v, want a fatal truncated component decode", err)
+	}
+}
+
+func TestDecodeJavaDamageComponentNegativeValueIsSemanticUnsupported(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(1) // item count
+	_ = w.VarInt(1) // stone registry ID
+	_ = w.VarInt(1) // added component count
+	_ = w.VarInt(0) // removed component count
+	_ = w.VarInt(javaItemComponentDamage)
+	_ = w.VarInt(-1)
+
+	_, err := DecodeJavaCursorItem(w.Bytes(), nil)
+	if !errors.Is(err, ErrUnsupportedJavaItemComponent) {
+		t.Fatalf("error = %v, want semantic unsupported component", err)
 	}
 }
 
