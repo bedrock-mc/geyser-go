@@ -211,6 +211,7 @@ func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaI
 		item.Stack.MetadataValue = components.metadata
 	}
 	item.Stack.NBTData = components.nbt
+	item = projectJavaFireworkItemNBT(item, components.fireworks, components.fireworkExplosion)
 	if nextStackID != nil {
 		item.StackNetworkID = nextStackID()
 	}

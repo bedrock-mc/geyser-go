@@ -2,6 +2,7 @@ package translate
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/bedrock-mc/geyser-go/data"
@@ -199,6 +200,21 @@ func TestDecodeJavaFireworksComponentRetainsExplosions(t *testing.T) {
 	explosion := item.Fireworks.Explosions[0]
 	if explosion.Shape != 3 || len(explosion.Colors) != 1 || explosion.Colors[0] != 0xff0000 || len(explosion.FadeColors) != 1 || !explosion.Flicker || explosion.Trail {
 		t.Fatalf("decoded firework explosion = %+v", explosion)
+	}
+	fireworksTag, ok := item.Item.Stack.NBTData["Fireworks"].(map[string]any)
+	if !ok || fireworksTag["Flight"] != byte(2) {
+		t.Fatalf("projected fireworks tag = %#v", item.Item.Stack.NBTData["Fireworks"])
+	}
+	explosions, ok := fireworksTag["Explosions"].([]map[string]any)
+	if !ok || len(explosions) != 1 || explosions[0]["FireworkType"] != byte(3) || explosions[0]["FireworkTrail"] != false || explosions[0]["FireworkFlicker"] != true {
+		t.Fatalf("projected firework explosions = %#v", fireworksTag["Explosions"])
+	}
+	colors := reflect.ValueOf(explosions[0]["FireworkColor"])
+	if colors.Kind() != reflect.Array || colors.Len() != 1 || colors.Index(0).Uint() != 14 {
+		t.Fatalf("projected firework colors = %#v", explosions[0]["FireworkColor"])
+	}
+	if _, err := nbt.Marshal(item.Item.Stack.NBTData); err != nil {
+		t.Fatalf("marshal projected firework NBT: %v", err)
 	}
 }
 
