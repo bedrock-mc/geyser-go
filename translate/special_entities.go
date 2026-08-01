@@ -193,6 +193,70 @@ func specialEntityFlagMasks(entityType string, entries []JavaEntityMetadataEntry
 	}
 	for _, entry := range entries {
 		switch {
+		case entry.Index == 6:
+			switch entityType {
+			case "minecraft:camel":
+				add(gtprotocol.EntityDataFlagSitting)
+			case "minecraft:frog":
+				add(gtprotocol.EntityDataFlagJumpGoal)
+				add(gtprotocol.EntityDataFlagCroaking)
+				add(gtprotocol.EntityDataFlagDigestMob)
+			case "minecraft:warden":
+				add(gtprotocol.EntityDataFlagDigging)
+				add(gtprotocol.EntityDataFlagEmerging)
+				add(gtprotocol.EntityDataFlagRoaring)
+				add(gtprotocol.EntityDataFlagSniffing)
+			}
+		case entityType == "minecraft:allay" && entry.Index == 16:
+			add(gtprotocol.EntityDataFlagDancing)
+		case entityType == "minecraft:armadillo" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagRolling)
+			add(gtprotocol.EntityDataFlagScared)
+		case entityType == "minecraft:axolotl" && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagPlayingDead)
+		case entityType == "minecraft:bat" && entry.Index == 16:
+			add(gtprotocol.EntityDataFlagResting)
+		case entityType == "minecraft:blaze" && entry.Index == 16:
+			add(gtprotocol.EntityDataFlagOnFire)
+		case entityType == "minecraft:camel" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagTamed)
+			add(gtprotocol.EntityDataFlagEating)
+			add(gtprotocol.EntityDataFlagStanding)
+		case entityType == "minecraft:camel" && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagHasDashTimeout)
+		case entityType == "minecraft:enderman" && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagAngry)
+		case entityType == "minecraft:horse" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagTamed)
+			add(gtprotocol.EntityDataFlagEating)
+			add(gtprotocol.EntityDataFlagStanding)
+		case (entityType == "minecraft:donkey" || entityType == "minecraft:mule" || entityType == "minecraft:llama" || entityType == "minecraft:trader_llama") && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagTamed)
+			add(gtprotocol.EntityDataFlagEating)
+			add(gtprotocol.EntityDataFlagStanding)
+		case (entityType == "minecraft:donkey" || entityType == "minecraft:mule" || entityType == "minecraft:llama" || entityType == "minecraft:trader_llama") && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagChested)
+		case entityType == "minecraft:ocelot" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagTrusting)
+		case entityType == "minecraft:polar_bear" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagStanding)
+		case entityType == "minecraft:sniffer" && entry.Index == 17:
+			add(gtprotocol.EntityDataFlagFeelingHappy)
+			add(gtprotocol.EntityDataFlagScenting)
+			add(gtprotocol.EntityDataFlagSearching)
+			add(gtprotocol.EntityDataFlagDigging)
+			add(gtprotocol.EntityDataFlagRising)
+		case (entityType == "minecraft:spider" || entityType == "minecraft:cave_spider") && entry.Index == 16:
+			add(gtprotocol.EntityDataFlagWallClimbing)
+		case entityType == "minecraft:strider" && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagBreathing)
+			add(gtprotocol.EntityDataFlagShaking)
+		case entityType == "minecraft:strider" && entry.Index == 19:
+			add(gtprotocol.EntityDataFlagSaddled)
+		case entityType == "minecraft:turtle" && entry.Index == 18:
+			add(gtprotocol.EntityDataFlagPregnant)
+		case entityType == "minecraft:turtle" && entry.Index == 19:
+			add(gtprotocol.EntityDataFlagLayingEgg)
 		case entry.Index == 16 && javaAgeableEntity(entityType):
 			add(gtprotocol.EntityDataFlagBaby)
 		case (entityType == "minecraft:end_crystal" || entityType == "minecraft:ender_crystal") && entry.Index == 9:
@@ -556,6 +620,16 @@ func translateSpecialEntityMetadataWithVariants(entityType string, entries []Jav
 					metadata[gtprotocol.EntityDataKeyHeight] = clampFloat32(height, 0, 64)
 				}
 			}
+		}
+	}
+	for key, value := range translateEntityMetadataMatrix(entityType, entries) {
+		if key == gtprotocol.EntityDataKeyFlags || key == gtprotocol.EntityDataKeyFlagsTwo {
+			current, _ := metadata[key].(int64)
+			additional, _ := value.(int64)
+			metadata[key] = current | additional
+			flagsChanged = true
+		} else {
+			metadata[key] = value
 		}
 	}
 	if !flagsChanged {

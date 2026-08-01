@@ -65,8 +65,11 @@ protocol parity.
   Common Java 1.21.4 living-entity metadata now projects ageable/tameable state,
   sheep colors/shearing, armor-stand low/high flag words, fox/rabbit/bee state,
   tropical-fish packed colors/variants, negotiated cat/wolf variants, and owner
-  EIDs for known actors. Late owner discovery, custom variant assets, and the
-  broader entity metadata matrix remain open.
+  EIDs for known actors. The pinned entity matrix also covers pose-derived
+  states, horse-family fields, aquatic/ambient states, targets, goat horns,
+  and stale-flag replacement. Late owner discovery, equipment-driven saddle
+  state, custom variant assets, animation timing, and the broader entity matrix
+  remain open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
@@ -358,6 +361,13 @@ variant `3`, wolf variant `1`, tame/sit flags, collar color, and owner EID `248`
 with no bridge translation error. The bounded wolf registry-holder decoder is
 covered by focused tests; direct custom variant assets and late owner discovery
 remain open.
+
+The corrected entity-matrix fixture was rerun through the clean binary on
+`127.0.0.1:19193`. A real Bedrock protocol probe connected with Snappy to
+Paper 1.21.4 and received the matrix actors, including strider, pufferfish,
+polar bear, shulker, turtle, and the special-entity fixture, with no bridge
+translation error. Native client rendering, equipment-driven saddle state,
+and the remaining entity matrix are still open.
 
 ## Local checks
 

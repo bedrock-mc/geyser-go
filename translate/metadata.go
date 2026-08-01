@@ -287,7 +287,7 @@ func decodeJavaEntityMetadataValue(r *javaprotocol.Reader, typeID int32, nextSta
 }
 
 func translateGenericEntityMetadata(entries []JavaEntityMetadataEntry) gtprotocol.EntityMetadata {
-	metadata := gtprotocol.NewEntityMetadataWithCapacity(10)
+	metadata := make(gtprotocol.EntityMetadata, 10)
 	for _, entry := range entries {
 		switch entry.Index {
 		case 0:
@@ -306,39 +306,125 @@ func translateGenericEntityMetadata(entries []JavaEntityMetadataEntry) gtprotoco
 				{5, gtprotocol.EntityDataFlagInvisible},
 				{7, gtprotocol.EntityDataFlagGliding},
 			} {
-				if byte(flags)&(1<<mapping.javaBit) != 0 {
-					metadata.SetFlag(gtprotocol.EntityDataKeyFlags, mapping.bedrock)
-				}
+				setProjectedFlag(metadata, mapping.bedrock, byte(flags)&(1<<mapping.javaBit) != 0)
 			}
 		case 1:
 			if value, ok := entry.Value.(int32); ok {
 				metadata[gtprotocol.EntityDataKeyAirSupply] = int64(value)
 			}
 		case 2:
-			if value := JavaTextComponentText(entry.Value); value != "" {
-				metadata[gtprotocol.EntityDataKeyName] = value
-			}
+			metadata[gtprotocol.EntityDataKeyName] = JavaTextComponentText(entry.Value)
 		case 3:
 			if value, ok := entry.Value.(bool); ok {
-				if value {
-					metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = byte(1)
-				} else {
-					metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = byte(0)
-				}
+				metadata[gtprotocol.EntityDataKeyAlwaysShowNameTag] = boolByte(value)
 			}
 		case 4:
-			if value, ok := entry.Value.(bool); ok && value {
-				metadata.SetFlag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSilent)
+			if value, ok := entry.Value.(bool); ok {
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagSilent, value)
 			}
 		case 5:
-			if value, ok := entry.Value.(bool); ok && !value {
-				metadata.SetFlag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagHasGravity)
+			if value, ok := entry.Value.(bool); ok {
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagHasGravity, !value)
 			}
 		case 6:
 			if value, ok := entry.Value.(int32); ok {
 				metadata[gtprotocol.EntityDataKeyPoseIndex] = int64(value)
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagSleeping, value == javaPoseSleeping)
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagSwimming, value == javaPoseSwimming)
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagDamageNearbyMobs, value == javaPoseSpinAttack)
+			}
+		case 7:
+			if value, ok := entry.Value.(int32); ok {
+				freezingTicks := value
+				if freezingTicks < 0 {
+					freezingTicks = 0
+				}
+				if freezingTicks > 140 {
+					freezingTicks = 140
+				}
+				metadata[gtprotocol.EntityDataKeyFreezingEffectStrength] = float32(freezingTicks) / 140
+			}
+		case 8:
+			if value, ok := entry.Value.(int8); ok {
+				flags := byte(value)
+				usingItem := flags&0x01 != 0
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagUsingItem, usingItem)
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagDamageNearbyMobs, flags&0x04 != 0)
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagEmerging, usingItem && flags&0x02 != 0)
+			}
+		case 11:
+			if value, ok := entry.Value.(bool); ok {
+				if value {
+					metadata[gtprotocol.EntityDataKeyEffectAmbience] = byte(1)
+				} else {
+					metadata[gtprotocol.EntityDataKeyEffectAmbience] = byte(0)
+				}
+			}
+		case 14:
+			if value, ok := entry.Value.(gtprotocol.BlockPos); ok {
+				metadata[gtprotocol.EntityDataKeyBedPosition] = value
 			}
 		}
 	}
 	return metadata
+}
+
+const (
+	javaPoseSleeping   int32 = 2
+	javaPoseSwimming   int32 = 3
+	javaPoseSpinAttack int32 = 4
+)
+
+func boolByte(value bool) byte {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func javaGenericEntityFlagMasks(entries []JavaEntityMetadataEntry) (int64, int64) {
+	var mask, maskTwo int64
+	add := func(flag uint8) {
+		if flag >= 64 {
+			maskTwo |= int64(1) << (flag - 64)
+		} else {
+			mask |= int64(1) << flag
+		}
+	}
+	for _, entry := range entries {
+		switch entry.Index {
+		case 0:
+			for _, flag := range []uint8{
+				gtprotocol.EntityDataFlagOnFire,
+				gtprotocol.EntityDataFlagSneaking,
+				gtprotocol.EntityDataFlagSprinting,
+				gtprotocol.EntityDataFlagSwimming,
+				gtprotocol.EntityDataFlagInvisible,
+				gtprotocol.EntityDataFlagGliding,
+			} {
+				add(flag)
+			}
+		case 4:
+			add(gtprotocol.EntityDataFlagSilent)
+		case 5:
+			add(gtprotocol.EntityDataFlagHasGravity)
+		case 6:
+			for _, flag := range []uint8{
+				gtprotocol.EntityDataFlagSleeping,
+				gtprotocol.EntityDataFlagSwimming,
+				gtprotocol.EntityDataFlagDamageNearbyMobs,
+			} {
+				add(flag)
+			}
+		case 8:
+			for _, flag := range []uint8{
+				gtprotocol.EntityDataFlagUsingItem,
+				gtprotocol.EntityDataFlagDamageNearbyMobs,
+				gtprotocol.EntityDataFlagEmerging,
+			} {
+				add(flag)
+			}
+		}
+	}
+	return mask, maskTwo
 }

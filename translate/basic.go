@@ -100,6 +100,10 @@ type javaEntityState struct {
 	hasPainting        bool
 	paintingDirection  int32
 	paintingSpawned    bool
+	goatLeftHorn       bool
+	goatRightHorn      bool
+	goatLeftHornKnown  bool
+	goatRightHornKnown bool
 	equipment          [6]gtprotocol.ItemInstance
 	metadata           gtprotocol.EntityMetadata
 	player             bool
@@ -1008,12 +1012,20 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 			}
 		}
 	}
-	if !hasEntityMetadataEntry(update.Entries, 0) {
-		delete(metadata, gtprotocol.EntityDataKeyFlags)
-		delete(metadata, gtprotocol.EntityDataKeyFlagsTwo)
-		delete(metadata, gtprotocol.EntityDataKeyPlayerFlags)
+	currentFlags, _ := entity.metadata[gtprotocol.EntityDataKeyFlags].(int64)
+	currentFlagsTwo, _ := entity.metadata[gtprotocol.EntityDataKeyFlagsTwo].(int64)
+	if genericFlags, ok := metadata[gtprotocol.EntityDataKeyFlags].(int64); ok {
+		genericMask, genericMaskTwo := javaGenericEntityFlagMasks(update.Entries)
+		currentFlags = (currentFlags &^ genericMask) | (genericFlags & genericMask)
+		metadata[gtprotocol.EntityDataKeyFlags] = currentFlags
+		if genericFlagsTwo, hasGenericFlagsTwo := metadata[gtprotocol.EntityDataKeyFlagsTwo].(int64); hasGenericFlagsTwo || genericMaskTwo != 0 {
+			currentFlagsTwo = (currentFlagsTwo &^ genericMaskTwo) | (genericFlagsTwo & genericMaskTwo)
+			metadata[gtprotocol.EntityDataKeyFlagsTwo] = currentFlagsTwo
+		}
 	}
 	specialMetadata := translateSpecialEntityMetadataWithVariants(entityType, update.Entries, b.entityVariants)
+	b.translateEntityTargetMetadataLocked(entityType, update.Entries, specialMetadata)
+	b.translateGoatHornMetadataLocked(entityType, update.Entries, entity, specialMetadata)
 	if ownerUUID, hasOwnerEntry, hasOwnerUUID := javaTameableOwnerMetadata(entityType, update.Entries); hasOwnerEntry {
 		ownerID := int64(0)
 		if hasOwnerUUID {
@@ -1029,8 +1041,6 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 	specialFlags, hasSpecialFlags := specialMetadata[gtprotocol.EntityDataKeyFlags].(int64)
 	specialFlagsTwo, hasSpecialFlagsTwo := specialMetadata[gtprotocol.EntityDataKeyFlagsTwo].(int64)
 	if hasSpecialFlags || hasSpecialFlagsTwo {
-		currentFlags, _ := entity.metadata[gtprotocol.EntityDataKeyFlags].(int64)
-		currentFlagsTwo, _ := entity.metadata[gtprotocol.EntityDataKeyFlagsTwo].(int64)
 		flagMask, flagMaskTwo := specialEntityFlagMasks(entityType, update.Entries)
 		if flagMask != 0 {
 			specialFlags = (currentFlags &^ flagMask) | (specialFlags & flagMask)

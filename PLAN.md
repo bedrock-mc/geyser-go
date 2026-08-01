@@ -71,6 +71,14 @@ native Bedrock validation, and performance evidence are separate gates.
   pinned metadata indices with focused tests and live Paper/Snappy fixtures on
   `127.0.0.1:19184` and `127.0.0.1:19186`. Late owner discovery, custom
   variant assets, and the broader entity metadata matrix remain open.
+- [x] Extend the pinned Java 1.21.4 entity metadata matrix for pose-derived
+  states, allay/armadillo/axolotl/bat/blaze/camel/enderman/frog/ghast/horse
+  families, mooshroom/ocelot/phantom/polar-bear/pufferfish/shulker/sniffer,
+  spiders/strider/turtle/warden/wither, target IDs, goat horn counts, and
+  stale-flag replacement; cover the index and flag-mask rules with focused
+  tests and a clean Paper/Snappy Bedrock probe on `127.0.0.1:19193`.
+  Display transforms, equipment-driven saddle state, animation timing, custom
+  assets, and the remaining entity matrix remain open.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.

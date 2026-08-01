@@ -40,6 +40,42 @@ func TestDecodeEntityMetadataAndMapGenericFields(t *testing.T) {
 	}
 }
 
+func TestTranslateGenericEntityMetadataClearsOwnedFlags(t *testing.T) {
+	metadata := translateGenericEntityMetadata([]JavaEntityMetadataEntry{
+		{Index: 0, Type: 0, Value: int8(0)},
+		{Index: 4, Type: 8, Value: false},
+		{Index: 5, Type: 8, Value: true},
+		{Index: 6, Type: 21, Value: javaPoseSleeping},
+		{Index: 7, Type: 1, Value: int32(280)},
+		{Index: 8, Type: 0, Value: int8(0x03)},
+		{Index: 11, Type: 8, Value: true},
+	})
+	for _, flag := range []uint8{
+		gtprotocol.EntityDataFlagOnFire,
+		gtprotocol.EntityDataFlagSneaking,
+		gtprotocol.EntityDataFlagSprinting,
+		gtprotocol.EntityDataFlagSwimming,
+		gtprotocol.EntityDataFlagInvisible,
+		gtprotocol.EntityDataFlagGliding,
+		gtprotocol.EntityDataFlagSilent,
+		gtprotocol.EntityDataFlagHasGravity,
+		gtprotocol.EntityDataFlagDamageNearbyMobs,
+	} {
+		if metadata.Flag(gtprotocol.EntityDataKeyFlags, flag) {
+			t.Fatalf("generic flag %d unexpectedly set: %#v", flag, metadata)
+		}
+	}
+	if !metadata.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagSleeping-64) || !metadata.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagEmerging-64) {
+		t.Fatalf("generic high flags = %#v", metadata)
+	}
+	if got := metadata[gtprotocol.EntityDataKeyFreezingEffectStrength]; got != float32(1) {
+		t.Fatalf("freezing strength = %#v", got)
+	}
+	if got := metadata[gtprotocol.EntityDataKeyEffectAmbience]; got != byte(1) {
+		t.Fatalf("effect ambience = %#v", got)
+	}
+}
+
 func TestDecodeEntityMetadataSkipsUnsupportedRegistryPayload(t *testing.T) {
 	w := javaprotocol.NewWriter()
 	_ = w.VarInt(7)

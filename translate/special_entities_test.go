@@ -205,6 +205,75 @@ func TestTranslateSpecialEntityMetadata(t *testing.T) {
 	}
 }
 
+func TestTranslateEntityMetadataMatrix(t *testing.T) {
+	axolotl := translateSpecialEntityMetadata("minecraft:axolotl", []JavaEntityMetadataEntry{
+		{Index: 17, Type: 1, Value: int32(4)},
+		{Index: 18, Type: 8, Value: true},
+	})
+	if axolotl[gtprotocol.EntityDataKeyVariant] != int32(4) || !axolotl.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagPlayingDead-64) {
+		t.Fatalf("axolotl metadata = %#v", axolotl)
+	}
+
+	frog := translateSpecialEntityMetadata("minecraft:frog", []JavaEntityMetadataEntry{
+		{Index: 6, Type: 21, Value: int32(8)},
+		{Index: 17, Type: 24, Value: int32(2)},
+	})
+	if frog[gtprotocol.EntityDataKeyVariant] != int32(1) || !frog.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagCroaking-64) {
+		t.Fatalf("frog metadata = %#v", frog)
+	}
+
+	horse := translateSpecialEntityMetadata("minecraft:horse", []JavaEntityMetadataEntry{
+		{Index: 17, Type: 0, Value: int8(0x72)},
+		{Index: 18, Type: 1, Value: int32(0x0302)},
+	})
+	if !horse.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagTamed) || !horse.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagEating) || !horse.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagStanding) || horse[gtprotocol.EntityDataKeyVariant] != int32(2) || horse[gtprotocol.EntityDataKeyMarkVariant] != int32(3) || horse[gtprotocol.EntityDataKeyContainerType] != byte(gtprotocol.ContainerTypeHorse) {
+		t.Fatalf("horse metadata = %#v", horse)
+	}
+	if horse.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSaddled) || horse.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagPowerJump) {
+		t.Fatalf("horse metadata incorrectly derives saddle state from horse flags: %#v", horse)
+	}
+
+	camel := translateSpecialEntityMetadata("minecraft:camel", []JavaEntityMetadataEntry{
+		{Index: 17, Type: 0, Value: int8(0x30)},
+		{Index: 18, Type: 8, Value: true},
+	})
+	if !camel.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagTamed) || !camel.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagEating) || !camel.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagStanding) || !camel.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagHasDashTimeout-64) || camel[gtprotocol.EntityDataKeyContainerType] != byte(gtprotocol.ContainerTypeHorse) {
+		t.Fatalf("camel metadata = %#v", camel)
+	}
+
+	mooshroom := translateSpecialEntityMetadata("minecraft:mooshroom", []JavaEntityMetadataEntry{{Index: 17, Type: 4, Value: "brown"}})
+	if mooshroom[gtprotocol.EntityDataKeyVariant] != int32(1) {
+		t.Fatalf("mooshroom metadata = %#v", mooshroom)
+	}
+
+	strider := translateSpecialEntityMetadata("minecraft:strider", []JavaEntityMetadataEntry{
+		{Index: 18, Type: 8, Value: true},
+		{Index: 19, Type: 8, Value: true},
+	})
+	if strider.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagBreathing) || !strider.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagShaking) || !strider.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSaddled) {
+		t.Fatalf("strider metadata = %#v", strider)
+	}
+
+	shulker := translateSpecialEntityMetadata("minecraft:shulker", []JavaEntityMetadataEntry{
+		{Index: 16, Type: 12, Value: int32(2)},
+		{Index: 17, Type: 0, Value: int8(5)},
+		{Index: 18, Type: 0, Value: int8(14)},
+	})
+	if shulker[gtprotocol.EntityDataKeyAttachFace] != int32(2) || shulker[gtprotocol.EntityDataKeyPeekID] != int32(5) || shulker[gtprotocol.EntityDataKeyVariant] != int32(1) {
+		t.Fatalf("shulker metadata = %#v", shulker)
+	}
+
+	sniffer := translateSpecialEntityMetadata("minecraft:sniffer", []JavaEntityMetadataEntry{{Index: 17, Type: 27, Value: int32(5)}})
+	if !sniffer.Flag(gtprotocol.EntityDataKeyFlagsTwo, gtprotocol.EntityDataFlagDigging-64) {
+		t.Fatalf("sniffer metadata = %#v", sniffer)
+	}
+
+	wither := translateSpecialEntityMetadata("minecraft:wither", []JavaEntityMetadataEntry{{Index: 19, Type: 1, Value: int32(200)}})
+	if wither[gtprotocol.EntityDataKeyInvulnerableTicks] != int32(200) || wither[gtprotocol.EntityDataKeyAerialAttack] != int16(0) {
+		t.Fatalf("wither metadata = %#v", wither)
+	}
+}
+
 func TestJavaSpawnEntityProjection(t *testing.T) {
 	xp, ok := javaSpawnEntityProjection("minecraft:xp_orb", 17)
 	if !ok || xp[gtprotocol.EntityDataKeyTradeExperience] != int32(1) {
