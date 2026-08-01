@@ -176,7 +176,7 @@ func (b *Basic) translateJavaTakeItem(bedrock *minecraft.Conn, data []byte) erro
 		b.logSemanticAnomaly("skipping Java take-item event for unknown entity", "collected", take.CollectedEntityID, "collector", take.CollectorEntityID)
 		return nil
 	}
-	if collected.entityType == "minecraft:experience_orb" {
+	if collected.entityType == "minecraft:experience_orb" || collected.entityType == "minecraft:xp_orb" {
 		return bedrock.WritePacket(&packet.LevelEvent{
 			EventType: packet.LevelEventSoundExperienceOrbPickup,
 			Position:  collected.position,

@@ -49,6 +49,9 @@ protocol parity.
   paintings use `AddPainting` with negotiated variant order and direction
   offsets. Java item frames and glow item frames use Bedrock frame block states
   plus `BlockActorData`, including facing, item tags, rotation, and cleanup.
+  Experience orbs and falling blocks receive their special Bedrock actor
+  metadata, including complete Java block-state mapping for falling blocks;
+  owned fishing-hook metadata is projected and covered by focused tests.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
@@ -303,6 +306,13 @@ probe on `127.0.0.1:19173` received typed frame block updates and actor NBT,
 including a named diamond sword, facing-specific runtime IDs, rotation, and
 air cleanup, with no bridge translation error. Native frame rendering and
 Bedrock interaction remain open.
+
+The temporary special-entity fixture spawned a Java experience orb with amount
+17 and a falling stone. The Snappy probe on `127.0.0.1:19176` received the typed
+Bedrock `SpawnExperienceOrb` amount and a `minecraft:falling_block` actor with
+display-tile runtime 2706, with no bridge translation error. Fishing-hook
+projection is unit-tested; a live fishing-hook fixture plus native rendering
+and interaction remain open.
 
 ## Local checks
 

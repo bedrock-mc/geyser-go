@@ -694,6 +694,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		})
 	case b.Profile.PlayClientboundSpawnEntityID:
 		return b.translateSpawnEntity(bedrock, pk.Data)
+	case b.Profile.PlayClientboundSpawnExperienceOrbID:
+		return b.translateSpawnExperienceOrb(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntityTeleportID:
 		return b.translateEntityTeleport(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntityRelMoveID:
@@ -1180,7 +1182,15 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 		return b.translatePlayerSpawn(bedrock, spawn)
 	}
 	runtimeID := uint64(uint32(spawn.EntityID))
-	metadata := gtprotocol.NewEntityMetadata()
+	metadata, projectable := javaSpawnEntityProjection(entityType, spawn.ObjectData)
+	if !projectable {
+		if entityType == "minecraft:falling_block" {
+			b.logSemanticAnomaly("projecting Java falling block with air fallback", "entity", spawn.EntityID, "state", spawn.ObjectData)
+		} else {
+			b.logSemanticAnomaly("skipping Java entity without a safe Bedrock spawn projection", "entity", spawn.EntityID, "type", entityType, "object_data", spawn.ObjectData)
+			return nil
+		}
+	}
 	b.mu.Lock()
 	entity := &javaEntityState{
 		runtimeID:         runtimeID,

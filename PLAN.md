@@ -46,6 +46,10 @@ native Bedrock validation, and performance evidence are separate gates.
   block states plus `BlockActorData`, including object-data facing, item NBT,
   rotation updates, empty-frame updates, and air cleanup; cover complete
   Dragonfly state lookup tests and a live Paper/Snappy frame fixture.
+- [x] Project Java experience orbs, falling blocks, and owned fishing hooks
+  with their Bedrock actor metadata, including Java block-state to complete
+  Bedrock runtime mapping and safe unknown-state handling; cover unit tests and
+  a live Paper/Snappy experience-orb/falling-block fixture.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -176,9 +180,12 @@ block-entity identity/coordinates, flags/name/pose metadata,
 and player-list/player-actor packets are present. The pinned 1.21.4 entity
 metadata registry is decoded, dropped-item entities have a dedicated item-actor
 path with stack-count updates, paintings have a typed `AddPainting` path, and
-item frames have a typed Bedrock block/actor projection; broader entity-specific
-metadata, Java skin properties, equipment fidelity, and animation are not yet
-parity-complete. Common Java menu open/close/content packets now have a
+item frames have a typed Bedrock block/actor projection. Experience orbs use a
+dedicated Bedrock spawn packet, falling blocks carry complete display-tile
+runtime metadata, and owned fishing-hook metadata is projected; broader
+entity-specific metadata, Java skin properties, equipment fidelity, and
+animation are not yet parity-complete. Common Java menu open/close/content
+packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration. Java difficulty, game-state
@@ -230,6 +237,13 @@ translation packet for `multiplayer.player.joined` with its player-name
 parameter, and command feedback remained connected through the bounded
 plain-text fallback. Locale coverage, styled/nested component fidelity, and
 exact Java-to-Bedrock translation-key mappings remain incomplete.
+
+The temporary Paper special-entity fixture spawned a Java experience orb with
+amount 17 and a falling stone. The Snappy probe on `127.0.0.1:19176` observed
+the typed Bedrock `SpawnExperienceOrb` amount and a `minecraft:falling_block`
+actor with display-tile runtime 2706, with no bridge translation error. Fishing
+hook projection is covered by focused tests; a live fishing-hook fixture and
+native rendering/interaction remain open.
 
 ## Non-negotiable contracts
 
