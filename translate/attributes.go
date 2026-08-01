@@ -181,6 +181,31 @@ func (b *Basic) translateEntityAttributes(bedrock *minecraft.Conn, payload []byt
 	return bedrock.WritePacket(&packet.UpdateAttributes{EntityRuntimeID: runtimeID, Attributes: attributes})
 }
 
+// projectJavaHealth converts Java's living-entity metadata health value into
+// the Bedrock health attribute. Java can send health before its attribute
+// packet, so use the same conservative 20-heart baseline as Geyser and never
+// advertise a non-finite, negative, or out-of-range value to Bedrock.
+func projectJavaHealth(value float32) (gtprotocol.Attribute, bool) {
+	if !finiteFloat32(value) || value < 0 {
+		return gtprotocol.Attribute{}, false
+	}
+	maxHealth := float32(20)
+	if value > maxHealth {
+		maxHealth = value
+	}
+	maxHealth = clampFloat32(maxHealth, 0, 1024)
+	current := float32(math.Ceil(float64(value)))
+	if current > maxHealth {
+		current = maxHealth
+	}
+	return gtprotocol.Attribute{
+		AttributeValue: gtprotocol.AttributeValue{
+			Name: "minecraft:health", Min: 0, Value: current, Max: maxHealth,
+		},
+		DefaultMin: 0, DefaultMax: 1024, Default: 20,
+	}, true
+}
+
 func finiteFloat64(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }

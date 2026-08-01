@@ -39,7 +39,7 @@ func TestDecodeEntityEquipmentTerminatedArray(t *testing.T) {
 	_ = w.VarInt(19)
 	_ = w.Byte(0x80) // main hand, followed by another entry.
 	writeJavaStoneSlot(t, w, 2)
-	_ = w.Byte(4) // helmet, final entry.
+	_ = w.Byte(javaEquipmentHelmet) // helmet, final entry.
 	writeJavaStoneSlot(t, w, 1)
 	equipment, err := DecodeEntityEquipment(w.Bytes(), func() int32 { return 7 })
 	if err != nil {
@@ -48,8 +48,22 @@ func TestDecodeEntityEquipmentTerminatedArray(t *testing.T) {
 	if equipment.EntityID != 19 || len(equipment.Items) != 2 {
 		t.Fatalf("unexpected equipment: %#v", equipment)
 	}
-	if equipment.Items[0].Stack.Count != 2 || equipment.Items[4].Stack.Count != 1 {
-		t.Fatalf("unexpected item counts: main=%d helmet=%d", equipment.Items[0].Stack.Count, equipment.Items[4].Stack.Count)
+	if equipment.Items[javaEquipmentMainHand].Stack.Count != 2 || equipment.Items[javaEquipmentHelmet].Stack.Count != 1 {
+		t.Fatalf("unexpected item counts: main=%d helmet=%d", equipment.Items[javaEquipmentMainHand].Stack.Count, equipment.Items[javaEquipmentHelmet].Stack.Count)
+	}
+}
+
+func TestDecodeEntityEquipmentBodySlot(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(23)
+	_ = w.Byte(javaEquipmentBody) // body, final entry in the Java 1.21.4 equipment enum.
+	writeJavaStoneSlot(t, w, 1)
+	equipment, err := DecodeEntityEquipment(w.Bytes(), func() int32 { return 8 })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if equipment.Items[javaEquipmentBody].Stack.Count != 1 {
+		t.Fatalf("body item = %#v", equipment.Items[javaEquipmentBody])
 	}
 }
 

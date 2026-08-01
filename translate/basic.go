@@ -104,7 +104,7 @@ type javaEntityState struct {
 	goatRightHorn      bool
 	goatLeftHornKnown  bool
 	goatRightHornKnown bool
-	equipment          [6]gtprotocol.ItemInstance
+	equipment          [7]gtprotocol.ItemInstance
 	metadata           gtprotocol.EntityMetadata
 	player             bool
 	playerUUID         [16]byte
@@ -884,33 +884,37 @@ func (b *Basic) translateEntityEquipment(bedrock *minecraft.Conn, update JavaEnt
 		return nil
 	}
 	armorChanged := false
-	if _, ok := update.Items[1]; ok {
+	if _, ok := update.Items[javaEquipmentBoots]; ok {
 		armorChanged = true
 	}
-	if _, ok := update.Items[2]; ok {
+	if _, ok := update.Items[javaEquipmentLeggings]; ok {
 		armorChanged = true
 	}
-	if _, ok := update.Items[3]; ok {
+	if _, ok := update.Items[javaEquipmentChestplate]; ok {
 		armorChanged = true
 	}
-	if _, ok := update.Items[4]; ok {
+	if _, ok := update.Items[javaEquipmentHelmet]; ok {
+		armorChanged = true
+	}
+	if _, ok := update.Items[javaEquipmentBody]; ok {
 		armorChanged = true
 	}
 	if armorChanged {
 		b.mu.Lock()
 		armor := packet.MobArmourEquipment{
 			EntityRuntimeID: entity.runtimeID,
-			Helmet:          entity.equipment[4],
-			Chestplate:      entity.equipment[3],
-			Leggings:        entity.equipment[2],
-			Boots:           entity.equipment[1],
+			Helmet:          entity.equipment[javaEquipmentHelmet],
+			Chestplate:      entity.equipment[javaEquipmentChestplate],
+			Leggings:        entity.equipment[javaEquipmentLeggings],
+			Boots:           entity.equipment[javaEquipmentBoots],
+			Body:            entity.equipment[javaEquipmentBody],
 		}
 		b.mu.Unlock()
 		if err := bedrock.WritePacket(&armor); err != nil {
 			return err
 		}
 	}
-	if item, ok := update.Items[0]; ok {
+	if item, ok := update.Items[javaEquipmentMainHand]; ok {
 		if err := bedrock.WritePacket(&packet.MobEquipment{
 			EntityRuntimeID: entity.runtimeID,
 			NewItem:         item,
@@ -921,7 +925,7 @@ func (b *Basic) translateEntityEquipment(bedrock *minecraft.Conn, update JavaEnt
 			return err
 		}
 	}
-	if item, ok := update.Items[5]; ok {
+	if item, ok := update.Items[javaEquipmentOffHand]; ok {
 		if err := bedrock.WritePacket(&packet.MobEquipment{
 			EntityRuntimeID: entity.runtimeID,
 			NewItem:         item,
@@ -937,6 +941,16 @@ func (b *Basic) translateEntityEquipment(bedrock *minecraft.Conn, update JavaEnt
 
 func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEntityMetadata) error {
 	metadata := translateGenericEntityMetadata(update.Entries)
+	var healthValue float32
+	hasHealthUpdate := false
+	for _, entry := range update.Entries {
+		if entry.Index == 9 {
+			if value, ok := entry.Value.(float32); ok {
+				healthValue = value
+				hasHealthUpdate = true
+			}
+		}
+	}
 	var item gtprotocol.ItemInstance
 	hasItemUpdate := false
 	var frameItem gtprotocol.ItemInstance
@@ -1221,12 +1235,25 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		}
 	}
 	if len(merged) == 0 {
-		return nil
-	}
-	return bedrock.WritePacket(&packet.SetActorData{
+		if !hasHealthUpdate {
+			return nil
+		}
+	} else if err := bedrock.WritePacket(&packet.SetActorData{
 		EntityRuntimeID: runtimeID,
 		EntityMetadata:  merged,
-	})
+	}); err != nil {
+		return err
+	}
+	if hasHealthUpdate {
+		if health, ok := projectJavaHealth(healthValue); ok {
+			return bedrock.WritePacket(&packet.UpdateAttributes{
+				EntityRuntimeID: runtimeID,
+				Attributes:      []gtprotocol.Attribute{health},
+			})
+		}
+		b.logSemanticAnomaly("skipping Java entity health metadata with invalid value", "entity", update.EntityID, "value", healthValue)
+	}
+	return nil
 }
 
 func sameProjectedItem(a, b gtprotocol.ItemInstance) bool {

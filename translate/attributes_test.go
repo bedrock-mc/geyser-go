@@ -1,6 +1,7 @@
 package translate
 
 import (
+	"math"
 	"testing"
 
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
@@ -36,5 +37,25 @@ func TestDecodeEntityAttributesRejectsTrailingData(t *testing.T) {
 	_ = w.Byte(0xff)
 	if _, err := DecodeEntityAttributes(w.Bytes()); err == nil {
 		t.Fatal("trailing attribute data unexpectedly accepted")
+	}
+}
+
+func TestProjectJavaHealth(t *testing.T) {
+	attribute, ok := projectJavaHealth(18.5)
+	if !ok {
+		t.Fatal("expected finite health projection")
+	}
+	if attribute.Name != "minecraft:health" || attribute.Value != 19 || attribute.Max != 20 {
+		t.Fatalf("health attribute = %+v", attribute)
+	}
+	attribute, ok = projectJavaHealth(40)
+	if !ok || attribute.Value != 40 || attribute.Max != 40 {
+		t.Fatalf("high health attribute = %+v, ok=%v", attribute, ok)
+	}
+	if _, ok := projectJavaHealth(float32(math.NaN())); ok {
+		t.Fatal("NaN health should be skipped")
+	}
+	if _, ok := projectJavaHealth(-1); ok {
+		t.Fatal("negative health should be skipped")
 	}
 }

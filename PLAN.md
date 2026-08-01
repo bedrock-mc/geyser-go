@@ -33,7 +33,8 @@ native Bedrock validation, and performance evidence are separate gates.
   projections, unsupported-component skip behavior, and a live Paper readback.
 - [x] Forward Java entity velocity/equipment, held-slot/player-inventory
   updates, generic entity metadata, and the Java player-info/list lifecycle to
-  typed Bedrock actor packets; cover bounded decoders and a live Paper readback.
+  typed Bedrock actor packets; cover the Java 1.21.4 equipment enum order,
+  body equipment, bounded decoders, and a live Paper readback.
 - [x] Project Java dropped-item entities through Bedrock's dedicated item-actor
   packet, including delayed stack metadata, count-only actor events, and
   changed-stack remove/re-add behavior; cover the item metadata codec and a
@@ -74,9 +75,10 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Extend the pinned Java 1.21.4 entity metadata matrix for pose-derived
   states, allay/armadillo/axolotl/bat/blaze/camel/enderman/frog/ghast/horse
   families, mooshroom/ocelot/phantom/polar-bear/pufferfish/shulker/sniffer,
-  spiders/strider/turtle/warden/wither, target IDs, goat horn counts, and
-  stale-flag replacement; cover the index and flag-mask rules with focused
-  tests and a clean Paper/Snappy Bedrock probe on `127.0.0.1:19193`.
+  spiders/strider/turtle/warden/wither, target IDs, goat horn counts, health,
+  NoAI, and stale-flag replacement; cover the index and flag-mask rules with
+  focused tests and clean Paper/Snappy Bedrock probes on `127.0.0.1:19193` and
+  `127.0.0.1:19194`.
   Display transforms, equipment-driven saddle state, animation timing, custom
   assets, and the remaining entity matrix remain open.
 - [x] Translate Java experience, player abilities, and basic entity animation

@@ -193,6 +193,8 @@ func specialEntityFlagMasks(entityType string, entries []JavaEntityMetadataEntry
 	}
 	for _, entry := range entries {
 		switch {
+		case entry.Index == 15:
+			add(gtprotocol.EntityDataFlagNoAI)
 		case entry.Index == 6:
 			switch entityType {
 			case "minecraft:camel":
@@ -325,6 +327,12 @@ func translateSpecialEntityMetadataWithVariants(entityType string, entries []Jav
 	metadata[gtprotocol.EntityDataKeyFlags] = int64(0)
 	flagsChanged := false
 	for _, entry := range entries {
+		if entry.Index == 15 {
+			if mobFlags, ok := entry.Value.(int8); ok {
+				setProjectedFlag(metadata, gtprotocol.EntityDataFlagNoAI, byte(mobFlags)&0x01 != 0)
+				flagsChanged = true
+			}
+		}
 		if entry.Index == 16 && javaAgeableEntity(entityType) {
 			if baby, ok := entry.Value.(bool); ok {
 				setProjectedFlag(metadata, gtprotocol.EntityDataFlagBaby, baby)

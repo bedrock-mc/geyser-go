@@ -206,6 +206,11 @@ func TestTranslateSpecialEntityMetadata(t *testing.T) {
 }
 
 func TestTranslateEntityMetadataMatrix(t *testing.T) {
+	noAI := translateSpecialEntityMetadata("minecraft:zombie", []JavaEntityMetadataEntry{{Index: 15, Type: 0, Value: int8(1)}})
+	if !noAI.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagNoAI) {
+		t.Fatalf("mob flags = %#v", noAI)
+	}
+
 	axolotl := translateSpecialEntityMetadata("minecraft:axolotl", []JavaEntityMetadataEntry{
 		{Index: 17, Type: 1, Value: int32(4)},
 		{Index: 18, Type: 8, Value: true},

@@ -10,6 +10,18 @@ import (
 
 const javaEntityEquipmentContinuation = 0x80
 
+// EquipmentSlot is the Java 1.21.4 enum order. It is intentionally kept
+// separate from Bedrock's armour packet order.
+const (
+	javaEquipmentMainHand byte = iota
+	javaEquipmentOffHand
+	javaEquipmentBoots
+	javaEquipmentLeggings
+	javaEquipmentChestplate
+	javaEquipmentHelmet
+	javaEquipmentBody
+)
+
 type JavaHeldItemSlot struct {
 	Slot int32
 }
@@ -79,7 +91,7 @@ func DecodeEntityEquipment(payload []byte, nextStackID func() int32) (JavaEntity
 	if err != nil {
 		return JavaEntityEquipment{}, fmt.Errorf("translate: entity equipment ID: %w", err)
 	}
-	items := make(map[byte]gtprotocol.ItemInstance, 6)
+	items := make(map[byte]gtprotocol.ItemInstance, 7)
 	for i := 0; i < 16; i++ {
 		slot, err := r.Uint8()
 		if err != nil {
