@@ -15,6 +15,9 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Decode Java 1.21.4 paletted chunk sections and forward typed Bedrock
   `LevelChunk` packets through the lunar Gophertunnel fork; cover the codec and
   Bedrock subchunk writer with focused tests.
+- [x] Normalize the Java 1.21.4 block-entity registry and forward generic
+  tile-entity NBT in chunk payloads and standalone `BlockActorData` updates;
+  type-specific Geyser transforms remain explicitly incomplete.
 - [x] Forward Java 1.21.4 single-block changes, chunk unloads, world time, and
   the basic non-player entity lifecycle with generated Java registry lookups.
 - [x] Translate the Java player-window inventory snapshot/slot slice and the
@@ -39,14 +42,15 @@ native Bedrock validation, and performance evidence are separate gates.
 
 The current implementation is an explicitly incomplete bootstrap/world
 tranche. It does not claim Geyser gameplay parity: 318 Java block states still
-fall back to Bedrock air in the generated 1.21.4 mapping, and lighting, block
-entities, item components, arbitrary container windows, cursor/transaction
-state, player/entity metadata, interactions, and most Java play protocol remain
-open. The inventory slice is limited to the Java player window and safely skips
-updates containing components it cannot yet decode. Generic flags/name/pose
-metadata and player-list/player-actor packets are present, but entity-specific
-metadata, Java skin properties, item actors, equipment fidelity, and animation
-are not yet parity-complete.
+fall back to Bedrock air in the generated 1.21.4 mapping, and lighting,
+type-specific block-entity transforms, item components, arbitrary container
+windows, cursor/transaction state, player/entity metadata, interactions, and
+most Java play protocol remain open. The inventory slice is limited to the Java
+player window and safely skips updates containing components it cannot yet
+decode. Generic block-entity identity/coordinates, flags/name/pose metadata,
+and player-list/player-actor packets are present, but entity-specific metadata,
+Java skin properties, item actors, equipment fidelity, and animation are not
+yet parity-complete.
 
 ## Non-negotiable contracts
 

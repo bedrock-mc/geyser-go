@@ -36,8 +36,11 @@ protocol parity.
   chat into Bedrock `Text` packets. Java item and entity registries are
   generated alongside the block table. Java entity velocity, equipment,
   generic metadata, player-info/list records, and player spawns have typed
-  translators; component-bearing items, arbitrary container windows, cursor
-  state, Java skin properties, and richer entity-specific behavior are still
+  translators. Java 1.21.4 block-entity registry records are normalized into
+  Bedrock tile-entity NBT in chunk payloads, and standalone Java tile-entity
+  updates become `BlockActorData`; type-specific NBT transforms are still
+  open. Component-bearing items, arbitrary container windows, cursor state,
+  Java skin properties, and richer entity-specific behavior are also still
   open.
 
 ## Authoritative references
@@ -73,8 +76,8 @@ Git.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
-native terrain rendering, lighting, block entities, item components, arbitrary
-inventory windows, cursor/transaction state, Java skin fidelity,
+native terrain rendering, lighting, type-specific block-entity transforms,
+item components, arbitrary inventory windows, cursor/transaction state, Java skin fidelity,
 entity-specific metadata, interaction, and the rest of the Geyser gameplay
 translators are still open acceptance work.
 

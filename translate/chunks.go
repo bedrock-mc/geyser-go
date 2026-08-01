@@ -328,6 +328,21 @@ func EncodeBedrockChunk(chunk JavaChunk, dimension int32) ([]byte, uint32, error
 		writeUnsignedVarInt(&payload, 0)
 	}
 	payload.WriteByte(0) // Education Edition border blocks marker.
+	for _, entity := range chunk.BlockEntities {
+		_, tag, ok := BedrockBlockEntityForChunk(chunk.X, chunk.Z, entity)
+		if !ok {
+			// Unknown registry entries are semantically odd but valid Java data.
+			// The caller logs the anomaly at packet level; the chunk remains usable.
+			continue
+		}
+		encoded, err := nbt.MarshalEncoding(tag, nbt.NetworkLittleEndian)
+		if err != nil {
+			return nil, 0, fmt.Errorf("translate: block entity %d NBT: %w", entity.Type, err)
+		}
+		if _, err := payload.Write(encoded); err != nil {
+			return nil, 0, fmt.Errorf("translate: block entity %d NBT: %w", entity.Type, err)
+		}
+	}
 	return payload.Bytes(), uint32(sectionCount), nil
 }
 

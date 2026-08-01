@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/nbt"
 )
 
 func TestDecodeJavaPalettedContainerSingleton(t *testing.T) {
@@ -105,6 +106,33 @@ func TestDecodeOptionalNBTSupportsEndAndCompoundRoots(t *testing.T) {
 	}
 	if value["text"] != "hello" {
 		t.Fatalf("compound optional NBT text = %#v, want hello", value["text"])
+	}
+}
+
+func TestEncodeBedrockChunkAppendsBlockEntityNBT(t *testing.T) {
+	base, _, err := EncodeBedrockChunk(JavaChunk{X: 2, Z: -3}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withEntity, _, err := EncodeBedrockChunk(JavaChunk{
+		X: 2, Z: -3,
+		BlockEntities: []JavaBlockEntity{{
+			X: 5, Y: 70, Z: 14, Type: 1,
+			Data: map[string]any{"Custom": int32(9)},
+		}},
+	}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(withEntity) <= len(base) {
+		t.Fatalf("block entity did not extend chunk payload: base=%d entity=%d", len(base), len(withEntity))
+	}
+	var tag map[string]any
+	if err := nbt.UnmarshalEncoding(withEntity[len(base):], &tag, nbt.NetworkLittleEndian); err != nil {
+		t.Fatal(err)
+	}
+	if tag["id"] != "Chest" || tag["x"] != int32(37) || tag["y"] != int32(70) || tag["z"] != int32(-34) || tag["Custom"] != int32(9) {
+		t.Fatalf("encoded block entity tag = %#v", tag)
 	}
 }
 

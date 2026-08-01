@@ -46,6 +46,7 @@ type Profile struct {
 	PlayClientboundMapChunkPacketID     int32
 	PlayClientboundPositionPacketID     int32
 	PlayClientboundUpdateHealthID       int32
+	PlayClientboundBlockEntityDataID    int32
 	PlayClientboundBlockChangeID        int32
 	PlayClientboundSpawnEntityID        int32
 	PlayClientboundEntityTeleportID     int32
@@ -117,6 +118,7 @@ var Java1214 = Profile{
 	PlayClientboundMapChunkPacketID:     0x28,
 	PlayClientboundPositionPacketID:     0x42,
 	PlayClientboundUpdateHealthID:       0x62,
+	PlayClientboundBlockEntityDataID:    0x07,
 	PlayClientboundBlockChangeID:        0x09,
 	PlayClientboundSpawnEntityID:        0x01,
 	PlayClientboundEntityTeleportID:     0x77,

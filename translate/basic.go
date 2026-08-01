@@ -215,6 +215,20 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			Flags:             packet.BlockUpdateNeighbours | packet.BlockUpdateNetwork,
 			Layer:             0,
 		})
+	case b.Profile.PlayClientboundBlockEntityDataID:
+		update, err := DecodeBlockEntityUpdate(pk.Data)
+		if err != nil {
+			return err
+		}
+		tag, known := BedrockBlockEntityTag(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data)
+		if !known {
+			b.logSemanticAnomaly("Java block entity type outside generated registry", "type", update.Type)
+			return nil
+		}
+		return bedrock.WritePacket(&packet.BlockActorData{
+			Position: update.Position,
+			NBTData:  tag,
+		})
 	case b.Profile.PlayClientboundMapChunkPacketID:
 		chunk, err := DecodeMapChunk(pk.Data)
 		if err != nil {
@@ -223,6 +237,11 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		raw, sections, err := EncodeBedrockChunk(chunk, b.gameData.Dimension)
 		if err != nil {
 			return err
+		}
+		for _, entity := range chunk.BlockEntities {
+			if _, _, known := BedrockBlockEntityForChunk(chunk.X, chunk.Z, entity); !known {
+				b.logSemanticAnomaly("Java chunk block entity outside generated registry", "type", entity.Type)
+			}
 		}
 		return bedrock.WritePacket(&packet.LevelChunk{
 			Position:      gtprotocol.ChunkPos{chunk.X, chunk.Z},
