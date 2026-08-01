@@ -188,6 +188,8 @@ func main() {
 				fmt.Printf("Bedrock scoreboard remove: objective=%q\n", pk.ObjectiveName)
 			case *packet.SetActorLink:
 				fmt.Printf("Bedrock actor link: ridden=%d rider=%d type=%d immediate=%t riderInitiated=%t\n", pk.EntityLink.RiddenEntityUniqueID, pk.EntityLink.RiderEntityUniqueID, pk.EntityLink.Type, pk.EntityLink.Immediate, pk.EntityLink.RiderInitiated)
+			case *packet.LevelEvent:
+				fmt.Printf("Bedrock level event: type=%d position=%v data=%d\n", pk.EventType, pk.Position, pk.EventData)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

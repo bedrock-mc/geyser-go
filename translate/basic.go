@@ -50,6 +50,7 @@ type Basic struct {
 	scoreboardObjectives  map[string]*javaScoreboardObjectiveState
 	scoreboardTeams       map[string]*javaScoreboardTeamState
 	passengers            map[int32][]int32
+	blockBreaks           map[gtprotocol.BlockPos]javaBlockBreakState
 	windows               map[int32]*javaWindowState
 	bedrockWindows        map[byte]*javaWindowState
 	activeWindowID        byte
@@ -96,6 +97,7 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		scoreboardObjectives:  make(map[string]*javaScoreboardObjectiveState),
 		scoreboardTeams:       make(map[string]*javaScoreboardTeamState),
 		passengers:            make(map[int32][]int32),
+		blockBreaks:           make(map[gtprotocol.BlockPos]javaBlockBreakState),
 		windows:               make(map[int32]*javaWindowState),
 		bedrockWindows:        make(map[byte]*javaWindowState),
 		nextWindowID:          1,
@@ -311,6 +313,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return java.Conn.WritePacket(b.Profile.PlayServerboundKeepAlivePacketID, javaprotocol.EncodeLongPayload(value))
 	case b.Profile.PlayClientboundDifficultyID:
 		return b.translateJavaDifficulty(bedrock, pk.Data)
+	case b.Profile.PlayClientboundBlockDestructionID:
+		return b.translateJavaBlockDestruction(bedrock, pk.Data)
 	case b.Profile.PlayClientboundBossBarID:
 		return b.translateJavaBossBar(bedrock, pk.Data)
 	case b.Profile.PlayClientboundResetScoreID:
@@ -336,12 +340,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 	case b.Profile.PlayClientboundGameStateChangeID:
 		return b.translateJavaGameStateChange(bedrock, pk.Data)
 	case b.Profile.PlayClientboundWorldEventID:
-		event, err := DecodeJavaWorldEvent(pk.Data)
-		if err != nil {
-			return err
-		}
-		b.logSemanticAnomaly("skipping Java world event without a versioned effect mapping", "effect", event.EffectID)
-		return nil
+		return b.translateJavaWorldEvent(bedrock, pk.Data)
 	case b.Profile.PlayClientboundPositionPacketID:
 		position, err := DecodePositionUpdate(pk.Data)
 		if err != nil {

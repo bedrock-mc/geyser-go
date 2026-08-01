@@ -73,6 +73,14 @@ native Bedrock validation, and performance evidence are separate gates.
   project the initial objective/sidebar/fake-player/team-decoration path to
   Bedrock; validate it with a live Snappy Paper probe. Number formats, colors,
   exact team/name-tag behavior, and full multi-slot semantics remain open.
+- [x] Translate Java `SetPassengers` state into ordered Bedrock actor links,
+  including removal updates and lenient unknown-entity handling; validate a
+  real Pig/player mount over the Snappy Paper probe.
+- [x] Translate Java block-destruction stages into estimated Bedrock block
+  cracking events and map the common 1.21.4 Geyser world-effect table into
+  typed Bedrock level/sound events; validate block, smoke, and cracking events
+  over the Snappy Paper probe. Typed Java particle payloads and the remaining
+  effect-specific NBT/sound semantics remain open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -119,6 +127,11 @@ a generated, live-tested path; flags, custom sound packs, and broader
 HUD/scoreboard behavior remain open. A first scoreboard objective/sidebar path
 is now live-tested, but scoreboard styling, team/name-tag semantics, and the
 remaining HUD surfaces are not parity-complete.
+Passenger links now have a typed ordered actor-link path and a live Paper/Pig
+readback, while vehicle input and entity-specific riding offsets remain open.
+Block cracking and common Java world effects now have typed bounded paths and a
+live Bedrock readback; Java particle packets with registry-specific payloads,
+effect-specific NBT, and the remaining Geyser mappings are not parity-complete.
 
 ## Non-negotiable contracts
 

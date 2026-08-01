@@ -75,6 +75,14 @@ protocol parity.
   team prefix/suffix decoration are covered. Java number formats, scoreboard
   colors, name-tag visibility, collision rules, and exact multi-sidebar-slot
   semantics remain open.
+  Java SetPassengers packets now maintain bounded vehicle/passenger state and
+  emit typed Bedrock actor links, including rider-versus-additional-passenger
+  ordering. Java block-destruction stages now use a position cache to estimate
+  Bedrock cracking durations, and the versioned Java world-event table covers
+  the common Geyser 1.21.4 sound, block-particle, weather-effect, sculk,
+  trial-spawner, and vault mappings; unknown effects remain logged and
+  leniently skipped. Full vehicle input, riding offsets, and typed Java
+  particle-payload packets are still open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -169,6 +177,15 @@ and a team prefix/suffix. The Snappy probe observed Bedrock
 `[P] First line!` and `Second line`; the Java score ordering update was also
 read back without a bridge error. Full scoreboard styling, player-list and
 below-name semantics, and native HUD rendering remain open.
+
+The same plugin spawned a Pig and mounted the Bedrock player. A fresh Snappy
+probe on `127.0.0.1:19155` observed a real `SetActorLink` for the Java vehicle
+and Bedrock player, alongside the normal Paper join/leave log. The plugin also
+emitted Java block and smoke effects plus two block-cracking stages; the probe
+observed typed Bedrock level events `2001`, `2000`, `3600`, and `3602` with no
+bridge translation error. This closes only the common actor-link and effect
+packet paths; vehicle control, riding offsets, typed Java particle payloads,
+and full native rendering remain open.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while

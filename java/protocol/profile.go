@@ -45,6 +45,7 @@ type Profile struct {
 	PlayClientboundLoginPacketID                int32
 	PlayClientboundBossBarID                    int32
 	PlayClientboundDifficultyID                 int32
+	PlayClientboundBlockDestructionID           int32
 	PlayClientboundResetScoreID                 int32
 	PlayClientboundScoreboardDisplayObjectiveID int32
 	PlayClientboundScoreboardObjectiveID        int32
@@ -58,6 +59,8 @@ type Profile struct {
 	PlayClientboundGameStateChangeID            int32
 	PlayClientboundMapChunkPacketID             int32
 	PlayClientboundWorldEventID                 int32
+	PlayClientboundLevelParticlesID             int32
+	PlayClientboundExplodeID                    int32
 	PlayClientboundPositionPacketID             int32
 	PlayClientboundPlayerRotationID             int32
 	PlayClientboundUpdateHealthID               int32
@@ -156,6 +159,7 @@ var Java1214 = Profile{
 	PlayClientboundLoginPacketID:                0x2c,
 	PlayClientboundBossBarID:                    0x0a,
 	PlayClientboundDifficultyID:                 0x0b,
+	PlayClientboundBlockDestructionID:           0x06,
 	PlayClientboundResetScoreID:                 0x49,
 	PlayClientboundScoreboardDisplayObjectiveID: 0x5c,
 	PlayClientboundScoreboardObjectiveID:        0x64,
@@ -169,6 +173,8 @@ var Java1214 = Profile{
 	PlayClientboundGameStateChangeID:            0x23,
 	PlayClientboundMapChunkPacketID:             0x28,
 	PlayClientboundWorldEventID:                 0x29,
+	PlayClientboundLevelParticlesID:             0x2a,
+	PlayClientboundExplodeID:                    0x21,
 	PlayClientboundPositionPacketID:             0x42,
 	PlayClientboundPlayerRotationID:             0x43,
 	PlayClientboundUpdateHealthID:               0x62,
