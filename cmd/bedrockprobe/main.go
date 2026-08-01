@@ -233,6 +233,12 @@ func main() {
 				fmt.Printf("Bedrock painting add: title=%q runtime=%d direction=%d position=%v\n", pk.Title, pk.EntityRuntimeID, pk.Direction, pk.Position)
 			case *packet.AddItemActor:
 				fmt.Printf("Bedrock item add: runtime=%d item=%d count=%d position=%v\n", pk.EntityRuntimeID, pk.Item.Stack.NetworkID, pk.Item.Stack.Count, pk.Position)
+			case *packet.UpdateBlock:
+				fmt.Printf("Bedrock block update: position=%v runtime=%d flags=%d layer=%d\n", pk.Position, pk.NewBlockRuntimeID, pk.Flags, pk.Layer)
+			case *packet.BlockActorData:
+				fmt.Printf("Bedrock block actor: position=%v nbt=%#v\n", pk.Position, pk.NBTData)
+			case *packet.RemoveActor:
+				fmt.Printf("Bedrock actor remove: unique=%d\n", pk.EntityUniqueID)
 			case *packet.ActorEvent:
 				fmt.Printf("Bedrock actor event: entity=%d type=%d data=%d\n", pk.EntityRuntimeID, pk.EventType, pk.EventData)
 			case *packet.TakeItemActor:

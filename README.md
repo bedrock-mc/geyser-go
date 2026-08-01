@@ -47,8 +47,10 @@ protocol parity.
   decoder follows the pinned Java 1.21.4 registry, dropped Java item entities
   use Bedrock's dedicated item-actor packet and typed stack-count updates, and
   paintings use `AddPainting` with negotiated variant order and direction
-  offsets. Pickup, merge, interaction, and broader entity-specific behavior are
-  still open. Common
+  offsets. Java item frames and glow item frames use Bedrock frame block states
+  plus `BlockActorData`, including facing, item tags, rotation, and cleanup.
+  Pickup, merge, interaction, and broader entity-specific behavior are still
+  open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
   swap/drop plus mine-stack validation) now map to Java 1.21.4 hashed
   container-click packets, with cursor/state tracking, typed Bedrock responses,
@@ -295,6 +297,12 @@ The same fixture spawned Kebab and Pool paintings. The Snappy probe on
 `127.0.0.1:19172` received typed `AddPainting` packets for both motives,
 including the variant update, with no bridge translation error. Painting
 interaction, custom motive assets, and native rendering remain open.
+
+The temporary frame fixture spawned normal and glow item frames. The Snappy
+probe on `127.0.0.1:19173` received typed frame block updates and actor NBT,
+including a named diamond sword, facing-specific runtime IDs, rotation, and
+air cleanup, with no bridge translation error. Native frame rendering and
+Bedrock interaction remain open.
 
 ## Local checks
 

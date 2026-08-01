@@ -84,6 +84,11 @@ type javaEntityState struct {
 	velocity          mgl32.Vec3
 	item              gtprotocol.ItemInstance
 	hasItem           bool
+	framePosition     gtprotocol.BlockPos
+	frameDirection    int32
+	frameItem         gtprotocol.ItemInstance
+	frameRotation     int32
+	frameSpawned      bool
 	painting          JavaPaintingVariant
 	hasPainting       bool
 	paintingDirection int32
@@ -919,14 +924,25 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 	metadata := translateGenericEntityMetadata(update.Entries)
 	var item gtprotocol.ItemInstance
 	hasItemUpdate := false
+	var frameItem gtprotocol.ItemInstance
+	hasFrameItemUpdate := false
+	var frameRotationUpdate int32
+	hasFrameRotationUpdate := false
 	for _, entry := range update.Entries {
-		if entry.Index != 8 {
-			continue
+		if entry.Index == 8 {
+			value, ok := entry.Value.(gtprotocol.ItemInstance)
+			if ok {
+				item = value
+				hasItemUpdate = true
+				frameItem = value
+				hasFrameItemUpdate = true
+			}
 		}
-		value, ok := entry.Value.(gtprotocol.ItemInstance)
-		if ok {
-			item = value
-			hasItemUpdate = true
+		if entry.Index == 9 {
+			if value, ok := entry.Value.(int32); ok {
+				frameRotationUpdate = value
+				hasFrameRotationUpdate = true
+			}
 		}
 	}
 	if hasItemUpdate && (item.Stack.Count == 0 || item.Stack.ItemType.NetworkID == 0) {
@@ -1000,6 +1016,32 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		currentPaintingDirection = entity.paintingDirection
 		paintingSpawned = entity.paintingSpawned
 	}
+	frameChanged := false
+	frameRotationChanged := false
+	currentFrameItem := entity.frameItem
+	currentFrameRotation := entity.frameRotation
+	framePosition := entity.framePosition
+	frameDirection := entity.frameDirection
+	frameSpawned := entity.frameSpawned
+	if entityType == "minecraft:item_frame" || entityType == "minecraft:glow_item_frame" {
+		if hasFrameItemUpdate {
+			frameChanged = !sameProjectedItem(currentFrameItem, frameItem)
+			entity.frameItem = frameItem
+		}
+		if hasFrameRotationUpdate {
+			frameRotationChanged = entity.frameRotation != frameRotationUpdate
+			entity.frameRotation = frameRotationUpdate
+		}
+		if hasDirectionUpdate && paintingDirectionUpdate >= 0 && paintingDirectionUpdate <= 5 {
+			directionChanged = entity.frameDirection != paintingDirectionUpdate
+			entity.frameDirection = paintingDirectionUpdate
+		}
+		currentFrameItem = entity.frameItem
+		currentFrameRotation = entity.frameRotation
+		framePosition = entity.framePosition
+		frameDirection = entity.frameDirection
+		frameSpawned = entity.frameSpawned
+	}
 	b.mu.Unlock()
 	if entityType == "minecraft:item" {
 		if hasItemUpdate && (!hadItem || itemChanged) {
@@ -1035,6 +1077,15 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		if !hadItem {
 			return nil
 		}
+	}
+	if entityType == "minecraft:item_frame" || entityType == "minecraft:glow_item_frame" {
+		if !hasFrameItemUpdate && !hasFrameRotationUpdate && !hasDirectionUpdate {
+			return nil
+		}
+		if !frameChanged && !frameRotationChanged && !directionChanged && frameSpawned {
+			return nil
+		}
+		return b.writeJavaItemFrame(bedrock, entityType, framePosition, frameDirection, currentFrameItem, currentFrameRotation)
 	}
 	if entityType == "minecraft:painting" {
 		if !hasPaintingUpdate && !hasDirectionUpdate {
@@ -1138,10 +1189,26 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 		rotation:          mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
 		velocity:          spawn.Velocity,
 		paintingDirection: 3, // Java Direction.SOUTH, the hanging-entity default.
+		framePosition:     javaItemFramePosition(spawn.Position),
+		frameDirection:    spawn.ObjectData,
 		metadata:          metadata,
+	}
+	if entity.frameDirection < 0 || entity.frameDirection > 5 {
+		entity.frameDirection = javaItemFrameDefaultDirection
 	}
 	b.entities[spawn.EntityID] = entity
 	b.mu.Unlock()
+	if entityType == "minecraft:item_frame" || entityType == "minecraft:glow_item_frame" {
+		if err := b.writeJavaItemFrame(bedrock, entityType, entity.framePosition, entity.frameDirection, entity.frameItem, entity.frameRotation); err != nil {
+			return err
+		}
+		b.mu.Lock()
+		if current := b.entities[spawn.EntityID]; current != nil {
+			current.frameSpawned = true
+		}
+		b.mu.Unlock()
+		return nil
+	}
 	if entityType == "minecraft:item" || entityType == "minecraft:painting" {
 		// Java sends the item/painting-specific state in following metadata
 		// packets. Bedrock has dedicated actor packets for both, so wait until
@@ -1284,6 +1351,14 @@ func (b *Basic) translateEntityDestroy(bedrock *minecraft.Conn, payload []byte) 
 		delete(b.passengers, id)
 		b.mu.Unlock()
 		if entity == nil {
+			continue
+		}
+		if entity.entityType == "minecraft:item_frame" || entity.entityType == "minecraft:glow_item_frame" {
+			if entity.frameSpawned {
+				if err := b.clearJavaItemFrame(bedrock, entity.framePosition); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 		if entity.entityType == "minecraft:item" && !entity.hasItem {

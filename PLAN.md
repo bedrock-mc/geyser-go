@@ -42,6 +42,10 @@ native Bedrock validation, and performance evidence are separate gates.
   metadata registry and project Java painting variants through Bedrock's
   dedicated `AddPainting` packet, including negotiated registry order,
   direction, offsets, and variant changes; cover a live Kebab/Pool fixture.
+- [x] Project Java item-frame and glow-item-frame entities as Bedrock frame
+  block states plus `BlockActorData`, including object-data facing, item NBT,
+  rotation updates, empty-frame updates, and air cleanup; cover complete
+  Dragonfly state lookup tests and a live Paper/Snappy frame fixture.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -171,9 +175,10 @@ components whose behavior it cannot yet project. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
 and player-list/player-actor packets are present. The pinned 1.21.4 entity
 metadata registry is decoded, dropped-item entities have a dedicated item-actor
-path with stack-count updates, and paintings have a typed `AddPainting` path;
-broader entity-specific metadata, Java skin properties, equipment fidelity, and
-animation are not yet parity-complete. Common Java menu open/close/content packets now have a
+path with stack-count updates, paintings have a typed `AddPainting` path, and
+item frames have a typed Bedrock block/actor projection; broader entity-specific
+metadata, Java skin properties, equipment fidelity, and animation are not yet
+parity-complete. Common Java menu open/close/content packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration. Java difficulty, game-state
@@ -305,3 +310,10 @@ The same Paper fixture spawned Kebab and Pool paintings, then the Snappy probe
 on `127.0.0.1:19172` observed typed `AddPainting` packets for both motives,
 including the variant update, with no bridge translation error. Painting
 interaction, custom motive assets, and native rendering remain open.
+
+The temporary Paper frame fixture spawned a normal frame containing a named
+diamond sword and a glow frame with distinct facing. The Snappy probe on
+`127.0.0.1:19173` observed frame block runtime IDs `6480` and `1051`, the
+`ItemFrame`/`GlowItemFrame` actor tags, the sword's `minecraft:diamond_sword`
+item tag, a 45-degree rotation update, and air cleanup, with no bridge
+translation error. Native frame rendering and Bedrock interaction remain open.

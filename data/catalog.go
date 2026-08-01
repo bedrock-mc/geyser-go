@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 
 	"github.com/df-mc/dragonfly/server/world"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
@@ -43,6 +44,46 @@ type ItemDefinition struct {
 	// typed consumer is added. This prevents the generator from silently
 	// dropping authoritative data.
 	SourceJSON string
+}
+
+var (
+	vanillaBlockRegistryOnce sync.Once
+	vanillaItemNamesOnce     sync.Once
+	vanillaItemNames         map[int32]string
+)
+
+// BedrockBlockRuntimeID resolves a complete vanilla Bedrock block state using
+// Dragonfly's embedded Cloudburst-derived state palette. The palette contains
+// states even when Dragonfly has no gameplay implementation for the block, so
+// translators must use this instead of limiting support to concrete Go blocks.
+func BedrockBlockRuntimeID(name string, properties map[string]any) (uint32, bool) {
+	vanillaBlockRegistryOnce.Do(func() {
+		world.DefaultBlockRegistry.Finalize()
+	})
+	return world.DefaultBlockRegistry.StateToRuntimeID(name, properties)
+}
+
+// BedrockItemName returns the canonical Bedrock identifier for a runtime item
+// ID. The reverse map is deterministic so aliases in the complete item table
+// do not make block-entity NBT depend on Go map iteration order.
+func BedrockItemName(runtimeID int32) (string, bool) {
+	vanillaItemNamesOnce.Do(func() {
+		vanilla := world.VanillaItemEntries()
+		names := make([]string, 0, len(vanilla))
+		for name := range vanilla {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		vanillaItemNames = make(map[int32]string, len(names))
+		for _, name := range names {
+			entry := vanilla[name]
+			if _, exists := vanillaItemNames[entry.RuntimeID]; !exists {
+				vanillaItemNames[entry.RuntimeID] = name
+			}
+		}
+	})
+	name, ok := vanillaItemNames[runtimeID]
+	return name, ok
 }
 
 // DragonflyItemEntries adapts Lunar's Dragonfly fork to Gophertunnel's
