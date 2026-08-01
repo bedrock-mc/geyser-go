@@ -39,8 +39,11 @@ protocol parity.
   translators. Java 1.21.4 block-entity registry records are normalized into
   Bedrock tile-entity NBT in chunk payloads, and standalone Java tile-entity
   updates become `BlockActorData`; type-specific NBT transforms are still
-  open. Component-bearing items, arbitrary container windows, Java skin
-  properties, and richer entity-specific behavior are also still open. Common
+  open. Java 1.21.4 item slots now have bounded component decoding and project
+  common custom NBT, names/lore, durability, enchantments, glint, repair cost,
+  dyed colors, and map IDs into Gophertunnel item stacks. Behavior-heavy item
+  components, arbitrary container windows, Java skin properties, and richer
+  entity-specific behavior are also still open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
   swap/drop plus mine-stack validation) now map to Java 1.21.4 hashed
   container-click packets, with cursor/state tracking, typed Bedrock responses,
@@ -271,7 +274,7 @@ exact Java-to-Bedrock translation-key differences remain open.
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
 native terrain rendering, lighting, type-specific block-entity transforms,
-item components, arbitrary inventory windows, complex transaction state, Java skin fidelity,
+behavior-heavy item components, arbitrary inventory windows, complex transaction state, Java skin fidelity,
 entity-specific metadata, target-specific interaction semantics, and the rest of
 the Geyser gameplay translators are still open acceptance work.
 

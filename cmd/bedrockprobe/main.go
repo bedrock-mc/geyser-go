@@ -186,6 +186,14 @@ func main() {
 						}
 					}
 				}
+			case *packet.InventoryContent:
+				fmt.Printf("Bedrock inventory content: window=%d container=%d items=%d\n", pk.WindowID, pk.Container.ContainerID, len(pk.Content))
+				for slot, item := range pk.Content {
+					if item.Stack.NetworkID == 0 || item.Stack.Count == 0 {
+						continue
+					}
+					fmt.Printf("Bedrock inventory item: slot=%d runtime=%d count=%d metadata=%d network=%d nbt=%#v\n", slot, item.Stack.NetworkID, item.Stack.Count, item.Stack.MetadataValue, item.StackNetworkID, item.Stack.NBTData)
+				}
 			case *packet.InventorySlot:
 				containerID := byte(0)
 				if container, ok := pk.Container.Value(); ok {

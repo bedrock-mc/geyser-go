@@ -1,14 +1,11 @@
 package translate
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
-	"github.com/sandertv/gophertunnel/minecraft/nbt"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 )
 
@@ -151,8 +148,12 @@ func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaI
 	if err != nil {
 		return JavaItemSlot{}, err
 	}
-	if added != 0 {
-		return JavaItemSlot{}, fmt.Errorf("%w: id=%d added=%d", ErrUnsupportedJavaItemComponent, itemID, added)
+	components, err := decodeJavaItemComponents(r, added)
+	if err != nil {
+		return JavaItemSlot{}, err
+	}
+	if len(components.unsupported) != 0 {
+		return JavaItemSlot{}, fmt.Errorf("%w: id=%d components=%v", ErrUnsupportedJavaItemComponent, itemID, components.unsupported)
 	}
 	for i := 0; i < removed; i++ {
 		if _, err := r.VarInt(); err != nil {
@@ -172,6 +173,10 @@ func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaI
 			Count:    uint16(count),
 		},
 	}
+	if components.hasMetadata {
+		item.Stack.MetadataValue = components.metadata
+	}
+	item.Stack.NBTData = components.nbt
 	if nextStackID != nil {
 		item.StackNetworkID = nextStackID()
 	}
@@ -189,9 +194,7 @@ func boundedJavaCount(r *javaprotocol.Reader, field string) (int, error) {
 	return int(count), nil
 }
 
-// decodeJavaNBT consumes the root compound used by Java anonymousNbt. The
-// counting reader is important: anonymous NBT has no length prefix, so the
-// outer structured-item decoder must retain the exact byte boundary.
+// decodeJavaNBT consumes the root compound used by Java anonymousNbt.
 func decodeJavaNBT(r *javaprotocol.Reader) (map[string]any, error) {
 	value, err := decodeJavaNBTValue(r)
 	if err != nil {
@@ -205,50 +208,5 @@ func decodeJavaNBT(r *javaprotocol.Reader) (map[string]any, error) {
 }
 
 func decodeJavaNBTValue(r *javaprotocol.Reader) (any, error) {
-	tag, err := r.Byte()
-	if err != nil {
-		return nil, err
-	}
-	if tag == 0 { // TAG_End is the null form used by anonOptionalNbt.
-		return nil, nil
-	}
-	// Network NBT omits the root name for compounds and primitive roots. The
-	// bundled Bedrock NBT decoder handles the compound form; primitive text
-	// components need this small root framing adapter because they have no
-	// named-tag header to consume.
-	if tag == 8 { // TAG_String, common for chat component names.
-		length, err := r.Int16()
-		if err != nil {
-			return nil, err
-		}
-		if length < 0 {
-			return nil, fmt.Errorf("translate: negative NBT string length %d", length)
-		}
-		value, err := r.Bytes(int(length))
-		if err != nil {
-			return nil, err
-		}
-		return string(value), nil
-	}
-	if tag != 10 { // TAG_Compound
-		return nil, fmt.Errorf("translate: unsupported anonymous NBT root tag %d", tag)
-	}
-	counted := &countingReader{Reader: io.MultiReader(bytes.NewReader([]byte{tag}), r)}
-	var value any
-	decoder := nbt.NewDecoderWithEncoding(counted, nbt.NetworkBigEndian)
-	if err := decoder.Decode(&value); err != nil {
-		return nil, err
-	}
-	return value, nil
-}
-
-type countingReader struct {
-	io.Reader
-	n int
-}
-
-func (r *countingReader) Read(p []byte) (int, error) {
-	n, err := r.Reader.Read(p)
-	r.n += n
-	return n, err
+	return javaprotocol.DecodeAnonymousNBT(r)
 }

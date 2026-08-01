@@ -6,6 +6,7 @@ import (
 
 	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/nbt"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 )
 
@@ -50,6 +51,8 @@ func TestDecodeJavaItemSlotRejectsUnsupportedComponents(t *testing.T) {
 	_ = w.VarInt(1)
 	_ = w.VarInt(1)
 	_ = w.VarInt(0)
+	_ = w.VarInt(javaItemComponentItemModel)
+	_ = w.String("minecraft:test")
 	_, err := DecodeJavaWindowItems(appendWindowItemPayload(w.Bytes()), nil)
 	if !errors.Is(err, ErrUnsupportedJavaItemComponent) {
 		t.Fatalf("error = %v, want unsupported component", err)
@@ -90,6 +93,76 @@ func TestDecodeJavaCursorItem(t *testing.T) {
 	}
 }
 
+func TestDecodeJavaItemComponentsProjectsCommonData(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(0)                           // window ID
+	_ = w.VarInt(12)                          // state ID
+	_ = w.VarInt(1)                           // slot count
+	_ = w.VarInt(2)                           // item count
+	_ = w.VarInt(1)                           // stone
+	_ = w.VarInt(8)                           // added components
+	_ = w.VarInt(1)                           // removed component count
+	_ = w.VarInt(javaItemComponentCustomData) // custom_data
+	_ = w.BytesValue(mustAnonymousItemNBT(t, map[string]any{"Custom": int32(4)}))
+	_ = w.VarInt(3) // damage
+	_ = w.VarInt(5)
+	_ = w.VarInt(5) // custom_name
+	_ = w.BytesValue(mustAnonymousItemNBT(t, map[string]any{"text": "Renamed"}))
+	_ = w.VarInt(8) // lore
+	_ = w.VarInt(1)
+	_ = w.BytesValue(mustAnonymousItemNBT(t, map[string]any{"text": "Line one"}))
+	_ = w.VarInt(10) // enchantments
+	_ = w.VarInt(1)
+	_ = w.VarInt(32) // Java sharpness
+	_ = w.VarInt(3)
+	_ = w.Bool(true)
+	_ = w.VarInt(17) // repair_cost
+	_ = w.VarInt(2)
+	_ = w.VarInt(19) // enchantment_glint_override
+	_ = w.Bool(true)
+	_ = w.VarInt(34) // dyed_color
+	_ = w.Int32(0x123456)
+	_ = w.Bool(true)
+	_ = w.VarInt(7) // removed item_model
+	_ = w.VarInt(0) // carried item
+
+	update, err := DecodeJavaWindowItems(w.Bytes(), func() int32 { return 91 })
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := update.Items[0]
+	if item.Stack.MetadataValue != 5 || item.StackNetworkID != 91 {
+		t.Fatalf("item metadata/network ID = %d/%d", item.Stack.MetadataValue, item.StackNetworkID)
+	}
+	if item.Stack.NBTData["Custom"] != int32(4) || item.Stack.NBTData["RepairCost"] != int32(2) || item.Stack.NBTData["customColor"] != int32(0x123456) {
+		t.Fatalf("item custom NBT = %#v", item.Stack.NBTData)
+	}
+	display, ok := item.Stack.NBTData["display"].(map[string]any)
+	if !ok || display["Name"] != "Renamed" {
+		t.Fatalf("item display = %#v", item.Stack.NBTData["display"])
+	}
+	if lore, ok := display["Lore"].([]string); !ok || len(lore) != 1 || lore[0] != "Line one" {
+		t.Fatalf("item lore = %#v", display["Lore"])
+	}
+	ench, ok := item.Stack.NBTData["ench"].([]map[string]any)
+	if !ok || len(ench) != 1 || ench[0]["id"] != int16(9) || ench[0]["lvl"] != int16(3) {
+		t.Fatalf("item enchantments = %#v", item.Stack.NBTData["ench"])
+	}
+}
+
+func TestDecodeJavaItemComponentTruncationIsWireFatal(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(1)
+	_ = w.VarInt(1)
+	_ = w.VarInt(1) // added component count
+	_ = w.VarInt(0) // removed component count
+	_ = w.VarInt(javaItemComponentDamage)
+	_, err := DecodeJavaWindowItems(appendWindowItemPayload(w.Bytes()), nil)
+	if err == nil || errors.Is(err, ErrUnsupportedJavaItemComponent) {
+		t.Fatalf("error = %v, want a fatal truncated component decode", err)
+	}
+}
+
 func TestJavaPlayerSlotMapping(t *testing.T) {
 	tests := []struct {
 		javaSlot  int16
@@ -119,4 +192,13 @@ func appendWindowItemPayload(slot []byte) []byte {
 	_ = w.BytesValue(slot)
 	_ = w.VarInt(0)
 	return w.Bytes()
+}
+
+func mustAnonymousItemNBT(t *testing.T, value map[string]any) []byte {
+	t.Helper()
+	data, err := nbt.MarshalEncoding(value, nbt.NetworkBigEndian)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }

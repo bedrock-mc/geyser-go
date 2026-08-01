@@ -29,8 +29,8 @@ native Bedrock validation, and performance evidence are separate gates.
   Java registry lookups.
 - [x] Translate the Java player-window inventory snapshot/slot slice and the
   common Java system/player/profileless chat packets into typed Bedrock
-  packets; cover the wire decoders, unsupported-component skip behavior, and
-  a live Paper readback.
+  packets; cover the 1.21.4 slot component wire boundary, common item NBT
+  projections, unsupported-component skip behavior, and a live Paper readback.
 - [x] Forward Java entity velocity/equipment, held-slot/player-inventory
   updates, generic entity metadata, and the Java player-info/list lifecycle to
   typed Bedrock actor packets; cover bounded decoders and a live Paper readback.
@@ -143,7 +143,7 @@ resolves 118 palette-checked Java-to-Bedrock name/state transforms (including
 chains, standing pale-oak signs, and skeleton/wither skull variants); the
 remaining head states require Geyser's custom-skull/entity path rather than an
 arbitrary static block alias. Lighting,
-type-specific block-entity transforms, item components, arbitrary container
+type-specific block-entity transforms, behavior-heavy item components, arbitrary container
 windows, complex transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
 block/item/selection/entity-action path is present, including auth-input
@@ -156,7 +156,7 @@ close events are forwarded to Java, but complex transactions, recipes,
 target-specific entity semantics, vehicle input, and client prediction
 reconciliation remain open. The inventory slice covers the Java player window
 and the initial mapped common-menu path, and safely skips updates containing
-components it cannot yet decode. Generic
+components whose behavior it cannot yet project. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
 and player-list/player-actor packets are present, but entity-specific metadata,
 Java skin properties, item actors, equipment fidelity, and animation are not

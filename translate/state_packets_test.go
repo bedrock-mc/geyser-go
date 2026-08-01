@@ -74,6 +74,8 @@ func TestDecodeEntityEquipmentRejectsUnsupportedComponentAsSemanticSkip(t *testi
 	_ = w.VarInt(1) // stone
 	_ = w.VarInt(1) // one added component
 	_ = w.VarInt(0) // removed components
+	_ = w.VarInt(javaItemComponentItemModel)
+	_ = w.String("minecraft:test")
 	_, err := DecodeEntityEquipment(w.Bytes(), nil)
 	if !errors.Is(err, ErrUnsupportedJavaItemComponent) {
 		t.Fatalf("error=%v, want unsupported component", err)
