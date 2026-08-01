@@ -49,6 +49,7 @@ type Basic struct {
 	bossBars              map[[16]byte]*javaBossBarState
 	scoreboardObjectives  map[string]*javaScoreboardObjectiveState
 	scoreboardTeams       map[string]*javaScoreboardTeamState
+	passengers            map[int32][]int32
 	windows               map[int32]*javaWindowState
 	bedrockWindows        map[byte]*javaWindowState
 	activeWindowID        byte
@@ -94,6 +95,7 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		bossBars:              make(map[[16]byte]*javaBossBarState),
 		scoreboardObjectives:  make(map[string]*javaScoreboardObjectiveState),
 		scoreboardTeams:       make(map[string]*javaScoreboardTeamState),
+		passengers:            make(map[int32][]int32),
 		windows:               make(map[int32]*javaWindowState),
 		bedrockWindows:        make(map[byte]*javaWindowState),
 		nextWindowID:          1,
@@ -321,6 +323,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaScoreboardTeam(bedrock, pk.Data)
 	case b.Profile.PlayClientboundScoreboardScoreID:
 		return b.translateJavaScoreboardScore(bedrock, pk.Data)
+	case b.Profile.PlayClientboundSetPassengersID:
+		return b.translateJavaSetPassengers(bedrock, pk.Data)
 	case b.Profile.PlayClientboundSoundEffectID:
 		return b.translateJavaSoundEffect(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntitySoundEffectID:
@@ -1044,6 +1048,7 @@ func (b *Basic) translateEntityDestroy(bedrock *minecraft.Conn, payload []byte) 
 		b.mu.Lock()
 		entity := b.entities[id]
 		delete(b.entities, id)
+		delete(b.passengers, id)
 		b.mu.Unlock()
 		if entity == nil {
 			continue
