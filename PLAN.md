@@ -49,6 +49,10 @@ native Bedrock validation, and performance evidence are separate gates.
   `MobEffect` updates, and translate Bedrock common-container close events into
   the Java close-window packet; cover both bounded effect decoders and the
   close-window codec.
+- [x] Add the first Java window lifecycle slice: decode/open/close common
+  vanilla menus, maintain Java-to-Bedrock window IDs, forward bounded content
+  and slot updates, and use a versioned virtual block holder. Per-menu stack
+  actions, property updates, and exact holder restoration remain open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -81,7 +85,9 @@ containing components it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
 and player-list/player-actor packets are present, but entity-specific metadata,
 Java skin properties, item actors, equipment fidelity, and animation are not
-yet parity-complete.
+yet parity-complete. Common Java menu open/close/content packets now have a
+virtual-holder path, but Bedrock window interaction is still incomplete until
+the per-menu stack-request translators and holder restoration are closed.
 
 ## Non-negotiable contracts
 
@@ -119,4 +125,9 @@ generic metadata, equipment, velocity, and player-list updates; native terrain
 rendering, BDS, and gameplay behavior remain acceptance gates. A separate
 Snappy-enabled probe on `127.0.0.1:19146` sent auth-input, held-slot,
 arm-swing, and self-interact packets; Paper recorded `GeyserHeld` joining and
-the bridge emitted no translation errors.
+the bridge emitted no translation errors. A temporary Paper `WindowTest`
+plugin opened a generic 9x3 chest menu on join; a Snappy probe on
+`127.0.0.1:19153` observed the translated `ContainerOpen`, `InventoryContent`,
+and typed `InventorySlot` sequence with no bridge translation errors. This
+closes only the automated window-packet gate; native UI rendering and menu
+interaction are still open.

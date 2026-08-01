@@ -46,6 +46,9 @@ type Basic struct {
 	selectedSlot     byte
 	entities         map[int32]*javaEntityState
 	players          map[[16]byte]*javaPlayerState
+	windows          map[int32]*javaWindowState
+	bedrockWindows   map[byte]*javaWindowState
+	nextWindowID     byte
 	nextStackID      int32
 	nextSequence     int32
 	sprinting        bool
@@ -77,13 +80,16 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		logger = slog.Default()
 	}
 	return &Basic{
-		Profile:      profile,
-		Logger:       logger,
-		entities:     make(map[int32]*javaEntityState),
-		players:      make(map[[16]byte]*javaPlayerState),
-		nextStackID:  1,
-		nextSequence: 1,
-		unknown:      make(map[int32]uint64),
+		Profile:        profile,
+		Logger:         logger,
+		entities:       make(map[int32]*javaEntityState),
+		players:        make(map[[16]byte]*javaPlayerState),
+		windows:        make(map[int32]*javaWindowState),
+		bedrockWindows: make(map[byte]*javaWindowState),
+		nextWindowID:   1,
+		nextStackID:    1,
+		nextSequence:   1,
+		unknown:        make(map[int32]uint64),
 	}
 }
 
@@ -373,6 +379,18 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			SubChunkCount: 0,
 			RawPayload:    EmptyBedrockChunkPayload(b.gameData.Dimension),
 		})
+	case b.Profile.PlayClientboundOpenWindowID:
+		window, err := DecodeJavaOpenWindow(pk.Data)
+		if err != nil {
+			return err
+		}
+		return b.translateOpenWindow(bedrock, java, window)
+	case b.Profile.PlayClientboundCloseWindowID:
+		window, err := DecodeJavaContainerClose(pk.Data)
+		if err != nil {
+			return err
+		}
+		return b.translateJavaWindowClose(bedrock, window.WindowID)
 	case b.Profile.PlayClientboundWindowItemsID:
 		items, err := DecodeJavaWindowItems(pk.Data, b.nextStackNetworkID)
 		if err != nil {
@@ -575,8 +593,7 @@ func (b *Basic) nextStackNetworkID() int32 {
 
 func (b *Basic) translateWindowItems(bedrock *minecraft.Conn, update JavaWindowItems) error {
 	if update.WindowID != 0 {
-		b.logSemanticAnomaly("skipping inventory content for unsupported Java window", "window", update.WindowID)
-		return nil
+		return b.translateWindowContent(bedrock, update)
 	}
 	b.mu.Lock()
 	for slot := range b.playerItems {
@@ -646,6 +663,9 @@ func (b *Basic) translateWindowItems(bedrock *minecraft.Conn, update JavaWindowI
 }
 
 func (b *Basic) translateSetSlot(bedrock *minecraft.Conn, update JavaSetSlot) error {
+	if handled, err := b.translateWindowSlot(bedrock, update); handled {
+		return err
+	}
 	if update.WindowID == -1 && update.Slot == -1 {
 		b.mu.Lock()
 		b.cursorItem = update.Item
@@ -1032,14 +1052,7 @@ func (b *Basic) translateBedrockPacket(bedrock *minecraft.Conn, java *javaprotoc
 	case *packet.ItemStackRequest:
 		return b.translateItemStackRequests(bedrock, java, pk.Requests)
 	case *packet.ContainerClose:
-		if pk.WindowID == 0 {
-			return nil
-		}
-		data, err := encodeJavaContainerClose(pk.WindowID)
-		if err != nil {
-			return err
-		}
-		return java.Conn.WritePacket(b.Profile.PlayServerboundContainerCloseID, data)
+		return b.translateBedrockContainerClose(bedrock, java, pk)
 	case *packet.Unknown:
 		b.Logger.Debug("unknown Bedrock packet", "id", pk.ID())
 		return nil

@@ -641,7 +641,7 @@ func encodeJavaContainerClick(stateID int32, click javaInventoryClick, changed m
 	return append([]byte(nil), w.Bytes()...), nil
 }
 
-func encodeJavaContainerClose(windowID byte) ([]byte, error) {
+func encodeJavaContainerClose(windowID int32) ([]byte, error) {
 	w := javaprotocol.NewWriter()
 	if err := w.VarInt(int32(windowID)); err != nil {
 		return nil, err

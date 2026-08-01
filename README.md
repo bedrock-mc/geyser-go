@@ -50,7 +50,10 @@ protocol parity.
   translators, rotation-only player updates reach Bedrock movement state, and
   Java add/remove entity effects reach Bedrock `MobEffect` packets. Common
   Bedrock container-close events are also forwarded to Java; opening and
-  synchronizing arbitrary Java windows remains open.
+  synchronizing arbitrary Java windows now has an initial typed path for common
+  vanilla menu types, including Java-to-Bedrock IDs, virtual block holders,
+  content, and slot updates. Per-menu Bedrock stack requests, properties,
+  merchant/recipe behavior, and exact virtual-holder restoration remain open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -102,6 +105,12 @@ recorded `GeyserState` joining cleanly. A fresh Snappy probe on
 `127.0.0.1:19151` also observed repeated typed `UpdateAttributes` packets
 from Paper with no bridge translation errors. The native capture and probe logs are
 intentionally temporary and ignored by Git.
+
+A temporary offline Paper `WindowTest` plugin opened a generic 9x3 chest on
+join. The Snappy probe on `127.0.0.1:19153` received the resulting
+`ContainerOpen`, `InventoryContent`, and typed `InventorySlot` sequence with no
+bridge translation errors. Native UI rendering and Bedrock menu interaction
+are not yet acceptance-complete.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
