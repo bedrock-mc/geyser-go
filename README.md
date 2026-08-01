@@ -128,7 +128,11 @@ protocol parity.
   vanilla menu types, including Java-to-Bedrock IDs, virtual block holders,
   content, and slot updates. Common mapped windows also accept bounded Bedrock
   stack requests and return typed responses; properties, merchant/recipe
-  behavior, and exact virtual-holder restoration remain open.
+  behavior, and exact virtual-holder restoration remain open. Legacy Bedrock
+  `InventoryTransaction` block-use, block-break, item-use, and entity
+  interact-at/attack packets now map to Java 1.21.4 packets with held-slot
+  ordering and sneaking/hit-position preservation; off-hand, spectator, and
+  reconciliation behavior remain open.
   Java difficulty/game-state notifications, default spawn position, and title
   text/subtitle/action-bar/timing/clear packets now have bounded typed Bedrock
   paths.

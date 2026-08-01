@@ -1791,6 +1791,8 @@ func (b *Basic) translateBedrockPacket(bedrock *minecraft.Conn, java *javaprotoc
 		return b.translateBedrockAnimate(java, pk)
 	case *packet.Interact:
 		return b.translateBedrockInteract(java, pk)
+	case *packet.InventoryTransaction:
+		return b.translateBedrockInventoryTransaction(java, pk)
 	case *packet.PlayerAction:
 		return b.translateBedrockPlayerAction(java, pk)
 	case *packet.ItemStackRequest:

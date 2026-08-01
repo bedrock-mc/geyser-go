@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-gl/mathgl/mgl32"
 	"github.com/google/uuid"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
@@ -24,6 +25,8 @@ func main() {
 	sendHeldSlot := flag.Bool("send-held-slot", false, "send one held-hotbar-slot update after spawn")
 	sendArm := flag.Bool("send-arm", false, "send one arm-swing animation after spawn")
 	sendEntityInteract := flag.Bool("send-entity-interact", false, "send one self entity interaction after spawn")
+	sendLegacyUse := flag.Bool("send-legacy-use", false, "send one legacy InventoryTransaction click-air after spawn")
+	sendLegacyEntityInteract := flag.Bool("send-legacy-entity-interact", false, "send one legacy InventoryTransaction self entity interaction after spawn")
 	sendWindowTake := flag.Bool("send-window-take", false, "after the Paper WindowTest menu opens, take slot 0 to the cursor")
 	sendChat := flag.String("send-chat", "geyser-go probe", "send one Bedrock Text chat message after spawn; empty disables it")
 	sendCommand := flag.String("send-command", "", "send one slash command through Bedrock Text after spawn")
@@ -103,6 +106,30 @@ func main() {
 		if err := conn.WritePacket(&packet.Interact{
 			ActionType:            1,
 			TargetEntityRuntimeID: conn.GameData().EntityRuntimeID,
+		}); err != nil {
+			panic(err)
+		}
+	}
+	if *sendLegacyUse {
+		if err := conn.WritePacket(&packet.InventoryTransaction{
+			TransactionData: &protocol.UseItemTransactionData{
+				ActionType: protocol.UseItemActionClickAir,
+				HotBarSlot: 0,
+				Position:   conn.GameData().PlayerPosition,
+			},
+		}); err != nil {
+			panic(err)
+		}
+	}
+	if *sendLegacyEntityInteract {
+		if err := conn.WritePacket(&packet.InventoryTransaction{
+			TransactionData: &protocol.UseItemOnEntityTransactionData{
+				TargetEntityRuntimeID: conn.GameData().EntityRuntimeID,
+				ActionType:            protocol.UseItemOnEntityActionInteract,
+				HotBarSlot:            0,
+				Position:              conn.GameData().PlayerPosition,
+				ClickedPosition:       mgl32.Vec3{},
+			},
 		}); err != nil {
 			panic(err)
 		}

@@ -248,15 +248,7 @@ func (b *Basic) translateBedrockEquipment(java *javaprotocol.Client, equipment *
 		b.logSemanticAnomaly("skipping Bedrock offhand equipment update until Java hand-state translation is implemented", "window", equipment.WindowID)
 		return nil
 	}
-	if equipment.HotBarSlot > 8 {
-		b.logSemanticAnomaly("skipping Bedrock held slot outside Java hotbar", "slot", equipment.HotBarSlot)
-		return nil
-	}
-	data, err := encodeJavaHeldItemSlot(equipment.HotBarSlot)
-	if err != nil {
-		return err
-	}
-	return java.Conn.WritePacket(b.Profile.PlayServerboundHeldItemSlotID, data)
+	return b.ensureJavaHeldSlot(java, int32(equipment.HotBarSlot))
 }
 
 func (b *Basic) translateBedrockAnimate(java *javaprotocol.Client, animation *packet.Animate) error {
@@ -294,12 +286,42 @@ func (b *Basic) translateBedrockInteract(java *javaprotocol.Client, interaction 
 	if value, ok := interaction.Position.Value(); ok {
 		position = gtprotocol.Option(value)
 	}
-	data, err := encodeJavaUseEntity(int32(uint32(interaction.TargetEntityRuntimeID)), mouse, position)
+	b.mu.Lock()
+	sneaking := b.sneaking
+	b.mu.Unlock()
+	data, err := encodeJavaUseEntityState(int32(uint32(interaction.TargetEntityRuntimeID)), mouse, position, sneaking)
 	if err != nil {
 		b.logSemanticAnomaly("skipping Bedrock entity interaction with invalid position", "error", err)
 		return nil
 	}
 	return java.Conn.WritePacket(b.Profile.PlayServerboundUseEntityID, data)
+}
+
+// ensureJavaHeldSlot closes the ordering gap where Bedrock's interaction
+// packet can arrive before its separate MobEquipment packet. Java validates
+// the hand against the selected slot, so the slot must be sent first.
+func (b *Basic) ensureJavaHeldSlot(java *javaprotocol.Client, slot int32) error {
+	if slot < 0 || slot > 8 {
+		b.logSemanticAnomaly("skipping Bedrock held slot outside Java hotbar", "slot", slot)
+		return nil
+	}
+	b.mu.Lock()
+	selected := b.selectedSlot
+	b.mu.Unlock()
+	if selected == byte(slot) {
+		return nil
+	}
+	data, err := encodeJavaHeldItemSlot(byte(slot))
+	if err != nil {
+		return err
+	}
+	if err := java.Conn.WritePacket(b.Profile.PlayServerboundHeldItemSlotID, data); err != nil {
+		return err
+	}
+	b.mu.Lock()
+	b.selectedSlot = byte(slot)
+	b.mu.Unlock()
+	return nil
 }
 
 func (b *Basic) translateBedrockPlayerAction(java *javaprotocol.Client, action *packet.PlayerAction) error {
@@ -358,6 +380,10 @@ func encodeJavaArmAnimation(hand int32) ([]byte, error) {
 }
 
 func encodeJavaUseEntity(target, mouse int32, position gtprotocol.Optional[mgl32.Vec3]) ([]byte, error) {
+	return encodeJavaUseEntityState(target, mouse, position, false)
+}
+
+func encodeJavaUseEntityState(target, mouse int32, position gtprotocol.Optional[mgl32.Vec3], sneaking bool) ([]byte, error) {
 	if mouse < 0 || mouse > 2 {
 		return nil, fmt.Errorf("translate: invalid Java entity interaction action %d", mouse)
 	}
@@ -388,7 +414,7 @@ func encodeJavaUseEntity(target, mouse int32, position gtprotocol.Optional[mgl32
 			return nil, err
 		}
 	}
-	if err := w.Bool(false); err != nil {
+	if err := w.Bool(sneaking); err != nil {
 		return nil, err
 	}
 	return append([]byte(nil), w.Bytes()...), nil

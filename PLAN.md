@@ -79,8 +79,15 @@ native Bedrock validation, and performance evidence are separate gates.
   rotations to Java position/look packets, including eye-height and collision
   flag conversion, and emit bounded Java block-dig/block-place/use-item
   packets. Forward Bedrock held-slot, arm-swing, and basic interact/attack
-  packets to their Java equivalents; stack requests, target-specific entity
-  semantics, vehicles, and reconciliation remain open.
+  packets to their Java equivalents; stack requests, vehicles, and
+  reconciliation remain open.
+- [x] Translate legacy Bedrock `InventoryTransaction` world-use packets into
+  Java 1.21.4 block-place, block-dig, use-item, `INTERACT_AT`, and `ATTACK`
+  packets, preserve Bedrock sneaking and hit positions, emit the Java swing
+  after attacks, and order held-slot changes before interactions. Focused
+  net-pipe codec tests and a real Snappy Paper probe on `127.0.0.1:19250`
+  cover the path; spectator routing, off-hand/multi-hand interaction, and
+  server-authoritative reconciliation remain open.
 - [x] Forward Java 1.21.4 single-block and section multi-block changes, chunk
   unloads, world time, and the basic non-player entity lifecycle with generated
   Java registry lookups.
