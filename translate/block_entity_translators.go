@@ -26,6 +26,8 @@ func projectJavaBlockEntityPayload(javaName string, tag map[string]any, stateNam
 		projectJavaCommandBlock(tag, stateName)
 	case "structure_block":
 		projectJavaStructureBlock(tag)
+	case "brushable_block":
+		projectJavaBrushableBlock(tag, stateName)
 	case "campfire":
 		projectJavaCampfire(tag)
 	case "beacon":
@@ -36,6 +38,8 @@ func projectJavaBlockEntityPayload(javaName string, tag map[string]any, stateNam
 		projectJavaDecoratedPot(tag)
 	case "mob_spawner":
 		projectJavaMobSpawner(tag)
+	case "trial_spawner":
+		projectJavaTrialSpawner(tag)
 	}
 }
 
@@ -234,6 +238,57 @@ func projectJavaStructureBlock(tag map[string]any) {
 	}
 }
 
+// projectJavaBrushableBlock converts Java's transient archaeology payload into
+// the Bedrock fields consumed by the suspicious-sand/gravel renderer. The
+// block state carries both the dusting progress and the block identifier; the
+// item and hit direction remain in the block-entity NBT.
+func projectJavaBrushableBlock(tag map[string]any, stateName string) {
+	javaItem, hasItem := javaNBTCompound(tag["item"])
+	delete(tag, "item")
+
+	if hasItem {
+		if name, ok := javaNBTStringValue(javaItem["id"]); ok {
+			name = strings.TrimPrefix(name, "minecraft:")
+			if name != "air" {
+				if item, ok := projectJavaBlockEntityItem(javaItem); ok {
+					tag["item"] = item
+				}
+			}
+		}
+	}
+
+	if direction, ok := javaNBTInt64Value(tag["hit_direction"]); ok {
+		delete(tag, "hit_direction")
+		// Java uses -1 while the brushable item is fully retracted. Bedrock
+		// treats that sentinel as an absent update rather than a direction.
+		if direction >= 0 && direction <= 127 {
+			tag["brush_direction"] = int8(direction)
+		}
+	}
+
+	if dusted, ok := javaBlockStatePropertyInt(stateName, "dusted"); ok {
+		if dusted < 0 {
+			dusted = 0
+		}
+		if dusted > 3 {
+			dusted = 3
+		}
+		tag["brush_count"] = int32(dusted)
+	}
+	if blockType, ok := javaBrushableBlockType(stateName); ok {
+		tag["type"] = blockType
+	}
+}
+
+func javaBrushableBlockType(stateName string) (string, bool) {
+	switch javaBlockStateBaseName(stateName) {
+	case "suspicious_sand", "suspicious_gravel":
+		return "minecraft:" + javaBlockStateBaseName(stateName), true
+	default:
+		return "", false
+	}
+}
+
 func javaBlockStateBaseName(stateName string) string {
 	name := strings.TrimPrefix(stateName, "minecraft:")
 	if bracket := strings.IndexByte(name, '['); bracket >= 0 {
@@ -350,6 +405,42 @@ func projectJavaMobSpawner(tag map[string]any) {
 	tag["EntityIdentifier"] = bedrockIdentifier
 	delete(tag, "SpawnData")
 	delete(tag, "spawn_data")
+}
+
+// projectJavaTrialSpawner keeps the trial spawner's compact Bedrock spawn
+// selector. Java stores the entity identifier and weight beneath
+// spawn_data.entity; Bedrock expects TypeId and Weight directly beneath its
+// own spawn_data compound.
+func projectJavaTrialSpawner(tag map[string]any) {
+	spawnData, ok := javaNBTCompound(tag["spawn_data"])
+	if !ok {
+		spawnData, ok = javaNBTCompound(tag["SpawnData"])
+	}
+	if !ok {
+		return
+	}
+	delete(tag, "spawn_data")
+	delete(tag, "SpawnData")
+
+	entity, _ := javaNBTCompound(spawnData["entity"])
+	projected := make(map[string]any, 2)
+	if javaIdentifier, ok := javaNBTStringValue(entity["id"]); ok {
+		if bedrockIdentifier, ok := data.BedrockEntityIdentifier(javaIdentifier); ok {
+			projected["TypeId"] = bedrockIdentifier
+		}
+	}
+	weight := int64(1)
+	if value, ok := javaNBTInt64Value(entity["Size"]); ok {
+		weight = value
+	}
+	if weight < 0 {
+		weight = 0
+	}
+	if weight > 1<<31-1 {
+		weight = 1<<31 - 1
+	}
+	projected["Weight"] = int32(weight)
+	tag["spawn_data"] = projected
 }
 
 func projectJavaBeacon(tag map[string]any) {

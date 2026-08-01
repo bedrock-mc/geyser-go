@@ -48,6 +48,12 @@ native Bedrock validation, and performance evidence are separate gates.
   banner/skull `BlockActorData` over a live Paper/Snappy session. Custom-skull
   profile resolution, structure UI/control flow, and the remaining block
   entity types remain open.
+- [x] Translate Java `brushable_block` item/type/dusting payloads and compact
+  `trial_spawner` spawn selectors into Bedrock NBT using the complete item and
+  entity registries; cover air, unknown-entity, bounded-weight, and state
+  variants with focused tests and validate both records over a live
+  Paper/Snappy probe. Brush interaction animation, loot-table behavior,
+  trial-spawner ticking, and native Bedrock rendering remain open.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and

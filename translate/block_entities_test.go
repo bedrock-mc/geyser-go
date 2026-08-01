@@ -268,6 +268,84 @@ func TestBedrockMobSpawnerProjectsEntityIdentifier(t *testing.T) {
 	}
 }
 
+func TestBedrockTrialSpawnerProjectsSpawnData(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(43, 0, 64, 0, map[string]any{
+		"spawn_data": map[string]any{
+			"entity": map[string]any{
+				"id":   "minecraft:zombie_villager",
+				"Size": int32(3),
+			},
+		},
+		"normal_cooldown": int32(40),
+	})
+	if !ok {
+		t.Fatal("trial spawner block entity did not translate")
+	}
+	spawnData, ok := tag["spawn_data"].(map[string]any)
+	if !ok || spawnData["TypeId"] != "minecraft:zombie_villager_v2" || spawnData["Weight"] != int32(3) {
+		t.Fatalf("trial spawner spawn data = %#v", tag["spawn_data"])
+	}
+	if _, exists := tag["SpawnData"]; exists {
+		t.Fatalf("Java trial spawner payload was not removed: %#v", tag)
+	}
+	if tag["normal_cooldown"] != int32(40) {
+		t.Fatalf("trial spawner timing field changed: %#v", tag)
+	}
+
+	unknown, ok := BedrockBlockEntityTag(43, 0, 64, 0, map[string]any{
+		"spawn_data": map[string]any{
+			"entity": map[string]any{"id": "minecraft:not_a_vanilla_entity", "Size": int64(-4)},
+		},
+	})
+	if !ok {
+		t.Fatal("unknown trial spawner entity did not translate")
+	}
+	spawnData, ok = unknown["spawn_data"].(map[string]any)
+	if !ok || spawnData["TypeId"] != nil || spawnData["Weight"] != int32(0) {
+		t.Fatalf("unknown trial spawner payload = %#v", unknown["spawn_data"])
+	}
+}
+
+func TestBedrockBrushableBlockProjectsItemAndState(t *testing.T) {
+	state := findJavaState(t, func(name string) bool {
+		return strings.HasPrefix(name, "minecraft:suspicious_sand[") && strings.Contains(name, "dusted=2")
+	})
+	tag, ok := BedrockBlockEntityTagWithState(40, 0, 64, 0, map[string]any{
+		"item": map[string]any{
+			"id":    "minecraft:diamond",
+			"count": int32(2),
+		},
+		"hit_direction": int8(4),
+	}, state)
+	if !ok {
+		t.Fatal("brushable block entity did not translate")
+	}
+	item, ok := tag["item"].(map[string]any)
+	if !ok || item["Name"] != "minecraft:diamond" || item["Count"] != byte(2) {
+		t.Fatalf("brushable item = %#v", tag["item"])
+	}
+	if tag["brush_direction"] != int8(4) || tag["brush_count"] != int32(2) || tag["type"] != "minecraft:suspicious_sand" {
+		t.Fatalf("brushable state = %#v", tag)
+	}
+	if _, exists := tag["hit_direction"]; exists {
+		t.Fatalf("Java hit direction was not replaced: %#v", tag)
+	}
+
+	retracted, ok := BedrockBlockEntityTagWithState(40, 0, 64, 0, map[string]any{
+		"item":          map[string]any{"id": "minecraft:air", "count": int32(0)},
+		"hit_direction": int8(-1),
+	}, state)
+	if !ok {
+		t.Fatal("retracted brushable block entity did not translate")
+	}
+	if _, exists := retracted["item"]; exists {
+		t.Fatalf("air brushable item unexpectedly projected: %#v", retracted)
+	}
+	if _, exists := retracted["brush_direction"]; exists {
+		t.Fatalf("retracted brush direction unexpectedly projected: %#v", retracted)
+	}
+}
+
 func TestStateAwareBlockEntityProjection(t *testing.T) {
 	bannerState := findJavaState(t, func(name string) bool {
 		return strings.HasPrefix(name, "minecraft:red_banner[")

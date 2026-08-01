@@ -363,6 +363,14 @@ NBT with `Base=1` and `Patterns=[{Pattern="bs", Color=4}]`, plus `Skull`
 state-entity window. The standalone path consumed the preceding Java block
 state update through the bounded cache.
 
+The modern block-entity fixture then placed suspicious sand containing a
+diamond and a trial spawner configured for a zombie. The clean Snappy probe on
+`127.0.0.1:19224` observed `BrushableBlock` item `minecraft:diamond`,
+`brush_count=0`, and `type=minecraft:suspicious_sand`, plus `TrialSpawner`
+`spawn_data={TypeId=minecraft:zombie, Weight=1}`; the bridge reported no
+translation errors. Brush-progress animation, trial-spawner ticking, and
+native rendering remain open.
+
 The temporary Paper entity fixture also dropped a diamond stack and changed its
 count. The Snappy probe on `127.0.0.1:19171` received typed `AddItemActor`
 packets and clean item removals; this is an automated actor-projection result,
