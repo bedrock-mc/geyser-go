@@ -244,6 +244,28 @@ func TestBedrockDecoratedPotNormalizesSherds(t *testing.T) {
 	}
 }
 
+func TestBedrockMobSpawnerProjectsEntityIdentifier(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(9, 0, 64, 0, map[string]any{
+		"Delay":               int16(20),
+		"MaxSpawnDelay":       int16(240),
+		"SpawnData":           map[string]any{"entity": map[string]any{"id": "minecraft:zombie_villager"}},
+		"SpawnCount":          int8(2),
+		"RequiredPlayerRange": int16(16),
+	})
+	if !ok {
+		t.Fatal("mob spawner block entity did not translate")
+	}
+	if tag["EntityIdentifier"] != "minecraft:zombie_villager_v2" {
+		t.Fatalf("spawner entity identifier = %#v", tag["EntityIdentifier"])
+	}
+	if _, exists := tag["SpawnData"]; exists {
+		t.Fatalf("Java spawn data was not removed: %#v", tag)
+	}
+	if tag["Delay"] != int16(20) || tag["SpawnCount"] != int8(2) {
+		t.Fatalf("spawner timing fields changed: %#v", tag)
+	}
+}
+
 func TestDecodeBlockEntityUpdate(t *testing.T) {
 	data, err := nbt.MarshalEncoding(map[string]any{"Custom": int32(9)}, nbt.NetworkBigEndian)
 	if err != nil {

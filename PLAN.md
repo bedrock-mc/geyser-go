@@ -35,6 +35,10 @@ native Bedrock validation, and performance evidence are separate gates.
   cover legacy and modern NBT forms with focused tests and a live
   Paper/Snappy block-actor readback. The remaining type-specific translators
   remain open.
+- [x] Project Java mob-spawner `SpawnData.entity.id` to Bedrock's generated
+  `EntityIdentifier`, accept Geyser's entity aliases, and retain bounded
+  timing fields while removing the Java-only nested payload; cover unknown
+  identifiers leniently and validate a live Paper/Snappy spawner update.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and
@@ -316,6 +320,10 @@ clean-source Snappy probe on `127.0.0.1:19218` observed beacon `primary=1` and
 `secondary=8`, end-gateway `Age=1234` with `ExitPortal=[12,64,-8]`, and the
 normalized four-entry pot sherd list; the bridge reported zero translation
 errors.
+The fixture also emitted a Java zombie spawner. The Snappy probe on
+`127.0.0.1:19220` observed Bedrock `EntityIdentifier="minecraft:zombie"`
+alongside `Delay`, `SpawnCount`, and the bounded spawn-delay/range fields,
+with the Java `SpawnData` compound removed and zero bridge translation errors.
 The Java level-particle envelope and common mapping path are also typed and
 covered by focused wire/mapping tests; native rendering and broad particle
 coverage remain open.

@@ -1,6 +1,9 @@
 package data
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 var bedrockToJavaItem = func() map[int32]int32 {
 	lookup := make(map[int32]int32, len(Java1214ToBedrockItem))
@@ -16,9 +19,27 @@ var bedrockToJavaItem = func() map[int32]int32 {
 }()
 
 var (
-	javaItemNamesOnce sync.Once
-	javaItemNames     map[string]int32
+	javaItemNamesOnce   sync.Once
+	javaItemNames       map[string]int32
+	javaEntityNamesOnce sync.Once
+	javaEntityNames     map[string]string
 )
+
+var javaEntityIdentifierAliases = map[string]string{
+	"minecraft:end_crystal":        "minecraft:ender_crystal",
+	"minecraft:evoker_fangs":       "minecraft:evocation_fang",
+	"minecraft:experience_bottle":  "minecraft:xp_bottle",
+	"minecraft:experience_orb":     "minecraft:xp_orb",
+	"minecraft:eye_of_ender":       "minecraft:eye_of_ender_signal",
+	"minecraft:firework_rocket":    "minecraft:fireworks_rocket",
+	"minecraft:fishing_bobber":     "minecraft:fishing_hook",
+	"minecraft:tropical_fish":      "minecraft:tropicalfish",
+	"minecraft:villager":           "minecraft:villager_v2",
+	"minecraft:wind_charge":        "minecraft:wind_charge_projectile",
+	"minecraft:breeze_wind_charge": "minecraft:breeze_wind_charge_projectile",
+	"minecraft:zombie_villager":    "minecraft:zombie_villager_v2",
+	"minecraft:zombified_piglin":   "minecraft:zombie_pigman",
+}
 
 // JavaItemRuntimeID maps a Java item registry ID to the Bedrock item network
 // ID used by Gophertunnel's ItemInstance format. Unknown IDs are mapped to
@@ -51,6 +72,29 @@ func JavaItemID(name string) (int32, bool) {
 	})
 	itemID, ok := javaItemNames[name]
 	return itemID, ok
+}
+
+// BedrockEntityIdentifier resolves the Java entity identifier used by saved
+// spawner data to the negotiated Bedrock actor identifier. The generated
+// entity table already contains Geyser's canonical names; the alias table
+// accepts the Java spellings that were normalized during generation.
+func BedrockEntityIdentifier(name string) (string, bool) {
+	if !strings.Contains(name, ":") {
+		name = "minecraft:" + name
+	}
+	javaEntityNamesOnce.Do(func() {
+		javaEntityNames = make(map[string]string, len(Java1214EntityTypeNames)+len(javaEntityIdentifierAliases))
+		for _, identifier := range Java1214EntityTypeNames {
+			if identifier != "" {
+				javaEntityNames[identifier] = identifier
+			}
+		}
+		for javaIdentifier, bedrockIdentifier := range javaEntityIdentifierAliases {
+			javaEntityNames[javaIdentifier] = bedrockIdentifier
+		}
+	})
+	identifier, ok := javaEntityNames[name]
+	return identifier, ok
 }
 
 // BedrockItemRuntimeID returns the first Java registry ID represented by a

@@ -24,7 +24,34 @@ func projectJavaBlockEntityPayload(javaName string, tag map[string]any) {
 		projectJavaEndGateway(tag)
 	case "decorated_pot":
 		projectJavaDecoratedPot(tag)
+	case "mob_spawner":
+		projectJavaMobSpawner(tag)
 	}
+}
+
+func projectJavaMobSpawner(tag map[string]any) {
+	spawnData, ok := javaNBTCompound(tag["SpawnData"])
+	if !ok {
+		spawnData, ok = javaNBTCompound(tag["spawn_data"])
+	}
+	if !ok {
+		return
+	}
+	entity, ok := javaNBTCompound(spawnData["entity"])
+	if !ok {
+		return
+	}
+	javaIdentifier, ok := javaNBTStringValue(entity["id"])
+	if !ok {
+		return
+	}
+	bedrockIdentifier, ok := data.BedrockEntityIdentifier(javaIdentifier)
+	if !ok {
+		return
+	}
+	tag["EntityIdentifier"] = bedrockIdentifier
+	delete(tag, "SpawnData")
+	delete(tag, "spawn_data")
 }
 
 func projectJavaBeacon(tag map[string]any) {

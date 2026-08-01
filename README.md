@@ -44,8 +44,9 @@ protocol parity.
   translate Java item lists into Bedrock `Item1`-`Item4` compounds through the
   generated complete item registry, including safe custom-data/name/lore
   fields. Beacon effect holders, end-gateway exit arrays, and decorated-pot
-  sherd lists also have direct Geyser-compatible projections; most other
-  type-specific NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
+  sherd lists also have direct Geyser-compatible projections. Mob spawners
+  now project generated Bedrock entity identifiers and bounded timing fields;
+  most other type-specific NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
   common custom NBT, names/lore, durability, enchantments, glint, repair cost,
   dyed colors, and map IDs into Gophertunnel item stacks. Java `textures`
   profile properties now resolve bounded Mojang skin/cape images with slim-arm
@@ -346,6 +347,10 @@ The same fixture emitted beacon, end-gateway, and decorated-pot updates. The
 Snappy probe on `127.0.0.1:19218` observed beacon `primary=1` and `secondary=8`,
 end-gateway `Age=1234` with `ExitPortal=[12,64,-8]`, and the normalized pot
 sherd list, with zero bridge translation errors.
+The same fixture emitted a Java zombie spawner. The probe on
+`127.0.0.1:19220` observed Bedrock `EntityIdentifier="minecraft:zombie"`
+with its delay/count/range fields and no Java `SpawnData` compound; the bridge
+reported zero translation errors.
 
 The temporary Paper entity fixture also dropped a diamond stack and changed its
 count. The Snappy probe on `127.0.0.1:19171` received typed `AddItemActor`

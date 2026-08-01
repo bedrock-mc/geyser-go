@@ -51,6 +51,12 @@ func TestGeneratedJavaLookups(t *testing.T) {
 	if _, ok := JavaItemID("minecraft:not_an_item"); ok {
 		t.Fatal("unknown Java item name unexpectedly resolved")
 	}
+	if got, ok := BedrockEntityIdentifier("minecraft:zombie_villager"); !ok || got != "minecraft:zombie_villager_v2" {
+		t.Fatalf("zombie villager entity alias = %q ok=%v", got, ok)
+	}
+	if _, ok := BedrockEntityIdentifier("minecraft:not_an_entity"); ok {
+		t.Fatal("unknown Java entity name unexpectedly resolved")
+	}
 	if got, ok := JavaItemRuntimeID(0); !ok || got != 0 {
 		t.Fatalf("air item lookup is not stable: id=%d ok=%v", got, ok)
 	}
