@@ -184,6 +184,14 @@ native Bedrock validation, and performance evidence are separate gates.
   take/place/swap/drop stack requests for supported mapped windows. Per-menu
   properties, merchant/recipe behavior, and exact holder restoration remain
   open.
+- [x] Decode Java 1.21.4 `declare_recipes`, recipe-book add, and recipe-book
+  remove packets, project bounded shapeless/shaped/furnace/stonecutter/smithing
+  displays into Gophertunnel `CraftingData`, and maintain session recipe IDs for
+  typed Bedrock unlock/remove packets. Java item/tag displays, HolderSets, and
+  structured item stacks are consumed with wire-safe bounds; unsupported
+  composite/trim displays are skipped semantically. Live native recipe-book
+  rendering, crafting transactions, custom recipe components, and the full
+  recipe catalog remain open.
 - [x] Translate Java difficulty, game-state mode/credits/weather cues, default
   spawn position, and title clear/text/subtitle/action-bar/timing packets into
   typed Bedrock packets with bounded decoders and a live Snappy Paper readback.
@@ -305,7 +313,7 @@ Common Java menu open/close/content
 packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
-menus, properties, recipes, and holder restoration. Java difficulty, game-state
+menus, properties, recipe transactions, and holder restoration. Java difficulty, game-state
 mode/credits/weather cues, default spawn position, title/action-bar packets,
 and the initial respawn/dimension path now have typed bounded paths, including
 custom dimension definitions and vertical layouts; Java biome registry IDs now
@@ -546,4 +554,12 @@ The regenerated head-state table was exercised through the same Paper/Snappy
 path on `127.0.0.1:19211`. The probe observed seven Java head block updates as
 non-air Bedrock runtimes `9296`, `14566`, `34`, `5469`, `10988`, `11012`, and
 `13833`, with zero bridge errors; wall-state and skull block-entity semantics
+remain open.
+
+A clean-source bridge on `127.0.0.1:19240` was joined by the automated Bedrock
+protocol `1.26.33` client against the same Paper `1.21.4-232` server. During
+bootstrap the client observed `CraftingData`, then `CraftingData` and
+`UnlockedRecipes` from the Java recipe-book stream, with no bridge translation
+errors. This closes automated recipe-packet delivery only; native recipe-book
+rendering, crafting transactions, custom components, and full-catalog parity
 remain open.

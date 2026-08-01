@@ -115,8 +115,11 @@ protocol parity.
   swap/drop plus mine-stack validation) now map to Java 1.21.4 hashed
   container-click packets, with cursor/state tracking, typed Bedrock responses,
   and focused simulation tests. The initial mapped menu path now also handles
-  bounded take/place/swap/drop requests for supported Java windows; complex
-  transactions, recipes, and component fidelity are open.
+  bounded take/place/swap/drop requests for supported Java windows. Java 1.21.4
+  recipe-book and stonecutter packets now project bounded recipe displays into
+  Bedrock `CraftingData` and unlock/remove packets; native recipe-book rendering,
+  crafting transactions, custom recipe components, and the full catalog remain
+  open.
   Java cursor-item and entity-attribute packets now use typed bounded
   translators, rotation-only player updates reach Bedrock movement state, and
   Java add/remove entity effects reach Bedrock `MobEffect` packets. Common

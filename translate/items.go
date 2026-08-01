@@ -181,13 +181,13 @@ func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaI
 	if err != nil {
 		return JavaItemSlot{}, err
 	}
-	if len(components.unsupported) != 0 {
-		return JavaItemSlot{}, fmt.Errorf("%w: id=%d components=%v", ErrUnsupportedJavaItemComponent, itemID, components.unsupported)
-	}
 	for i := 0; i < removed; i++ {
 		if _, err := r.VarInt(); err != nil {
 			return JavaItemSlot{}, fmt.Errorf("removed component %d: %w", i, err)
 		}
+	}
+	if len(components.unsupported) != 0 {
+		return JavaItemSlot{}, fmt.Errorf("%w: id=%d components=%v", ErrUnsupportedJavaItemComponent, itemID, components.unsupported)
 	}
 	runtimeID, known := data.JavaItemRuntimeID(itemID)
 	if itemID == 0 {

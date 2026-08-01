@@ -72,6 +72,8 @@ type Basic struct {
 	nextBossBarID         int64
 	nextScoreboardID      int64
 	nextScoreboardEntryID int64
+	recipeNetworkID       uint32
+	recipeIDs             map[int32][]string
 	nextStackID           int32
 	nextSequence          int32
 	clientTick            uint64
@@ -153,6 +155,8 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		nextBossBarID:         1 << 32,
 		nextScoreboardID:      1,
 		nextScoreboardEntryID: 1,
+		recipeNetworkID:       1,
+		recipeIDs:             make(map[int32][]string),
 		nextStackID:           1,
 		nextSequence:          1,
 		fireworkAttachments:   make(map[int32]struct{}),
@@ -611,6 +615,12 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			Container: gtprotocol.Option(gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerCursor}),
 			NewItem:   item.Item,
 		})
+	case b.Profile.PlayClientboundDeclareRecipesID:
+		return b.translateJavaDeclareRecipes(bedrock, pk.Data)
+	case b.Profile.PlayClientboundRecipeBookAddID:
+		return b.translateJavaRecipeBookAdd(bedrock, pk.Data)
+	case b.Profile.PlayClientboundRecipeBookRemoveID:
+		return b.translateJavaRecipeBookRemove(bedrock, pk.Data)
 	case b.Profile.PlayClientboundDeclareCommandsID:
 		return b.translateJavaCommands(bedrock, pk.Data)
 	case b.Profile.PlayClientboundAddResourcePackID:
@@ -804,6 +814,20 @@ func (b *Basic) nextStackNetworkID() int32 {
 	b.nextStackID = id + 1
 	if b.nextStackID <= 0 {
 		b.nextStackID = 1
+	}
+	return id
+}
+
+func (b *Basic) nextRecipeNetworkID() uint32 {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	id := b.recipeNetworkID
+	if id == 0 {
+		id = 1
+	}
+	b.recipeNetworkID = id + 1
+	if b.recipeNetworkID == 0 {
+		b.recipeNetworkID = 1
 	}
 	return id
 }
