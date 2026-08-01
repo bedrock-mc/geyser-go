@@ -320,6 +320,28 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			return fmt.Errorf("translate: send chunk publisher update: %w", err)
 		}
 		return bedrock.WritePacket(&move)
+	case b.Profile.PlayClientboundPlayerRotationID:
+		rotation, err := DecodePlayerRotation(pk.Data)
+		if err != nil {
+			return err
+		}
+		if !finiteFloat32(rotation.Yaw) || !finiteFloat32(rotation.Pitch) {
+			b.logSemanticAnomaly("skipping Java player rotation with non-finite values", "yaw", rotation.Yaw, "pitch", rotation.Pitch)
+			return nil
+		}
+		b.mu.Lock()
+		b.position.yaw = rotation.Yaw
+		b.position.pitch = rotation.Pitch
+		move := packet.MovePlayer{
+			EntityRuntimeID: b.gameData.EntityRuntimeID,
+			Position:        mgl32.Vec3{float32(b.position.x), float32(b.position.y), float32(b.position.z)},
+			Yaw:             b.position.yaw,
+			HeadYaw:         b.position.yaw,
+			Pitch:           b.position.pitch,
+			Mode:            packet.MoveModeNormal,
+		}
+		b.mu.Unlock()
+		return bedrock.WritePacket(&move)
 	case b.Profile.PlayClientboundUpdateHealthID:
 		health, err := DecodeHealthUpdate(pk.Data)
 		if err != nil {
@@ -377,6 +399,27 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			b.logSemanticAnomaly("Java slot update contains an unknown item ID", "slot", update.Slot)
 		}
 		return b.translateSetSlot(bedrock, update)
+	case b.Profile.PlayClientboundSetCursorItemID:
+		item, err := DecodeJavaCursorItem(pk.Data, b.nextStackNetworkID)
+		if err != nil {
+			if errors.Is(err, ErrUnsupportedJavaItemComponent) {
+				b.logSemanticAnomaly("skipping cursor update with unsupported Java item component", "error", err)
+				return nil
+			}
+			return err
+		}
+		if !item.Known {
+			b.logSemanticAnomaly("Java cursor update contains an unknown item ID", "item", item.ItemID)
+		}
+		b.mu.Lock()
+		b.cursorItem = item.Item
+		b.mu.Unlock()
+		return bedrock.WritePacket(&packet.InventorySlot{
+			WindowID:  0,
+			Slot:      0,
+			Container: gtprotocol.Option(gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerCursor}),
+			NewItem:   item.Item,
+		})
 	case b.Profile.PlayClientboundSetPlayerInventoryID:
 		update, err := DecodeSetPlayerInventory(pk.Data, b.nextStackNetworkID)
 		if err != nil {
@@ -435,6 +478,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			return err
 		}
 		return b.translateEntityEquipment(bedrock, equipment)
+	case b.Profile.PlayClientboundEntityAttributesID:
+		return b.translateEntityAttributes(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntityMetadataID:
 		metadata, err := DecodeEntityMetadata(pk.Data, b.nextStackNetworkID)
 		if err != nil {

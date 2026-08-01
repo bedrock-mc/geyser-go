@@ -74,6 +74,22 @@ func TestDecodeJavaSetSlot(t *testing.T) {
 	}
 }
 
+func TestDecodeJavaCursorItem(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(2)
+	_ = w.VarInt(1)
+	_ = w.VarInt(0)
+	_ = w.VarInt(0)
+	item, err := DecodeJavaCursorItem(w.Bytes(), func() int32 { return 12 })
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeID, ok := data.JavaItemRuntimeID(1)
+	if !ok || !item.Known || item.Item.Stack.NetworkID != runtimeID || item.Item.Stack.Count != 2 || item.Item.StackNetworkID != 12 {
+		t.Fatalf("decoded cursor item = %+v, known=%t", item.Item, item.Known)
+	}
+}
+
 func TestJavaPlayerSlotMapping(t *testing.T) {
 	tests := []struct {
 		javaSlot  int16

@@ -45,6 +45,7 @@ type Profile struct {
 	PlayClientboundLoginPacketID        int32
 	PlayClientboundMapChunkPacketID     int32
 	PlayClientboundPositionPacketID     int32
+	PlayClientboundPlayerRotationID     int32
 	PlayClientboundUpdateHealthID       int32
 	PlayClientboundBlockEntityDataID    int32
 	PlayClientboundBlockChangeID        int32
@@ -61,6 +62,7 @@ type Profile struct {
 	PlayClientboundUnloadChunkID        int32
 	PlayClientboundWindowItemsID        int32
 	PlayClientboundSetSlotID            int32
+	PlayClientboundSetCursorItemID      int32
 	PlayClientboundProfilelessChatID    int32
 	PlayClientboundPlayerChatID         int32
 	PlayClientboundSystemChatID         int32
@@ -69,6 +71,7 @@ type Profile struct {
 	PlayClientboundEntityMetadataID     int32
 	PlayClientboundEntityVelocityID     int32
 	PlayClientboundEntityEquipmentID    int32
+	PlayClientboundEntityAttributesID   int32
 	PlayClientboundExperienceID         int32
 	PlayClientboundPlayerAbilitiesID    int32
 	PlayClientboundHeldItemSlotID       int32
@@ -129,6 +132,7 @@ var Java1214 = Profile{
 	PlayClientboundLoginPacketID:        0x2c,
 	PlayClientboundMapChunkPacketID:     0x28,
 	PlayClientboundPositionPacketID:     0x42,
+	PlayClientboundPlayerRotationID:     0x43,
 	PlayClientboundUpdateHealthID:       0x62,
 	PlayClientboundBlockEntityDataID:    0x07,
 	PlayClientboundBlockChangeID:        0x09,
@@ -145,6 +149,7 @@ var Java1214 = Profile{
 	PlayClientboundUnloadChunkID:        0x22,
 	PlayClientboundWindowItemsID:        0x13,
 	PlayClientboundSetSlotID:            0x15,
+	PlayClientboundSetCursorItemID:      0x5a,
 	PlayClientboundProfilelessChatID:    0x1e,
 	PlayClientboundPlayerChatID:         0x3b,
 	PlayClientboundSystemChatID:         0x73,
@@ -153,6 +158,7 @@ var Java1214 = Profile{
 	PlayClientboundEntityMetadataID:     0x5d,
 	PlayClientboundEntityVelocityID:     0x5f,
 	PlayClientboundEntityEquipmentID:    0x60,
+	PlayClientboundEntityAttributesID:   0x7c,
 	PlayClientboundExperienceID:         0x61,
 	PlayClientboundPlayerAbilitiesID:    0x3a,
 	PlayClientboundHeldItemSlotID:       0x63,

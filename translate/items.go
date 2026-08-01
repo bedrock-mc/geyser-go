@@ -113,6 +113,21 @@ func DecodeJavaSetSlot(payload []byte, nextStackID func() int32) (JavaSetSlot, e
 	return JavaSetSlot{WindowID: windowID, StateID: stateID, Slot: slot, Item: item.Item, Known: !item.Present || item.Known}, nil
 }
 
+// DecodeJavaCursorItem reads ClientboundSetCursorItemPacket. Unlike a player
+// slot update, this packet has no window or state ID; the cursor is its whole
+// payload and is therefore decoded through the same bounded Slot path.
+func DecodeJavaCursorItem(payload []byte, nextStackID func() int32) (JavaItemSlot, error) {
+	r := javaprotocol.NewReader(payload)
+	item, err := decodeJavaItemSlot(r, nextStackID)
+	if err != nil {
+		return JavaItemSlot{}, fmt.Errorf("translate: cursor item: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return JavaItemSlot{}, fmt.Errorf("translate: cursor item has %d trailing bytes", r.Remaining())
+	}
+	return item, nil
+}
+
 func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaItemSlot, error) {
 	count, err := r.VarInt()
 	if err != nil {

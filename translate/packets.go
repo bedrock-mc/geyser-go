@@ -181,6 +181,26 @@ type PositionUpdate struct {
 	Flags                  uint32
 }
 
+type PlayerRotation struct {
+	Yaw, Pitch float32
+}
+
+func DecodePlayerRotation(data []byte) (PlayerRotation, error) {
+	r := javaprotocol.NewReader(data)
+	yaw, err := r.Float32()
+	if err != nil {
+		return PlayerRotation{}, fmt.Errorf("translate: player rotation yaw: %w", err)
+	}
+	pitch, err := r.Float32()
+	if err != nil {
+		return PlayerRotation{}, fmt.Errorf("translate: player rotation pitch: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return PlayerRotation{}, fmt.Errorf("translate: player rotation has %d trailing bytes", r.Remaining())
+	}
+	return PlayerRotation{Yaw: yaw, Pitch: pitch}, nil
+}
+
 func DecodePositionUpdate(data []byte) (PositionUpdate, error) {
 	r := javaprotocol.NewReader(data)
 	teleportID, err := r.VarInt()

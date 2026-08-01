@@ -41,6 +41,10 @@ native Bedrock validation, and performance evidence are separate gates.
   (take, place, swap, drop, and mine-stack validation) into Java 1.21.4
   hashed container-click packets, synchronize the Java cursor/state ID, and
   return typed Bedrock stack responses with focused codec and simulation tests.
+- [x] Forward Java cursor-item packets and the versioned entity-attribute
+  update packet into typed Bedrock cursor/attribute updates, with bounded
+  modifier decoding and a live Snappy Paper readback. Java rotation-only
+  player updates are also forwarded as Bedrock movement rotations.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -63,8 +67,9 @@ most Java play protocol remain open. Bedrock auth-input movement and a bounded
 block/item/selection/entity-action path is present, including auth-input
 sprint/sneak/glide edges, Java section block updates, experience, abilities,
 and basic animation. Common player-inventory stack requests now have a Java
-hashed-click bridge, but complex transactions, recipes, target-specific entity
-semantics, vehicle input, and client prediction reconciliation remain open. The
+hashed-click bridge, and Java attribute/rotation updates now have typed paths,
+but complex transactions, recipes, target-specific entity semantics, vehicle
+input, and client prediction reconciliation remain open. The
 inventory slice is limited to the Java player window and safely skips updates
 containing components it cannot yet decode. Generic
 block-entity identity/coordinates, flags/name/pose metadata,

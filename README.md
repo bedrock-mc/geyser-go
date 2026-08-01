@@ -46,6 +46,8 @@ protocol parity.
   container-click packets, with cursor/state tracking, typed Bedrock responses,
   and focused simulation tests. This remains limited to the Java player
   window; complex transactions, recipes, and component fidelity are open.
+  Java cursor-item and entity-attribute packets now use typed bounded
+  translators, and rotation-only player updates reach Bedrock movement state.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -93,7 +95,9 @@ auth-input, held-slot, arm-swing, and self-interact packets on listener
 `127.0.0.1:19146`; Paper recorded `GeyserHeld` joining and the bridge reported
 no translation errors. A second Snappy probe on `127.0.0.1:19148` received
 `UpdateAbilities` and `UpdateAttributes` from the Java login path; Paper
-recorded `GeyserState` joining cleanly. The native capture and probe logs are
+recorded `GeyserState` joining cleanly. A fresh Snappy probe on
+`127.0.0.1:19151` also observed repeated typed `UpdateAttributes` packets
+from Paper with no bridge translation errors. The native capture and probe logs are
 intentionally temporary and ignored by Git.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
