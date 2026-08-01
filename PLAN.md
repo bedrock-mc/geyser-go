@@ -84,6 +84,14 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Add bounded Java entity-status and item/experience-orb pickup
   translators with focused wire and mapping tests; a dedicated live status/
   pickup fixture remains an open acceptance gate.
+- [x] Add a bounded Java cooldown decoder and typed Bedrock item-cooldown
+  projection, including the vanilla shield/goat-horn category aliases; active
+  cooldown enforcement and live cooldown visual/duration validation remain
+  open.
+- [x] Add a bounded Java block-event decoder and typed Bedrock projections for
+  chest-like blocks, end gateways, mob spawners, and note blocks; piston
+  animation, bell/decorated-pot effects, and a live block-action fixture remain
+  open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -135,6 +143,9 @@ readback, while vehicle input and entity-specific riding offsets remain open.
 Block cracking and common Java world effects now have typed bounded paths and a
 live Bedrock readback; Java particle packets with registry-specific payloads,
 effect-specific NBT, and the remaining Geyser mappings are not parity-complete.
+Java cooldown packets and common direct block-event projections now have typed
+bounded paths and focused tests, but active cooldown state, piston/bell/pot
+semantics, and live packet fixtures remain open.
 
 ## Non-negotiable contracts
 

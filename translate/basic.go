@@ -316,6 +316,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaDifficulty(bedrock, pk.Data)
 	case b.Profile.PlayClientboundBlockDestructionID:
 		return b.translateJavaBlockDestruction(bedrock, pk.Data)
+	case b.Profile.PlayClientboundBlockEventID:
+		return b.translateJavaBlockEvent(bedrock, pk.Data)
 	case b.Profile.PlayClientboundBossBarID:
 		return b.translateJavaBossBar(bedrock, pk.Data)
 	case b.Profile.PlayClientboundResetScoreID:
@@ -338,6 +340,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaEntityEvent(bedrock, pk.Data)
 	case b.Profile.PlayClientboundCollectID:
 		return b.translateJavaTakeItem(bedrock, pk.Data)
+	case b.Profile.PlayClientboundCooldownID:
+		return b.translateJavaCooldown(bedrock, pk.Data)
 	case b.Profile.PlayClientboundStopSoundID:
 		return b.translateJavaStopSound(bedrock, pk.Data)
 	case b.Profile.PlayClientboundClearTitlesID:

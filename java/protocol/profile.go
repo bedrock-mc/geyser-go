@@ -46,6 +46,7 @@ type Profile struct {
 	PlayClientboundBossBarID                    int32
 	PlayClientboundDifficultyID                 int32
 	PlayClientboundBlockDestructionID           int32
+	PlayClientboundBlockEventID                 int32
 	PlayClientboundResetScoreID                 int32
 	PlayClientboundScoreboardDisplayObjectiveID int32
 	PlayClientboundScoreboardObjectiveID        int32
@@ -55,6 +56,7 @@ type Profile struct {
 	PlayClientboundEntitySoundEffectID          int32
 	PlayClientboundEntityEventID                int32
 	PlayClientboundCollectID                    int32
+	PlayClientboundCooldownID                   int32
 	PlayClientboundSoundEffectID                int32
 	PlayClientboundStopSoundID                  int32
 	PlayClientboundClearTitlesID                int32
@@ -162,6 +164,7 @@ var Java1214 = Profile{
 	PlayClientboundBossBarID:                    0x0a,
 	PlayClientboundDifficultyID:                 0x0b,
 	PlayClientboundBlockDestructionID:           0x06,
+	PlayClientboundBlockEventID:                 0x08,
 	PlayClientboundResetScoreID:                 0x49,
 	PlayClientboundScoreboardDisplayObjectiveID: 0x5c,
 	PlayClientboundScoreboardObjectiveID:        0x64,
@@ -171,6 +174,7 @@ var Java1214 = Profile{
 	PlayClientboundEntitySoundEffectID:          0x6e,
 	PlayClientboundEntityEventID:                0x1f,
 	PlayClientboundCollectID:                    0x76,
+	PlayClientboundCooldownID:                   0x17,
 	PlayClientboundSoundEffectID:                0x6f,
 	PlayClientboundStopSoundID:                  0x71,
 	PlayClientboundClearTitlesID:                0x0f,

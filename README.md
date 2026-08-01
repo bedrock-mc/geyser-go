@@ -88,6 +88,13 @@ protocol parity.
   pickup packets now emit typed Bedrock pickup animation or level-event
   packets. Entity-specific side effects and a dedicated live status-event
   fixture remain open.
+  Java cooldown packets now have a bounded typed path to Bedrock item
+  cooldowns, including Geyser's vanilla shield/goat-horn category aliases;
+  active cooldown enforcement and a live cooldown-visual fixture remain open.
+  Java block events now project chest-like, end-gateway, mob-spawner, and note
+  block actions to typed Bedrock block events. Piston animation, bell and
+  decorated-pot block-entity effects, and broader block-event coverage remain
+  open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -182,6 +189,17 @@ and a team prefix/suffix. The Snappy probe observed Bedrock
 `[P] First line!` and `Second line`; the Java score ordering update was also
 read back without a bridge error. Full scoreboard styling, player-list and
 below-name semantics, and native HUD rendering remain open.
+
+The Java cooldown packet has a bounded decoder and typed Bedrock projection,
+including the vanilla shield/goat-horn category aliases. The Paper 1.21.4
+Bukkit cooldown fixture did not produce a readable clientbound cooldown during
+the bounded probe window, so live cooldown duration/visual validation remains
+an explicit open gate.
+
+Java block-action packets have a bounded decoder and typed Bedrock projections
+for chest-like blocks, end gateways, mob spawners, and note blocks. Piston
+movement, bell/decorated-pot effects, and a live block-action fixture remain
+open.
 
 The same plugin spawned a Pig and mounted the Bedrock player. A fresh Snappy
 probe on `127.0.0.1:19155` observed a real `SetActorLink` for the Java vehicle

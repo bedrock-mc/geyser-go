@@ -194,6 +194,10 @@ func main() {
 				fmt.Printf("Bedrock take item: item=%d taker=%d\n", pk.ItemEntityRuntimeID, pk.TakerEntityRuntimeID)
 			case *packet.LevelEvent:
 				fmt.Printf("Bedrock level event: type=%d position=%v data=%d\n", pk.EventType, pk.Position, pk.EventData)
+			case *packet.ClientStartItemCooldown:
+				fmt.Printf("Bedrock item cooldown: category=%q duration=%d\n", pk.Category, pk.Duration)
+			case *packet.BlockEvent:
+				fmt.Printf("Bedrock block event: position=%v type=%d data=%d\n", pk.Position, pk.EventType, pk.EventData)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}
