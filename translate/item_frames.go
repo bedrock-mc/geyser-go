@@ -71,8 +71,8 @@ func javaItemFrameTag(position gtprotocol.BlockPos, entityType string, item gtpr
 		"Damage": int16(bedrockItemDamage(item)),
 		"Name":   name,
 	}
-	if len(item.Stack.NBTData) != 0 {
-		itemTag["tag"] = item.Stack.NBTData
+	if customData := itemNBTWithoutDamage(item.Stack.NBTData); customData != nil {
+		itemTag["tag"] = customData
 	}
 	tag["Item"] = itemTag
 	return tag

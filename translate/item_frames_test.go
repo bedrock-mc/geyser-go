@@ -34,8 +34,12 @@ func TestJavaItemFrameProjectionUsesBedrockStateAndActorNBT(t *testing.T) {
 	if !ok || itemTag["Name"] != "minecraft:stone" || itemTag["Damage"] != int16(7) || itemTag["Count"] != byte(1) {
 		t.Fatalf("frame item tag = %#v", tag["Item"])
 	}
-	if itemTag["tag"] == nil {
+	nestedTag, ok := itemTag["tag"].(map[string]any)
+	if !ok || nestedTag["display"] == nil {
 		t.Fatalf("frame item lost its Bedrock item tag: %#v", itemTag)
+	}
+	if _, exists := nestedTag["Damage"]; exists {
+		t.Fatalf("frame item duplicated projected damage in nested tag: %#v", nestedTag)
 	}
 }
 

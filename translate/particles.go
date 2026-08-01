@@ -585,7 +585,7 @@ func javaItemParticleEventData(item gtprotocol.ItemInstance) (int32, bool) {
 	if runtimeID < 0 {
 		return 0, false
 	}
-	return int32(uint32(runtimeID)<<16 | bedrockItemDamage(item)), true
+	return int32(uint32(runtimeID)<<16 | (bedrockItemDamage(item) & 0xffff)), true
 }
 
 func (b *Basic) writeJavaParticleInstances(bedrock *minecraft.Conn, particles JavaLevelParticles, create func(mgl32.Vec3) packet.Packet) error {

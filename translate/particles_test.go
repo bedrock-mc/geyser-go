@@ -135,6 +135,27 @@ func TestJavaItemParticleUsesProjectedDamage(t *testing.T) {
 	}
 }
 
+func TestJavaItemParticleMasksProjectedDamageToPackedField(t *testing.T) {
+	runtimeID, ok := data.JavaItemRuntimeID(1)
+	if !ok {
+		t.Fatal("generated stone item mapping is missing")
+	}
+	const damage = int32(0x10007)
+	item := gtprotocol.ItemInstance{Stack: gtprotocol.ItemStack{
+		ItemType: gtprotocol.ItemType{NetworkID: runtimeID},
+		Count:    1,
+		NBTData:  map[string]any{"Damage": damage},
+	}}
+	eventData, ok := javaItemParticleEventData(item)
+	if !ok {
+		t.Fatal("item particle data was rejected")
+	}
+	want := int32(uint32(runtimeID)<<16 | (uint32(damage) & 0xffff))
+	if eventData != want {
+		t.Fatalf("item particle data = %d, want runtime=%d masked damage=%d (%d)", eventData, runtimeID, damage&0xffff, want)
+	}
+}
+
 func TestMarshalJavaVibrationEventIsNamelessNetworkNBT(t *testing.T) {
 	data, err := marshalJavaVibrationEvent(mgl32.Vec3{1, 2, 3}, mgl32.Vec3{4, 5, 6}, 40)
 	if err != nil {
