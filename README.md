@@ -114,6 +114,10 @@ protocol parity.
   aliases. Nested redirects are followed within the same bounded traversal;
   server-backed suggestions, registry-backed argument enums, and command
   descriptions remain open.
+  Java configuration registry_data, feature flags, reset-chat, and tag packets
+  are now decoded and retained on the negotiated client, leaving dynamic
+  dimension/biome translation and Bedrock registry projection as follow-up
+  work.
   Java 1.21.4 resource-pack push/pop packets now have bounded decoders, and
   required packs receive the Java accepted/downloaded/successfully-loaded
   status sequence while optional packs receive declined. Bedrock pack hosting,

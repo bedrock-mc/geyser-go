@@ -43,9 +43,10 @@ func (e *DisconnectError) Error() string {
 // Client owns a negotiated Java connection. Once Login returns, the
 // connection is in Play and the caller owns packet translation and closure.
 type Client struct {
-	Conn    *Conn
-	Profile Profile
-	Login   LoginSuccess
+	Conn          *Conn
+	Profile       Profile
+	Login         LoginSuccess
+	Configuration ConfigurationData
 }
 
 func (c *Client) Close() error { return c.Conn.Close() }
@@ -228,6 +229,33 @@ func (c *Client) configurationPacket(pk Packet) (bool, error) {
 			return false, err
 		}
 		return false, c.Conn.WritePacket(p.ConfigServerboundPongPacketID, EncodeInt32Payload(value))
+	case p.ConfigResetChatPacketID:
+		if len(pk.Data) != 0 {
+			return false, fmt.Errorf("java protocol: reset chat has %d trailing bytes", len(pk.Data))
+		}
+		c.Configuration.ResetChat = true
+		return false, nil
+	case p.ConfigRegistryDataPacketID:
+		registry, err := DecodeRegistryData(pk.Data)
+		if err != nil {
+			return false, err
+		}
+		c.Configuration.Registries = append(c.Configuration.Registries, registry)
+		return false, nil
+	case p.ConfigFeatureFlagsPacketID:
+		flags, err := DecodeFeatureFlags(pk.Data)
+		if err != nil {
+			return false, err
+		}
+		c.Configuration.FeatureFlags = append(c.Configuration.FeatureFlags[:0], flags...)
+		return false, nil
+	case p.ConfigTagsPacketID:
+		tags, err := DecodeTags(pk.Data)
+		if err != nil {
+			return false, err
+		}
+		c.Configuration.Tags = tags
+		return false, nil
 	case p.ConfigSelectKnownPacksPacketID:
 		data, err := EncodeSelectKnownPacks(nil)
 		if err != nil {
@@ -250,9 +278,9 @@ func (c *Client) configurationPacket(pk Packet) (bool, error) {
 		}
 		return true, nil
 	default:
-		// Configuration packets such as registry data, tags, and feature flags
-		// are intentionally retained for the future translator and are safe to
-		// ignore while negotiating a connection.
+		// Packets outside the current retained configuration slice are still
+		// safe to ignore while negotiating; the wire boundary remains owned by
+		// this state machine rather than leaking into play translation.
 		return false, nil
 	}
 }

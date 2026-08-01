@@ -109,6 +109,37 @@ func TestDialAndLoginNegotiatesConfiguration(t *testing.T) {
 			serverErrors <- fmt.Errorf("unexpected client information packet: %#v", packet)
 			return
 		}
+		registry := NewWriter()
+		_ = registry.String("minecraft:test_registry")
+		_ = registry.VarInt(1)
+		_ = registry.String("minecraft:test_entry")
+		_ = registry.Bool(false)
+		if err := server.WritePacket(Java1214.ConfigRegistryDataPacketID, registry.Bytes()); err != nil {
+			serverErrors <- err
+			return
+		}
+		features := NewWriter()
+		_ = features.VarInt(1)
+		_ = features.String("minecraft:test_feature")
+		if err := server.WritePacket(Java1214.ConfigFeatureFlagsPacketID, features.Bytes()); err != nil {
+			serverErrors <- err
+			return
+		}
+		tags := NewWriter()
+		_ = tags.VarInt(1)
+		_ = tags.String("minecraft:test_registry")
+		_ = tags.VarInt(1)
+		_ = tags.String("minecraft:test_tag")
+		_ = tags.VarInt(1)
+		_ = tags.VarInt(3)
+		if err := server.WritePacket(Java1214.ConfigTagsPacketID, tags.Bytes()); err != nil {
+			serverErrors <- err
+			return
+		}
+		if err := server.WritePacket(Java1214.ConfigResetChatPacketID, nil); err != nil {
+			serverErrors <- err
+			return
+		}
 
 		if err := server.WritePacket(Java1214.ConfigSelectKnownPacksPacketID, []byte{0}); err != nil {
 			serverErrors <- err
@@ -149,6 +180,15 @@ func TestDialAndLoginNegotiatesConfiguration(t *testing.T) {
 	defer client.Close()
 	if client.Conn.State() != StatePlay || client.Login.Username != "Tester" {
 		t.Fatalf("unexpected negotiated client: state=%d login=%#v", client.Conn.State(), client.Login)
+	}
+	if len(client.Configuration.Registries) != 1 || client.Configuration.Registries[0].ID != "minecraft:test_registry" {
+		t.Fatalf("configuration registries = %#v", client.Configuration.Registries)
+	}
+	if len(client.Configuration.FeatureFlags) != 1 || client.Configuration.FeatureFlags[0] != "minecraft:test_feature" {
+		t.Fatalf("configuration features = %#v", client.Configuration.FeatureFlags)
+	}
+	if len(client.Configuration.Tags["minecraft:test_registry"]["minecraft:test_tag"]) != 1 || !client.Configuration.ResetChat {
+		t.Fatalf("configuration tags/reset = %#v/%t", client.Configuration.Tags, client.Configuration.ResetChat)
 	}
 	if err := <-serverErrors; err != nil {
 		t.Fatal(err)

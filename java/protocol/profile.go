@@ -31,6 +31,10 @@ type Profile struct {
 	ConfigFinishPacketID            int32
 	ConfigKeepAlivePacketID         int32
 	ConfigPingPacketID              int32
+	ConfigResetChatPacketID         int32
+	ConfigRegistryDataPacketID      int32
+	ConfigFeatureFlagsPacketID      int32
+	ConfigTagsPacketID              int32
 	ConfigSelectKnownPacksPacketID  int32
 
 	ConfigServerboundCookieResponsePacketID int32
@@ -154,6 +158,10 @@ var Java1214 = Profile{
 	ConfigFinishPacketID:            3,
 	ConfigKeepAlivePacketID:         4,
 	ConfigPingPacketID:              5,
+	ConfigResetChatPacketID:         6,
+	ConfigRegistryDataPacketID:      7,
+	ConfigFeatureFlagsPacketID:      12,
+	ConfigTagsPacketID:              13,
 	ConfigSelectKnownPacksPacketID:  14,
 
 	ConfigServerboundCookieResponsePacketID: 1,

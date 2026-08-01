@@ -116,6 +116,9 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Preserve simple Java translatable text components and their arguments in
   Bedrock translation packets, with bounded plain-text fallback for nested
   components; locale coverage, styling, and exact key mappings remain open.
+- [x] Retain Java 1.21.4 configuration registry data, feature flags, reset-chat,
+  and tag registries with bounded decoders; dynamic dimension/biome translation
+  and Bedrock registry projection remain open.
 - [x] Decode Java 1.21.4 resource-pack push/pop packets and acknowledge the
   required accepted/downloaded/successfully-loaded sequence plus optional
   declined status; Bedrock pack hosting, download, cache, stack delivery, and
