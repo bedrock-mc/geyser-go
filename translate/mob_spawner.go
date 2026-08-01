@@ -50,6 +50,26 @@ func javaMobSpawnerResetUpdates(position gtprotocol.BlockPos) ([]*packet.UpdateB
 	}, true
 }
 
+// javaMobSpawnerChunkResetPositions returns the world positions whose chunk
+// block-entity payload would otherwise contain an empty SpawnData entity. The
+// caller sends the reset before the LevelChunk packet, matching Geyser's
+// ordering and keeping the subsequent chunk NBT as the authoritative actor
+// state.
+func javaMobSpawnerChunkResetPositions(chunk JavaChunk) []gtprotocol.BlockPos {
+	positions := make([]gtprotocol.BlockPos, 0)
+	for _, entity := range chunk.BlockEntities {
+		javaName, ok := JavaBlockEntityTypeName(entity.Type)
+		if !ok || javaName != "mob_spawner" || !javaMobSpawnerPayloadNeedsReset(entity.Data) {
+			continue
+		}
+		position, ok := chunkBlockEntityPosition(chunk.X, chunk.Z, entity)
+		if ok {
+			positions = append(positions, position)
+		}
+	}
+	return positions
+}
+
 func (b *Basic) resetJavaMobSpawnerBlock(bedrock interface{ WritePacket(packet.Packet) error }, position gtprotocol.BlockPos) error {
 	updates, ok := javaMobSpawnerResetUpdates(position)
 	if !ok {

@@ -41,9 +41,8 @@ native Bedrock validation, and performance evidence are separate gates.
   identifiers leniently and validate a live Paper/Snappy spawner update.
   Also emit source-backed `isMovable` and the complete versioned Java 1.21.4
   display dimensions/scale, including normalized aliases and explicit
-  Geyser network-definition omissions, and reset empty standalone spawners by
-  replacing air with the spawner block before actor NBT. The chunk-time reset
-  path remains open.
+  Geyser network-definition omissions, and reset empty standalone and chunk
+  spawners by replacing air with the spawner block before actor NBT.
 - [x] Generate the exact Java 1.21.4 block-state names alongside the pinned
   runtime crosswalk, retain a bounded recent block-state cache for standalone
   block-entity updates, and use section palette context for chunk records.

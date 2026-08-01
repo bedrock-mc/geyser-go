@@ -399,6 +399,11 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 				b.logSemanticAnomaly("Java chunk block entity outside generated registry", "type", entity.Type)
 			}
 		}
+		for _, position := range javaMobSpawnerChunkResetPositions(chunk) {
+			if err := b.resetJavaMobSpawnerBlock(bedrock, position); err != nil {
+				return err
+			}
+		}
 		return bedrock.WritePacket(&packet.LevelChunk{
 			Position:      gtprotocol.ChunkPos{chunk.X, chunk.Z},
 			Dimension:     dimension,

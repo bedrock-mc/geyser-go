@@ -163,3 +163,19 @@ func TestJavaMobSpawnerResetUpdatesReplaceBlock(t *testing.T) {
 		t.Fatalf("spawner reset flags = %#v", updates)
 	}
 }
+
+func TestJavaMobSpawnerChunkResetPositionsUseWorldCoordinates(t *testing.T) {
+	chunk := JavaChunk{
+		X: 2,
+		Z: -3,
+		BlockEntities: []JavaBlockEntity{
+			{X: 5, Y: 70, Z: 14, Type: 9, Data: map[string]any{"SpawnData": map[string]any{}}},
+			{X: 6, Y: 70, Z: 14, Type: 9, Data: map[string]any{"SpawnData": map[string]any{"entity": map[string]any{"id": "minecraft:zombie"}}}},
+			{X: 7, Y: 70, Z: 14, Type: 1, Data: map[string]any{"SpawnData": map[string]any{}}},
+		},
+	}
+	positions := javaMobSpawnerChunkResetPositions(chunk)
+	if len(positions) != 1 || positions[0] != (gtprotocol.BlockPos{37, 70, -34}) {
+		t.Fatalf("chunk reset positions = %#v", positions)
+	}
+}
