@@ -303,6 +303,12 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaDifficulty(bedrock, pk.Data)
 	case b.Profile.PlayClientboundBossBarID:
 		return b.translateJavaBossBar(bedrock, pk.Data)
+	case b.Profile.PlayClientboundSoundEffectID:
+		return b.translateJavaSoundEffect(bedrock, pk.Data)
+	case b.Profile.PlayClientboundEntitySoundEffectID:
+		return b.translateJavaEntitySoundEffect(bedrock, pk.Data)
+	case b.Profile.PlayClientboundStopSoundID:
+		return b.translateJavaStopSound(bedrock, pk.Data)
 	case b.Profile.PlayClientboundClearTitlesID:
 		return b.translateJavaClearTitles(bedrock, pk.Data)
 	case b.Profile.PlayClientboundGameStateChangeID:

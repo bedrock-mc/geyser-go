@@ -173,6 +173,10 @@ func main() {
 				fmt.Printf("Bedrock respawn: state=%d position=%v entity=%d\n", pk.State, pk.Position, pk.EntityRuntimeID)
 			case *packet.BossEvent:
 				fmt.Printf("Bedrock boss bar: event=%d entity=%d player=%d title=%q health=%.2f color=%d overlay=%d\n", pk.EventType, pk.BossEntityUniqueID, pk.PlayerUniqueID, pk.BossBarTitle, pk.HealthPercentage, pk.Colour, pk.Overlay)
+			case *packet.PlaySound:
+				fmt.Printf("Bedrock sound: name=%q position=%v volume=%.2f pitch=%.2f\n", pk.SoundName, pk.Position, pk.Volume, pk.Pitch)
+			case *packet.StopSound:
+				fmt.Printf("Bedrock stop sound: name=%q all=%t\n", pk.SoundName, pk.StopAll)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

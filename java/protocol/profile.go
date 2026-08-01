@@ -45,6 +45,9 @@ type Profile struct {
 	PlayClientboundLoginPacketID        int32
 	PlayClientboundBossBarID            int32
 	PlayClientboundDifficultyID         int32
+	PlayClientboundEntitySoundEffectID  int32
+	PlayClientboundSoundEffectID        int32
+	PlayClientboundStopSoundID          int32
 	PlayClientboundClearTitlesID        int32
 	PlayClientboundGameStateChangeID    int32
 	PlayClientboundMapChunkPacketID     int32
@@ -147,6 +150,9 @@ var Java1214 = Profile{
 	PlayClientboundLoginPacketID:        0x2c,
 	PlayClientboundBossBarID:            0x0a,
 	PlayClientboundDifficultyID:         0x0b,
+	PlayClientboundEntitySoundEffectID:  0x6e,
+	PlayClientboundSoundEffectID:        0x6f,
+	PlayClientboundStopSoundID:          0x71,
 	PlayClientboundClearTitlesID:        0x0f,
 	PlayClientboundGameStateChangeID:    0x23,
 	PlayClientboundMapChunkPacketID:     0x28,

@@ -66,6 +66,9 @@ native Bedrock validation, and performance evidence are separate gates.
   validate the typed Bedrock events over a Snappy Paper probe. Java boss-bar
   flags remain leniently recorded because the current codec has no matching
   Bedrock fields.
+- [x] Generate the Java 1.21.4 sound registry and Geyser playsound mappings;
+  translate positional/entity sound effects and stop-sound packets to typed
+  Bedrock packets, with bounded custom-holder decoding and a live Paper probe.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -105,9 +108,11 @@ live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration. Java difficulty, game-state
 mode/credits/weather cues, default spawn position, title/action-bar packets,
 and the initial respawn/dimension path now have typed bounded paths, but dynamic
-dimension registries, sound, particles, and the remaining world-event mappings
-are still open. Boss-bar add/remove/health/title/style packets have a typed,
-live-tested path; flags and broader HUD/scoreboard behavior remain open.
+dimension registries, particles, and the remaining world-event mappings are
+still open. Boss-bar add/remove/health/title/style packets have a typed,
+live-tested path, and positional/entity sound plus stop-sound packets now have
+a generated, live-tested path; flags, custom sound packs, and broader
+HUD/scoreboard behavior remain open.
 
 ## Non-negotiable contracts
 
@@ -167,3 +172,7 @@ title. The Snappy probe on `127.0.0.1:19155` observed Bedrock boss-bar events
 `Show`, `HealthPercentage`, `AppearanceProperties`, and `Title` with a stable
 synthetic actor ID. Boss-bar flags are retained as a leniently logged semantic
 gap because the current Bedrock codec has no darken-sky/music/fog fields.
+
+The same Paper plugin emitted a positional note sound, an entity level-up
+sound, and a stop-sound packet. The Snappy probe observed `note.pling`,
+`random.levelup`, and the typed stop event with no bridge translation errors.

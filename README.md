@@ -65,6 +65,10 @@ protocol parity.
   state cache, a Bedrock-compatible invisible backing actor, and typed
   `BossEvent` updates; Java boss-bar flags remain recorded but have no field in
   the current Gophertunnel codec.
+  Java positional and entity sound effects now decode the versioned
+  `ItemSoundHolder`, apply the generated Geyser playsound mappings, and emit
+  typed Bedrock `PlaySound`/`StopSound` packets. Unknown sound registry IDs are
+  logged and skipped without tearing down the session.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -93,6 +97,9 @@ The generated catalog command was exercised against Cloudburst data commit
 16,913 block-state records; the payload checkout remains external to this repo.
 The Java 1.21.4 block mapping was generated from Geyser mappings commit
 `5d38942`; its committed table records the input hashes and fallback counts.
+The sound table was generated from Geyser mappings commit
+`47949016f0079578a9e979c93a2b3765354235ea`, with 1,651 Java sound entries and
+1,574 playsound mappings.
 
 ## Live bootstrap evidence
 
@@ -144,6 +151,11 @@ Bedrock boss-bar events `Show`, `HealthPercentage`, `AppearanceProperties`, and
 `Title` with a stable synthetic actor ID. The Java flags action is intentionally
 leniently recorded because the current Bedrock codec has no darken-sky/music/
 fog fields.
+
+The same Paper plugin emitted a positional note sound, an entity level-up
+sound, and a stop-sound packet. The Snappy probe observed `note.pling`,
+`random.levelup`, and the typed stop event on the same listener with no bridge
+translation errors.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
