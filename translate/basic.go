@@ -57,6 +57,8 @@ type Basic struct {
 	scoreboardObjectives  map[string]*javaScoreboardObjectiveState
 	scoreboardTeams       map[string]*javaScoreboardTeamState
 	passengers            map[int32][]int32
+	vehicleID             int32
+	hasVehicle            bool
 	blockBreaks           map[gtprotocol.BlockPos]javaBlockBreakState
 	windows               map[int32]*javaWindowState
 	bedrockWindows        map[byte]*javaWindowState
@@ -735,6 +737,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateEntityRelativeMove(bedrock, pk.Data, true)
 	case b.Profile.PlayClientboundEntityLookID:
 		return b.translateEntityLook(bedrock, pk.Data)
+	case b.Profile.PlayClientboundVehicleMoveID:
+		return b.translateJavaVehicleMove(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntityHeadRotationID:
 		return b.translateEntityHeadRotation(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntityDestroyID:
@@ -1604,6 +1608,10 @@ func (b *Basic) translateEntityDestroy(bedrock *minecraft.Conn, payload []byte) 
 		entity := b.entities[id]
 		delete(b.entities, id)
 		delete(b.passengers, id)
+		if b.hasVehicle && b.vehicleID == id {
+			b.vehicleID = 0
+			b.hasVehicle = false
+		}
 		stopFireworkBoost := false
 		if entity != nil && entity.fireworkAttachedToPlayer {
 			delete(b.fireworkAttachments, id)

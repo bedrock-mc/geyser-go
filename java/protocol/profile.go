@@ -84,6 +84,7 @@ type Profile struct {
 	PlayClientboundEntityRelMoveID              int32
 	PlayClientboundEntityMoveLookID             int32
 	PlayClientboundEntityLookID                 int32
+	PlayClientboundVehicleMoveID                int32
 	PlayClientboundEntityHeadRotationID         int32
 	PlayClientboundUpdateTimeID                 int32
 	PlayClientboundUnloadChunkID                int32
@@ -212,6 +213,7 @@ var Java1214 = Profile{
 	PlayClientboundEntityRelMoveID:              0x2f,
 	PlayClientboundEntityMoveLookID:             0x30,
 	PlayClientboundEntityLookID:                 0x32,
+	PlayClientboundVehicleMoveID:                0x33,
 	PlayClientboundEntityHeadRotationID:         0x4d,
 	PlayClientboundUpdateTimeID:                 0x6b,
 	PlayClientboundUnloadChunkID:                0x22,

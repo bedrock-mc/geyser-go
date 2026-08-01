@@ -95,10 +95,12 @@ native Bedrock validation, and performance evidence are separate gates.
   assets, and the remaining entity matrix remain open.
 - [x] Normalize Java 1.21.4 wood/chest-boat and minecart identifiers to their
   Bedrock vehicle actor families, and project bounded boat buoyancy/variant and
-  minecart display/damage metadata; cover the mapping with focused tests and a
-  live Paper/Snappy probe on `127.0.0.1:19195`. Vehicle movement and paddling,
-  vehicle input/riding offsets, and minecart container/furnace/command behavior
-  remain open.
+  minecart display/damage metadata; translate the implicit Java
+  `ClientboundMoveVehiclePacket` for the local passenger into a teleported
+  Bedrock actor movement; cover the mapping and packet shape with focused tests
+  and a live Paper/Snappy probe on `127.0.0.1:19195`. Bedrock vehicle movement
+  prediction, paddling, vehicle input/riding offsets, and minecart
+  container/furnace/command behavior remain open.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.

@@ -83,8 +83,11 @@ protocol parity.
   remain open.
   Java wood/chest boats and minecart variants now normalize to Bedrock's
   vehicle actor families, with bounded boat buoyancy/variant and minecart
-  display/damage metadata projection; movement, paddling, riding offsets,
-  vehicle input, and vehicle-specific container behavior remain open.
+  display/damage metadata projection. Java's implicit clientbound vehicle
+  movement packet now snaps the Bedrock vehicle carrying the local player,
+  preserving the linked rider state; Bedrock vehicle movement prediction,
+  paddling, riding offsets, vehicle input, and vehicle-specific container
+  behavior remain open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/

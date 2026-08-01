@@ -66,6 +66,15 @@ func (b *Basic) translateJavaSetPassengers(bedrock *minecraft.Conn, data []byte)
 	oldPassengers := append([]int32(nil), b.passengers[update.EntityID]...)
 	newPassengers := append([]int32(nil), update.PassengerIDs...)
 	b.passengers[update.EntityID] = newPassengers
+	playerID := int32(uint32(b.gameData.EntityUniqueID))
+	playerPassenger := b.gameData.EntityUniqueID != 0 && containsInt32(newPassengers, playerID)
+	if playerPassenger {
+		b.vehicleID = update.EntityID
+		b.hasVehicle = true
+	} else if b.hasVehicle && b.vehicleID == update.EntityID {
+		b.vehicleID = 0
+		b.hasVehicle = false
+	}
 	b.mu.Unlock()
 	if !vehicleKnown {
 		b.logSemanticAnomaly("skipping Java passenger links for an unknown vehicle", "entity", update.EntityID)
@@ -117,4 +126,39 @@ func (b *Basic) translateJavaSetPassengers(bedrock *minecraft.Conn, data []byte)
 		}
 	}
 	return nil
+}
+
+func containsInt32(values []int32, wanted int32) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+// javaCurrentVehicleLocked returns the vehicle carrying the local Java
+// player. Clientbound MoveVehicle has no entity ID; Java applies it to this
+// vehicle implicitly. The tracked ID is preferred, while the bounded scan
+// repairs state if a server sends SetPassengers before the local entity is
+// fully known.
+func (b *Basic) javaCurrentVehicleLocked() (int32, *javaEntityState, bool) {
+	if b.gameData.EntityUniqueID == 0 {
+		return 0, nil, false
+	}
+	playerID := int32(uint32(b.gameData.EntityUniqueID))
+	if b.hasVehicle && containsInt32(b.passengers[b.vehicleID], playerID) {
+		return b.vehicleID, b.entities[b.vehicleID], true
+	}
+	for vehicleID, passengerIDs := range b.passengers {
+		if !containsInt32(passengerIDs, playerID) {
+			continue
+		}
+		b.vehicleID = vehicleID
+		b.hasVehicle = true
+		return vehicleID, b.entities[vehicleID], true
+	}
+	b.vehicleID = 0
+	b.hasVehicle = false
+	return 0, nil, false
 }
