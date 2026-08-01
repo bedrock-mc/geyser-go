@@ -118,6 +118,7 @@ func BedrockBlockEntityTag(typeID int32, x, y, z int32, data map[string]any) (ma
 	tag["y"] = y
 	tag["z"] = z
 	tag["id"] = bedrockBlockEntityID(javaName)
+	projectJavaBlockEntityPayload(javaName, tag)
 	return tag, true
 }
 

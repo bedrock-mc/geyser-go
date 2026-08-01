@@ -61,6 +61,61 @@ func TestBedrockBlockEntityForChunkUsesWorldPosition(t *testing.T) {
 	}
 }
 
+func TestBedrockSignBlockEntityProjectsJavaText(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(7, 12, 64, -3, map[string]any{
+		"front_text": map[string]any{
+			"messages":         []string{`{"text":"Hello ","extra":[{"text":"world"}]}`, `{"translate":"chat.type.text","with":["A","B"]}`},
+			"color":            "red",
+			"has_glowing_text": int8(1),
+		},
+		"back_text": map[string]any{
+			"messages":         []map[string]any{{"text": "Back"}},
+			"color":            "blue",
+			"has_glowing_text": false,
+		},
+		"is_waxed": int8(1),
+	})
+	if !ok {
+		t.Fatal("sign block entity did not translate")
+	}
+	front, ok := tag["FrontText"].(map[string]any)
+	if !ok {
+		t.Fatalf("front text = %#v", tag["FrontText"])
+	}
+	if front["Text"] != "Hello world\n<A> B" || front["SignTextColor"] != int32(-5231066) || front["IgnoreLighting"] != true {
+		t.Fatalf("front text projection = %#v", front)
+	}
+	back, ok := tag["BackText"].(map[string]any)
+	if !ok || back["Text"] != "Back" || back["SignTextColor"] != int32(-12827478) || back["IgnoreLighting"] != false {
+		t.Fatalf("back text projection = %#v", tag["BackText"])
+	}
+	if tag["IsWaxed"] != true || tag["front_text"] != nil || tag["back_text"] != nil || tag["is_waxed"] != nil {
+		t.Fatalf("Java sign fields were not replaced: %#v", tag)
+	}
+}
+
+func TestBedrockHangingSignUsesSameProjection(t *testing.T) {
+	tag, ok := BedrockBlockEntityTag(8, 1, 2, 3, map[string]any{
+		"front_text": map[string]any{"messages": []string{`"plain"`}},
+	})
+	if !ok {
+		t.Fatal("hanging sign block entity did not translate")
+	}
+	front, ok := tag["FrontText"].(map[string]any)
+	if !ok || front["Text"] != "plain" {
+		t.Fatalf("hanging sign front text = %#v", tag["FrontText"])
+	}
+	if tag["id"] != "HangingSign" {
+		t.Fatalf("hanging sign id = %#v", tag["id"])
+	}
+	empty, ok := BedrockBlockEntityTag(7, 1, 2, 3, map[string]any{
+		"front_text": map[string]any{"messages": []string{`""`, `""`, `""`, `""`}},
+	})
+	if !ok || empty["FrontText"].(map[string]any)["Text"] != "\n\n\n" {
+		t.Fatalf("empty sign lines = %#v", empty["FrontText"])
+	}
+}
+
 func TestDecodeBlockEntityUpdate(t *testing.T) {
 	data, err := nbt.MarshalEncoding(map[string]any{"Custom": int32(9)}, nbt.NetworkBigEndian)
 	if err != nil {

@@ -18,6 +18,11 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Normalize the Java 1.21.4 block-entity registry and forward generic
   tile-entity NBT in chunk payloads and standalone `BlockActorData` updates;
   type-specific Geyser transforms remain explicitly incomplete.
+- [x] Translate Java `sign` and `hanging_sign` block entities into Bedrock
+  front/back text compounds, dye colors, glow state, and wax state; cover
+  JSON/plain text component forms and a live Paper/Snappy `BlockActorData`
+  readback. Sign width clipping, editing, and the remaining type-specific
+  block-entity translators remain open.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and
@@ -221,7 +226,7 @@ name/state transforms cover chains, standing pale-oak signs, and all seven
 skull/head families, including wall variants. The intentional `air`,
 `cave_air`, and `void_air` aliases are recorded as valid air semantics rather
 than counted as missing data. Lighting,
-type-specific block-entity transforms, behavior-heavy item components, arbitrary container
+most type-specific block-entity transforms beyond signs/hanging signs, behavior-heavy item components, arbitrary container
 windows, complex transaction state, player/entity metadata, interactions, and
 most Java play protocol remain open. Bedrock auth-input movement and a bounded
 block/item/selection/entity-action path is present, including auth-input
@@ -278,6 +283,12 @@ The same live fixture placed a Java `chain` item in the player's inventory.
 The Snappy probe on `127.0.0.1:19213` observed Bedrock item runtime `-286`
 (`minecraft:iron_chain`) with count `2` in the translated inventory content,
 and the bridge reported zero translation errors.
+The same Paper fixture sent a real Java oak sign through `sendSignChange`.
+The clean-source Snappy probe on `127.0.0.1:19215` observed a Bedrock
+`BlockActorData` with `FrontText="Geyser\nGo\nsign\nlive"`, the red sign color,
+glowing text, and an empty four-line back side; the bridge reported zero
+translation errors. Both chunk-embedded and standalone sign NBT use the same
+projection helper.
 The Java level-particle envelope and common mapping path are also typed and
 covered by focused wire/mapping tests; native rendering and broad particle
 coverage remain open.

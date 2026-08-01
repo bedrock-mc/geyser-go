@@ -39,8 +39,9 @@ protocol parity.
   generic metadata, player-info/list records, and player spawns have typed
   translators. Java 1.21.4 block-entity registry records are normalized into
   Bedrock tile-entity NBT in chunk payloads, and standalone Java tile-entity
-  updates become `BlockActorData`; type-specific NBT transforms are still
-  open. Java 1.21.4 item slots now have bounded component decoding and project
+  updates become `BlockActorData`. Sign and hanging-sign records now translate
+  front/back text, dye colors, glow, and wax state; most other type-specific
+  NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
   common custom NBT, names/lore, durability, enchantments, glint, repair cost,
   dyed colors, and map IDs into Gophertunnel item stacks. Behavior-heavy item
   components, arbitrary container windows, Java skin properties, and richer

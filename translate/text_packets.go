@@ -249,6 +249,14 @@ func JavaTextComponentText(value any) string {
 			out += JavaTextComponentText(part)
 		}
 		return out
+	case []map[string]any:
+		var out string
+		for _, part := range value {
+			out += JavaTextComponentText(part)
+		}
+		return out
+	case []string:
+		return strings.Join(value, "")
 	case map[string]any:
 		if text, ok := value["text"]; ok {
 			return JavaTextComponentText(text) + JavaTextComponentText(value["extra"])
