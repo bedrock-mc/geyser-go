@@ -37,12 +37,15 @@ type Basic struct {
 	Profile javaprotocol.Profile
 	Logger  *slog.Logger
 
-	mu          sync.Mutex
-	gameData    minecraft.GameData
-	position    javaPosition
-	entities    map[int32]*javaEntityState
-	nextStackID int32
-	unknown     map[int32]uint64
+	mu           sync.Mutex
+	gameData     minecraft.GameData
+	position     javaPosition
+	playerItems  [46]gtprotocol.ItemInstance
+	selectedSlot byte
+	entities     map[int32]*javaEntityState
+	players      map[[16]byte]*javaPlayerState
+	nextStackID  int32
+	unknown      map[int32]uint64
 }
 
 type javaPosition struct {
@@ -51,9 +54,13 @@ type javaPosition struct {
 }
 
 type javaEntityState struct {
-	runtimeID uint64
-	position  mgl32.Vec3
-	rotation  mgl32.Vec3 // pitch, yaw, head yaw
+	runtimeID  uint64
+	position   mgl32.Vec3
+	rotation   mgl32.Vec3 // pitch, yaw, head yaw
+	equipment  [6]gtprotocol.ItemInstance
+	metadata   gtprotocol.EntityMetadata
+	player     bool
+	playerUUID [16]byte
 }
 
 func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
@@ -67,6 +74,7 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		Profile:     profile,
 		Logger:      logger,
 		entities:    make(map[int32]*javaEntityState),
+		players:     make(map[[16]byte]*javaPlayerState),
 		nextStackID: 1,
 		unknown:     make(map[int32]uint64),
 	}
@@ -302,6 +310,74 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			b.logSemanticAnomaly("Java slot update contains an unknown item ID", "slot", update.Slot)
 		}
 		return b.translateSetSlot(bedrock, update)
+	case b.Profile.PlayClientboundSetPlayerInventoryID:
+		update, err := DecodeSetPlayerInventory(pk.Data, b.nextStackNetworkID)
+		if err != nil {
+			if errors.Is(err, ErrUnsupportedJavaItemComponent) {
+				b.logSemanticAnomaly("skipping player inventory update with unsupported Java item component", "error", err)
+				return nil
+			}
+			return err
+		}
+		if !update.Item.Known {
+			b.logSemanticAnomaly("Java player inventory update contains an unknown item ID", "slot", update.Slot)
+		}
+		return b.translateSetSlot(bedrock, JavaSetSlot{
+			WindowID: 0, Slot: int16(update.Slot), Item: update.Item.Item, Known: update.Item.Known,
+		})
+	case b.Profile.PlayClientboundPlayerInfoID:
+		info, err := DecodePlayerInfoUpdate(pk.Data)
+		if err != nil {
+			return err
+		}
+		return b.translatePlayerInfo(bedrock, info)
+	case b.Profile.PlayClientboundPlayerRemoveID:
+		removed, err := DecodePlayerInfoRemove(pk.Data)
+		if err != nil {
+			return err
+		}
+		return b.translatePlayerRemove(bedrock, removed)
+	case b.Profile.PlayClientboundHeldItemSlotID:
+		update, err := DecodeHeldItemSlot(pk.Data)
+		if err != nil {
+			return err
+		}
+		return b.translateHeldItemSlot(bedrock, update)
+	case b.Profile.PlayClientboundEntityVelocityID:
+		velocity, err := DecodeEntityVelocity(pk.Data)
+		if err != nil {
+			return err
+		}
+		b.mu.Lock()
+		entity := b.entities[velocity.EntityID]
+		b.mu.Unlock()
+		if entity == nil {
+			return nil
+		}
+		return bedrock.WritePacket(&packet.SetActorMotion{
+			EntityRuntimeID: entity.runtimeID,
+			Velocity:        velocity.Velocity,
+		})
+	case b.Profile.PlayClientboundEntityEquipmentID:
+		equipment, err := DecodeEntityEquipment(pk.Data, b.nextStackNetworkID)
+		if err != nil {
+			if errors.Is(err, ErrUnsupportedJavaItemComponent) {
+				b.logSemanticAnomaly("skipping entity equipment with unsupported Java item component", "error", err)
+				return nil
+			}
+			return err
+		}
+		return b.translateEntityEquipment(bedrock, equipment)
+	case b.Profile.PlayClientboundEntityMetadataID:
+		metadata, err := DecodeEntityMetadata(pk.Data, b.nextStackNetworkID)
+		if err != nil {
+			if errors.Is(err, ErrUnsupportedJavaEntityMetadata) || errors.Is(err, ErrUnsupportedJavaItemComponent) {
+				b.logSemanticAnomaly("skipping entity metadata with unsupported field", "error", err)
+				return nil
+			}
+			return err
+		}
+		return b.translateEntityMetadata(bedrock, metadata)
 	case b.Profile.PlayClientboundSystemChatID:
 		chat, err := DecodeSystemChat(pk.Data)
 		if err != nil {
@@ -386,6 +462,12 @@ func (b *Basic) translateWindowItems(bedrock *minecraft.Conn, update JavaWindowI
 		b.logSemanticAnomaly("skipping inventory content for unsupported Java window", "window", update.WindowID)
 		return nil
 	}
+	b.mu.Lock()
+	for slot := range b.playerItems {
+		b.playerItems[slot] = gtprotocol.ItemInstance{}
+	}
+	copy(b.playerItems[:], update.Items)
+	b.mu.Unlock()
 	contents := make([]gtprotocol.ItemInstance, 36)
 	for slot := 9; slot <= 35 && slot < len(update.Items); slot++ {
 		contents[slot] = update.Items[slot]
@@ -449,6 +531,11 @@ func (b *Basic) translateSetSlot(bedrock *minecraft.Conn, update JavaSetSlot) er
 		b.logSemanticAnomaly("skipping slot update for unsupported Java window", "window", update.WindowID)
 		return nil
 	}
+	if update.Slot >= 0 && update.Slot < int16(len(b.playerItems)) {
+		b.mu.Lock()
+		b.playerItems[update.Slot] = update.Item
+		b.mu.Unlock()
+	}
 	containerID, slot, ok := javaPlayerSlot(update.Slot)
 	if !ok {
 		b.logSemanticAnomaly("skipping Java player slot outside Bedrock containers", "slot", update.Slot)
@@ -459,6 +546,113 @@ func (b *Basic) translateSetSlot(bedrock *minecraft.Conn, update JavaSetSlot) er
 		Slot:      slot,
 		Container: gtprotocol.Option(gtprotocol.FullContainerName{ContainerID: containerID}),
 		NewItem:   update.Item,
+	})
+}
+
+func (b *Basic) translateHeldItemSlot(bedrock *minecraft.Conn, update JavaHeldItemSlot) error {
+	b.mu.Lock()
+	b.selectedSlot = byte(update.Slot)
+	item := b.playerItems[36+update.Slot]
+	runtimeID := b.gameData.EntityRuntimeID
+	b.mu.Unlock()
+	return bedrock.WritePacket(&packet.MobEquipment{
+		EntityRuntimeID: runtimeID,
+		NewItem:         item,
+		InventorySlot:   byte(update.Slot),
+		HotBarSlot:      byte(update.Slot),
+		WindowID:        0,
+	})
+}
+
+func (b *Basic) translateEntityEquipment(bedrock *minecraft.Conn, update JavaEntityEquipment) error {
+	b.mu.Lock()
+	entity := b.entities[update.EntityID]
+	if entity != nil {
+		for slot, item := range update.Items {
+			if int(slot) < len(entity.equipment) {
+				entity.equipment[slot] = item
+			}
+		}
+	}
+	b.mu.Unlock()
+	if entity == nil {
+		return nil
+	}
+	armorChanged := false
+	if _, ok := update.Items[1]; ok {
+		armorChanged = true
+	}
+	if _, ok := update.Items[2]; ok {
+		armorChanged = true
+	}
+	if _, ok := update.Items[3]; ok {
+		armorChanged = true
+	}
+	if _, ok := update.Items[4]; ok {
+		armorChanged = true
+	}
+	if armorChanged {
+		b.mu.Lock()
+		armor := packet.MobArmourEquipment{
+			EntityRuntimeID: entity.runtimeID,
+			Helmet:          entity.equipment[4],
+			Chestplate:      entity.equipment[3],
+			Leggings:        entity.equipment[2],
+			Boots:           entity.equipment[1],
+		}
+		b.mu.Unlock()
+		if err := bedrock.WritePacket(&armor); err != nil {
+			return err
+		}
+	}
+	if item, ok := update.Items[0]; ok {
+		if err := bedrock.WritePacket(&packet.MobEquipment{
+			EntityRuntimeID: entity.runtimeID,
+			NewItem:         item,
+			InventorySlot:   0,
+			HotBarSlot:      0,
+			WindowID:        0,
+		}); err != nil {
+			return err
+		}
+	}
+	if item, ok := update.Items[5]; ok {
+		if err := bedrock.WritePacket(&packet.MobEquipment{
+			EntityRuntimeID: entity.runtimeID,
+			NewItem:         item,
+			InventorySlot:   0,
+			HotBarSlot:      0,
+			WindowID:        gtprotocol.ContainerOffhand,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEntityMetadata) error {
+	metadata := translateGenericEntityMetadata(update.Entries)
+	b.mu.Lock()
+	entity := b.entities[update.EntityID]
+	if entity == nil {
+		b.mu.Unlock()
+		return nil
+	}
+	if entity.metadata == nil {
+		entity.metadata = gtprotocol.NewEntityMetadata()
+	}
+	for key, value := range metadata {
+		entity.metadata[key] = value
+	}
+	merged := make(gtprotocol.EntityMetadata, len(entity.metadata))
+	for key, value := range entity.metadata {
+		merged[key] = value
+	}
+	runtimeID := entity.runtimeID
+	b.mu.Unlock()
+	return bedrock.WritePacket(&packet.SetActorData{
+		EntityRuntimeID: runtimeID,
+		EntityMetadata:  merged,
 	})
 }
 
@@ -495,13 +689,19 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 		b.logSemanticAnomaly("Java entity type outside generated registry", "type", spawn.Type)
 		return nil
 	}
+	if entityType == "minecraft:player" {
+		return b.translatePlayerSpawn(bedrock, spawn)
+	}
 	runtimeID := uint64(uint32(spawn.EntityID))
+	metadata := gtprotocol.NewEntityMetadata()
 	b.mu.Lock()
-	b.entities[spawn.EntityID] = &javaEntityState{
+	entity := &javaEntityState{
 		runtimeID: runtimeID,
 		position:  spawn.Position,
 		rotation:  mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
+		metadata:  metadata,
 	}
+	b.entities[spawn.EntityID] = entity
 	b.mu.Unlock()
 	return bedrock.WritePacket(&packet.AddActor{
 		EntityUniqueID:  int64(spawn.EntityID),
@@ -513,7 +713,7 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 		Yaw:             spawn.Yaw,
 		HeadYaw:         spawn.HeadYaw,
 		BodyYaw:         spawn.Yaw,
-		EntityMetadata:  gtprotocol.NewEntityMetadata(),
+		EntityMetadata:  metadata,
 	})
 }
 

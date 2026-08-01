@@ -34,9 +34,11 @@ protocol parity.
   player-window snapshots and slot updates into Bedrock inventory, armor,
   offhand, and crafting containers, and converts Java system/player/profileless
   chat into Bedrock `Text` packets. Java item and entity registries are
-  generated alongside the block table; component-bearing items, arbitrary
-  container windows, cursor state, metadata, players, and richer
-  entity-specific behavior are still open.
+  generated alongside the block table. Java entity velocity, equipment,
+  generic metadata, player-info/list records, and player spawns have typed
+  translators; component-bearing items, arbitrary container windows, cursor
+  state, Java skin properties, and richer entity-specific behavior are still
+  open.
 
 ## Authoritative references
 
@@ -72,8 +74,9 @@ Git.
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
 native terrain rendering, lighting, block entities, item components, arbitrary
-inventory windows, player/entity metadata, interaction, and the rest of the
-Geyser gameplay translators are still open acceptance work.
+inventory windows, cursor/transaction state, Java skin fidelity,
+entity-specific metadata, interaction, and the rest of the Geyser gameplay
+translators are still open acceptance work.
 
 ## Local checks
 

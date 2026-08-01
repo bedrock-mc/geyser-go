@@ -21,6 +21,9 @@ native Bedrock validation, and performance evidence are separate gates.
   common Java system/player/profileless chat packets into typed Bedrock
   packets; cover the wire decoders, unsupported-component skip behavior, and
   a live Paper readback.
+- [x] Forward Java entity velocity/equipment, held-slot/player-inventory
+  updates, generic entity metadata, and the Java player-info/list lifecycle to
+  typed Bedrock actor packets; cover bounded decoders and a live Paper readback.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -40,9 +43,10 @@ fall back to Bedrock air in the generated 1.21.4 mapping, and lighting, block
 entities, item components, arbitrary container windows, cursor/transaction
 state, player/entity metadata, interactions, and most Java play protocol remain
 open. The inventory slice is limited to the Java player window and safely skips
-updates containing components it cannot yet decode. The entity lifecycle slice
-currently covers generic non-player AddActor state; entity-specific metadata,
-item actors, players, equipment, and animation are not yet parity-complete.
+updates containing components it cannot yet decode. Generic flags/name/pose
+metadata and player-list/player-actor packets are present, but entity-specific
+metadata, Java skin properties, item actors, equipment fidelity, and animation
+are not yet parity-complete.
 
 ## Non-negotiable contracts
 
@@ -74,5 +78,5 @@ Windows 11, bridge listener `127.0.0.1:19132`, and the lunar fork at
 native client reached the bridge; the native client reached the in-world HUD.
 The visible empty world is an expected incomplete-state finding, not a parity
 pass. The automated probe now receives translated Java chunks, inventory/chat,
-and generic entity updates; native terrain rendering, BDS, and gameplay
-behavior remain acceptance gates.
+generic metadata, equipment, velocity, and player-list updates; native terrain
+rendering, BDS, and gameplay behavior remain acceptance gates.
