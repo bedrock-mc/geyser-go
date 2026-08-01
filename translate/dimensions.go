@@ -19,9 +19,10 @@ type javaDimensionLayout struct {
 }
 
 type javaDimensionCatalog struct {
-	IDs         map[string]int32
-	Layouts     map[int32]javaDimensionLayout
-	Definitions []gtprotocol.DimensionDefinition
+	IDs             map[string]int32
+	Layouts         map[int32]javaDimensionLayout
+	Definitions     []gtprotocol.DimensionDefinition
+	BiomeRuntimeIDs []uint32
 }
 
 func newJavaDimensionCatalog(configuration javaprotocol.ConfigurationData) javaDimensionCatalog {
@@ -31,7 +32,8 @@ func newJavaDimensionCatalog(configuration javaprotocol.ConfigurationData) javaD
 			"minecraft:the_nether": packet.DimensionNether,
 			"minecraft:the_end":    packet.DimensionEnd,
 		},
-		Layouts: map[int32]javaDimensionLayout{},
+		Layouts:         map[int32]javaDimensionLayout{},
+		BiomeRuntimeIDs: javaBiomeRuntimeIDs(configuration),
 	}
 	registry, ok := configuration.Registry("minecraft:dimension_type")
 	if !ok {

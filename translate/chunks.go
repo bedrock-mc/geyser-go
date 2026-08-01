@@ -291,17 +291,30 @@ func skipByteArrays(r *javaprotocol.Reader, what string) error {
 // sections with empty sections.
 func EncodeBedrockChunk(chunk JavaChunk, dimension int32) ([]byte, uint32, error) {
 	sectionCount, minSection := bedrockDimensionSections(dimension)
-	return encodeBedrockChunk(chunk, dimension, sectionCount, minSection)
+	return encodeBedrockChunk(chunk, dimension, sectionCount, minSection, nil)
+}
+
+// EncodeBedrockChunkWithBiomes is the standard-dimension encoder with Java
+// biome registry IDs projected to Bedrock runtime IDs.
+func EncodeBedrockChunkWithBiomes(chunk JavaChunk, dimension int32, biomeRuntimeIDs []uint32) ([]byte, uint32, error) {
+	sectionCount, minSection := bedrockDimensionSections(dimension)
+	return encodeBedrockChunk(chunk, dimension, sectionCount, minSection, biomeRuntimeIDs)
 }
 
 // EncodeBedrockChunkWithLayout uses a dimension_type layout retained from
 // Java's configuration registry. The caller must use the same layout for the
 // LevelChunk dimension field and its StartGame dimension definition.
 func EncodeBedrockChunkWithLayout(chunk JavaChunk, dimension int32, layout javaDimensionLayout) ([]byte, uint32, error) {
-	return encodeBedrockChunk(chunk, dimension, layout.SectionCount, layout.MinSection)
+	return encodeBedrockChunk(chunk, dimension, layout.SectionCount, layout.MinSection, nil)
 }
 
-func encodeBedrockChunk(chunk JavaChunk, dimension int32, sectionCount, minSection int) ([]byte, uint32, error) {
+// EncodeBedrockChunkWithLayoutAndBiomes combines a retained custom dimension
+// vertical layout with the Java biome registry projection.
+func EncodeBedrockChunkWithLayoutAndBiomes(chunk JavaChunk, dimension int32, layout javaDimensionLayout, biomeRuntimeIDs []uint32) ([]byte, uint32, error) {
+	return encodeBedrockChunk(chunk, dimension, layout.SectionCount, layout.MinSection, biomeRuntimeIDs)
+}
+
+func encodeBedrockChunk(chunk JavaChunk, dimension int32, sectionCount, minSection int, biomeRuntimeIDs []uint32) ([]byte, uint32, error) {
 	if sectionCount <= 0 || sectionCount > maxChunkSections {
 		return nil, 0, fmt.Errorf("translate: invalid Bedrock section count %d for dimension %d", sectionCount, dimension)
 	}
@@ -336,13 +349,20 @@ func encodeBedrockChunk(chunk JavaChunk, dimension int32, sectionCount, minSecti
 		} else if len(source.Blocks) != 0 {
 			return nil, 0, fmt.Errorf("translate: Java chunk section %d has %d blocks", section, len(source.Blocks))
 		}
+		if len(source.Biomes) != 0 && len(source.Biomes) != javaBiomeSectionSize {
+			return nil, 0, fmt.Errorf("translate: Java chunk section %d has %d biomes", section, len(source.Biomes))
+		}
 		writeBedrockSection(&payload, values, byte(int8(minSection+section)), airRuntimeID)
 	}
-	// Bedrock expects one biome storage per sub-chunk. Zero is the diagnostic
-	// ocean biome until Java biome registry translation is added.
+	// Bedrock expects one full 4096-entry biome storage per sub-chunk. Java
+	// stores 4x4x4 biome cells, so each cell is expanded across its 4x4x4 block
+	// cube in Bedrock's XZY order.
 	for i := 0; i < sectionCount; i++ {
-		payload.WriteByte(1) // singleton palette, runtime palette
-		writeSignedVarInt(&payload, 0)
+		if i < len(chunk.Sections) && len(chunk.Sections[i].Biomes) == javaBiomeSectionSize {
+			writeBedrockStorage(&payload, expandJavaBiomes(chunk.Sections[i].Biomes, biomeRuntimeIDs))
+			continue
+		}
+		writeBedrockStorage(&payload, []uint32{0})
 	}
 	payload.WriteByte(0) // Education Edition border blocks marker.
 	for _, entity := range chunk.BlockEntities {
@@ -459,6 +479,27 @@ func writeBedrockStorage(out *bytes.Buffer, values []uint32) {
 	for _, value := range palette {
 		writeSignedVarInt(out, int32(value))
 	}
+}
+
+func expandJavaBiomes(values []int32, biomeRuntimeIDs []uint32) []uint32 {
+	expanded := make([]uint32, javaChunkSectionSize)
+	for i, javaID := range values {
+		bedrockID := uint32(0)
+		if javaID >= 0 && int64(javaID) < int64(len(biomeRuntimeIDs)) {
+			bedrockID = biomeRuntimeIDs[javaID]
+		}
+		x := i & 3
+		y := (i >> 4) & 3
+		z := (i >> 2) & 3
+		for blockX := x << 2; blockX < (x<<2)+4; blockX++ {
+			for blockZ := z << 2; blockZ < (z<<2)+4; blockZ++ {
+				for blockY := y << 2; blockY < (y<<2)+4; blockY++ {
+					expanded[(blockX<<8)|(blockZ<<4)|blockY] = bedrockID
+				}
+			}
+		}
+	}
+	return expanded
 }
 
 func bedrockBitsForPalette(size int) int {

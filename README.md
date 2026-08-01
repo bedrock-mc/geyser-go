@@ -121,7 +121,8 @@ protocol parity.
   are now decoded and retained on the negotiated client. Valid custom
   `dimension_type` entries receive deterministic Bedrock data-driven IDs and
   vertical layouts for joins, respawns, chunks, and unloads; dynamic biome
-  translation and broader Bedrock registry projection remain follow-up work.
+  registry IDs are projected into Bedrock chunk palettes, while broader
+  Bedrock registry projection remains follow-up work.
   Java 1.21.4 resource-pack push/pop packets now have bounded decoders, and
   required packs receive the Java accepted/downloaded/successfully-loaded
   status sequence while optional packs receive declined. Bedrock pack hosting,

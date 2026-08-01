@@ -41,6 +41,7 @@ type Basic struct {
 	gameData              minecraft.GameData
 	dimensionIDs          map[string]int32
 	dimensionLayouts      map[int32]javaDimensionLayout
+	biomeRuntimeIDs       []uint32
 	position              javaPosition
 	playerItems           [46]gtprotocol.ItemInstance
 	cursorItem            gtprotocol.ItemInstance
@@ -144,6 +145,7 @@ func (b *Basic) Bootstrap(ctx context.Context, bedrock *minecraft.Conn, java *ja
 			b.mu.Lock()
 			b.dimensionIDs = catalog.IDs
 			b.dimensionLayouts = catalog.Layouts
+			b.biomeRuntimeIDs = catalog.BiomeRuntimeIDs
 			b.gameData = gameData
 			b.position = javaPosition{
 				x:   float64(b.gameData.PlayerPosition.X()),
@@ -304,13 +306,14 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		b.mu.Lock()
 		dimension := b.gameData.Dimension
 		layout, hasLayout := b.dimensionLayouts[dimension]
+		biomeRuntimeIDs := b.biomeRuntimeIDs
 		b.mu.Unlock()
 		var raw []byte
 		var sections uint32
 		if hasLayout {
-			raw, sections, err = EncodeBedrockChunkWithLayout(chunk, dimension, layout)
+			raw, sections, err = EncodeBedrockChunkWithLayoutAndBiomes(chunk, dimension, layout, biomeRuntimeIDs)
 		} else {
-			raw, sections, err = EncodeBedrockChunk(chunk, dimension)
+			raw, sections, err = EncodeBedrockChunkWithBiomes(chunk, dimension, biomeRuntimeIDs)
 		}
 		if err != nil {
 			return err
