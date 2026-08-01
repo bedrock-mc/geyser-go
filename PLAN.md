@@ -110,8 +110,9 @@ native Bedrock validation, and performance evidence are separate gates.
   remain open.
 - [x] Decode Java 1.21.4 Brigadier `declare_commands` packets and project the
   bounded top-level literal/common-argument tree to Bedrock `AvailableCommands`;
-  redirects, server-backed suggestions, registry-backed enum values, and
-  exact command descriptions remain open.
+  redirect aliases and bounded nested redirects are followed; server-backed
+  suggestions, registry-backed enum values, and exact command descriptions
+  remain open.
 - [x] Preserve simple Java translatable text components and their arguments in
   Bedrock translation packets, with bounded plain-text fallback for nested
   components; locale coverage, styling, and exact key mappings remain open.
@@ -187,8 +188,11 @@ translation arguments, so exact localized command feedback remains open.
 The same Paper login emitted its Brigadier tree twice during the bounded
 session; the probe received a typed Bedrock `AvailableCommands` packet with
 34 top-level commands and no bridge translation error on listener
-`127.0.0.1:19157`. Redirect aliases, server suggestions, registry-backed
-argument enums, and descriptions remain incomplete.
+`127.0.0.1:19157`. Server suggestions, registry-backed argument enums, and
+descriptions remain incomplete. A follow-up Snappy probe on
+`127.0.0.1:19164` received 28 command entries and grouped Java redirect
+aliases `tell`, `w`, `minecraft:tell`, and `minecraft:w` under `msg`, plus
+`tm` under `teammsg`, with no bridge translation error.
 The temporary Paper fixture also scheduled a required resource pack. The
 Snappy Bedrock probe on `127.0.0.1:19158` joined and survived its bounded read
 window with no bridge translation error. The Java status acknowledgment path

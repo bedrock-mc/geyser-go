@@ -62,6 +62,41 @@ func TestDecodeJavaCommandsRejectsTruncation(t *testing.T) {
 	}
 }
 
+func TestBuildBedrockCommandsProjectsRedirectAliases(t *testing.T) {
+	java := JavaCommands{
+		Nodes: []JavaCommandNode{
+			{Flags: 0, Children: []int32{1, 3}, Redirect: -1},
+			{Flags: javaCommandNodeLiteral, Children: []int32{2}, Redirect: -1, Name: "msg"},
+			{Flags: javaCommandNodeArgument | javaCommandFlagExecutable, Redirect: -1, Name: "message", Parser: "minecraft:message"},
+			{Flags: javaCommandNodeLiteral | javaCommandFlagRedirect, Redirect: 1, Name: "tell"},
+		},
+		RootIndex: 0,
+	}
+	available, skipped := buildBedrockCommands(java)
+	if skipped != 0 || len(available.Commands) != 1 || len(available.Enums) != 1 {
+		t.Fatalf("commands=%+v enums=%+v skipped=%d", available.Commands, available.Enums, skipped)
+	}
+	command := available.Commands[0]
+	if command.Name != "msg" || command.AliasesOffset != 0 || len(command.Overloads) != 1 || len(available.EnumValues) != 1 || available.EnumValues[0] != "tell" {
+		t.Fatalf("redirect alias projection command=%+v enums=%+v values=%v", command, available.Enums, available.EnumValues)
+	}
+}
+
+func TestCollectJavaCommandOverloadsFollowsNestedRedirect(t *testing.T) {
+	java := JavaCommands{Nodes: []JavaCommandNode{
+		{Flags: 0, Children: []int32{1}},
+		{Flags: javaCommandNodeLiteral, Children: []int32{2}, Name: "root", Redirect: -1},
+		{Flags: javaCommandNodeLiteral | javaCommandFlagRedirect, Redirect: 3, Name: "alias"},
+		{Flags: javaCommandNodeLiteral, Children: []int32{4}, Name: "target", Redirect: -1},
+		{Flags: javaCommandNodeArgument | javaCommandFlagExecutable, Name: "value", Parser: "brigadier:integer", Redirect: -1},
+	}, RootIndex: 0}
+	overloads := make([]gtprotocol.CommandOverload, 0, 1)
+	collectJavaCommandOverloads(java, 1, nil, &overloads, make(map[int32]bool), func([]string) uint32 { return 0 })
+	if len(overloads) != 1 || len(overloads[0].Parameters) != 2 || overloads[0].Parameters[0].Name != "alias" || overloads[0].Parameters[1].Name != "value" {
+		t.Fatalf("redirect overloads=%+v", overloads)
+	}
+}
+
 func writeJavaCommandNode(t *testing.T, w *javaprotocol.Writer, flags byte, children []int32, name string, parser int32) {
 	t.Helper()
 	_ = w.Byte(flags)

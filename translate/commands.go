@@ -268,6 +268,18 @@ func buildBedrockCommands(java JavaCommands) (*packet.AvailableCommands, int) {
 	}
 
 	root := java.Nodes[java.RootIndex]
+	rootLiterals := make(map[int32]bool)
+	for _, childIndex := range root.Children {
+		if childIndex >= 0 && childIndex < int32(len(java.Nodes)) && java.Nodes[childIndex].Flags&0x03 == javaCommandNodeLiteral {
+			rootLiterals[childIndex] = true
+		}
+	}
+	type commandGroup struct {
+		nodeIndex int32
+		aliases   []string
+	}
+	groups := make([]commandGroup, 0, len(root.Children))
+	groupIndexes := make(map[int32]int)
 	for _, childIndex := range root.Children {
 		if childIndex < 0 || childIndex >= int32(len(java.Nodes)) {
 			continue
@@ -276,6 +288,28 @@ func buildBedrockCommands(java JavaCommands) (*packet.AvailableCommands, int) {
 		if child.Flags&0x03 != javaCommandNodeLiteral || child.Name == "" {
 			continue
 		}
+		owner := childIndex
+		if child.Redirect >= 0 {
+			redirected := resolveJavaCommandRedirect(java, childIndex)
+			if rootLiterals[redirected] {
+				owner = redirected
+			}
+		}
+		groupIndex, exists := groupIndexes[owner]
+		if !exists {
+			groupIndex = len(groups)
+			groups = append(groups, commandGroup{nodeIndex: owner})
+			groupIndexes[owner] = groupIndex
+		}
+		if childIndex != owner {
+			groups[groupIndex].aliases = append(groups[groupIndex].aliases, child.Name)
+		}
+	}
+	for _, group := range groups {
+		if group.nodeIndex < 0 || group.nodeIndex >= int32(len(java.Nodes)) {
+			continue
+		}
+		child := java.Nodes[group.nodeIndex]
 		command := gtprotocol.Command{
 			Name:            child.Name,
 			PermissionLevel: gtprotocol.CommandPermissionLevelAny,
@@ -283,11 +317,14 @@ func buildBedrockCommands(java JavaCommands) (*packet.AvailableCommands, int) {
 		}
 		overloads := make([]gtprotocol.CommandOverload, 0, 4)
 		visited := make(map[int32]bool)
-		collectJavaCommandOverloads(java, childIndex, nil, &overloads, visited, addEnum)
+		collectJavaCommandOverloads(java, group.nodeIndex, nil, &overloads, visited, addEnum)
 		if len(overloads) == 0 {
 			overloads = append(overloads, gtprotocol.CommandOverload{})
 		}
 		command.Overloads = overloads
+		if len(group.aliases) != 0 {
+			command.AliasesOffset = addEnum(group.aliases)
+		}
 		available.Commands = append(available.Commands, command)
 	}
 	if len(available.Commands) == 0 {
@@ -301,12 +338,32 @@ func buildBedrockCommands(java JavaCommands) (*packet.AvailableCommands, int) {
 	return available, 0
 }
 
+func resolveJavaCommandRedirect(java JavaCommands, nodeIndex int32) int32 {
+	visited := make(map[int32]bool)
+	for nodeIndex >= 0 && nodeIndex < int32(len(java.Nodes)) && !visited[nodeIndex] {
+		visited[nodeIndex] = true
+		redirect := java.Nodes[nodeIndex].Redirect
+		if redirect < 0 || redirect >= int32(len(java.Nodes)) {
+			return nodeIndex
+		}
+		nodeIndex = redirect
+	}
+	return nodeIndex
+}
+
 func collectJavaCommandOverloads(java JavaCommands, nodeIndex int32, path []gtprotocol.CommandParameter, overloads *[]gtprotocol.CommandOverload, visited map[int32]bool, addEnum func([]string) uint32) {
 	if len(*overloads) >= javaCommandMaxOverloads || len(path) > javaCommandMaxPathDepth || nodeIndex < 0 || nodeIndex >= int32(len(java.Nodes)) || visited[nodeIndex] {
 		return
 	}
 	visited[nodeIndex] = true
+	defer delete(visited, nodeIndex)
 	node := java.Nodes[nodeIndex]
+	if node.Redirect >= 0 {
+		if node.Redirect < int32(len(java.Nodes)) && !visited[node.Redirect] {
+			collectJavaCommandOverloads(java, node.Redirect, path, overloads, visited, addEnum)
+		}
+		return
+	}
 	if node.Flags&javaCommandFlagExecutable != 0 {
 		parameters := append([]gtprotocol.CommandParameter(nil), path...)
 		*overloads = append(*overloads, gtprotocol.CommandOverload{Parameters: parameters})
@@ -341,7 +398,6 @@ func collectJavaCommandOverloads(java JavaCommands, nodeIndex int32, path []gtpr
 		}
 		collectJavaCommandOverloads(java, childIndex, append(path, parameter), overloads, visited, addEnum)
 	}
-	delete(visited, nodeIndex)
 }
 
 func javaCommandParameter(node JavaCommandNode, addEnum func([]string) uint32) gtprotocol.CommandParameter {

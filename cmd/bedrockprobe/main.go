@@ -164,7 +164,15 @@ func main() {
 					if i >= 5 {
 						break
 					}
-					fmt.Printf("Bedrock command: name=%q overloads=%d\n", command.Name, len(command.Overloads))
+					aliases := []string(nil)
+					if command.AliasesOffset != ^uint32(0) && int(command.AliasesOffset) < len(pk.Enums) {
+						for _, valueIndex := range pk.Enums[command.AliasesOffset].ValueIndices {
+							if int(valueIndex) < len(pk.EnumValues) {
+								aliases = append(aliases, pk.EnumValues[valueIndex])
+							}
+						}
+					}
+					fmt.Printf("Bedrock command: name=%q overloads=%d aliases=%q\n", command.Name, len(command.Overloads), aliases)
 				}
 			case *packet.Text:
 				fmt.Printf("Bedrock text: type=%d source=%q message=%q params=%q\n", pk.TextType, pk.SourceName, pk.Message, pk.Parameters)

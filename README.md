@@ -110,9 +110,10 @@ protocol parity.
   packets; nested components use a bounded plain-text fallback.
   Java 1.21.4 Brigadier `declare_commands` packets now have a bounded decoder
   and a Bedrock `AvailableCommands` projection for top-level literals, common
-  argument types, boolean enums, and bounded overload traversal. Exact
-  redirects, server-backed suggestions, registry-backed argument enums, and
-  command descriptions remain open.
+  argument types, boolean enums, bounded overload traversal, and redirect
+  aliases. Nested redirects are followed within the same bounded traversal;
+  server-backed suggestions, registry-backed argument enums, and command
+  descriptions remain open.
   Java 1.21.4 resource-pack push/pop packets now have bounded decoders, and
   required packs receive the Java accepted/downloaded/successfully-loaded
   status sequence while optional packs receive declined. Bedrock pack hosting,
@@ -250,6 +251,11 @@ scheduled a required pack, and the Snappy Bedrock probe on `127.0.0.1:19158`
 joined and survived its bounded read window with no bridge translation error.
 The current tranche only acknowledges Java pack requests; it does not yet
 deliver the pack to Bedrock or validate native pack rendering.
+
+The command tree projection now also groups Java redirect aliases. The Snappy
+probe on `127.0.0.1:19164` received 28 command entries and verified Bedrock
+aliases `tell`, `w`, `minecraft:tell`, and `minecraft:w` under `msg`, plus
+`tm` under `teammsg`, with no bridge translation error.
 
 Simple Java translatable components now survive the Bedrock boundary with
 their key and parameters. The Snappy probe on `127.0.0.1:19163` received
