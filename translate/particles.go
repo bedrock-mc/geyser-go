@@ -418,6 +418,10 @@ func (b *Basic) translateJavaLevelParticles(bedrock *minecraft.Conn, dataBytes [
 		b.logSemanticAnomaly("clamping Java particle amount", "amount", particles.Amount)
 		particles.Amount = 100000
 	}
+	return b.translateJavaParticle(bedrock, particles)
+}
+
+func (b *Basic) translateJavaParticle(bedrock *minecraft.Conn, particles JavaLevelParticles) error {
 	if particles.Particle.Kind == javaParticleBlockState {
 		runtimeID, known := JavaBlockRuntimeID(particles.Particle.BlockStateID)
 		if !known {

@@ -200,6 +200,10 @@ func main() {
 				fmt.Printf("Bedrock block event: position=%v type=%d data=%d\n", pk.Position, pk.EventType, pk.EventData)
 			case *packet.SpawnParticleEffect:
 				fmt.Printf("Bedrock particle effect: dimension=%d position=%v name=%q\n", pk.Dimension, pk.Position, pk.ParticleName)
+			case *packet.LevelEventGeneric:
+				fmt.Printf("Bedrock generic level event: type=%d bytes=%d\n", pk.EventID, len(pk.SerialisedEventData))
+			case *packet.SetActorMotion:
+				fmt.Printf("Bedrock actor motion: runtime=%d velocity=%v\n", pk.EntityRuntimeID, pk.Velocity)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

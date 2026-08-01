@@ -206,6 +206,12 @@ for chest-like blocks, end gateways, mob spawners, and note blocks. Piston
 movement, bell/decorated-pot effects, and a live block-action fixture remain
 open.
 
+Java 1.21.4 explosion packets now have a bounded decoder and typed Bedrock
+projection for the explosion particle, generic origin event, sound, and player
+knockback. The Paper fixture delivered Bedrock generic event `2026`,
+`random.explode`, and player motion over Snappy; explosion block-particle lists
+and exact motion accumulation remain open.
+
 The Java level-particle path has focused coverage for the 1.21.4 envelope,
 block-state payloads, dust/vibration/trail wire variants, unknown-registry
 skipping, and common Geyser mapping entries. Dust, item, vibration, trail, and

@@ -92,6 +92,10 @@ native Bedrock validation, and performance evidence are separate gates.
   chest-like blocks, end gateways, mob spawners, and note blocks; piston
   animation, bell/decorated-pot effects, and a live block-action fixture remain
   open.
+- [x] Add a bounded Java 1.21.4 explosion decoder and project the explosion
+  particle, generic origin event, sound, and player knockback paths; block
+  particle lists and exact motion accumulation remain open; the Paper fixture
+  now delivers Bedrock explosion event `2026`, sound, and player motion.
 - [x] Add a bounded Java 1.21.4 level-particle decoder covering the particle
   union's block, dust, item, vibration, trail, and common no-data variants;
   project mapped common effects to typed Bedrock packets while keeping
