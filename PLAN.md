@@ -86,12 +86,19 @@ native Bedrock validation, and performance evidence are separate gates.
   pickup fixture remains an open acceptance gate.
 - [x] Add a bounded Java cooldown decoder and typed Bedrock item-cooldown
   projection, including the vanilla shield/goat-horn category aliases; active
-  cooldown enforcement and live cooldown visual/duration validation remain
-  open.
+  cooldown enforcement remains open; a real Paper fixture now validates the
+  Bedrock start and clear durations.
 - [x] Add a bounded Java block-event decoder and typed Bedrock projections for
   chest-like blocks, end gateways, mob spawners, and note blocks; piston
   animation, bell/decorated-pot effects, and a live block-action fixture remain
   open.
+- [x] Add a bounded Java 1.21.4 level-particle decoder covering the particle
+  union's block, dust, item, vibration, trail, and common no-data variants;
+  project mapped common effects to typed Bedrock packets while keeping
+  unsupported payloads lenient. Dust/item visual fidelity, native trail/
+  vibration rendering, and the remaining unmapped particles remain open; a
+  real Paper flame fixture now survives the Snappy bridge and delivers three
+  repeated typed particle events.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -131,8 +138,8 @@ live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration. Java difficulty, game-state
 mode/credits/weather cues, default spawn position, title/action-bar packets,
 and the initial respawn/dimension path now have typed bounded paths, but dynamic
-dimension registries, particles, and the remaining world-event mappings are
-still open. Boss-bar add/remove/health/title/style packets have a typed,
+dimension registries, native particle rendering, and the remaining world-event
+mappings are still open. Boss-bar add/remove/health/title/style packets have a typed,
 live-tested path, and positional/entity sound plus stop-sound packets now have
 a generated, live-tested path; flags, custom sound packs, and broader
 HUD/scoreboard behavior remain open. A first scoreboard objective/sidebar path
@@ -141,11 +148,16 @@ remaining HUD surfaces are not parity-complete.
 Passenger links now have a typed ordered actor-link path and a live Paper/Pig
 readback, while vehicle input and entity-specific riding offsets remain open.
 Block cracking and common Java world effects now have typed bounded paths and a
-live Bedrock readback; Java particle packets with registry-specific payloads,
-effect-specific NBT, and the remaining Geyser mappings are not parity-complete.
+live Bedrock readback; Java particle packets now have bounded registry-specific
+decoders and common typed projections, but native visual fidelity, effect-
+specific NBT, and the remaining Geyser mappings are not parity-complete.
 Java cooldown packets and common direct block-event projections now have typed
-bounded paths and focused tests, but active cooldown state, piston/bell/pot
-semantics, and live packet fixtures remain open.
+bounded paths and focused tests; the real Paper fixture observes cooldown start
+and clear packets, while active cooldown state and piston/bell/pot semantics
+remain open.
+The Java level-particle envelope and common mapping path are also typed and
+covered by focused wire/mapping tests; native rendering and broad particle
+coverage remain open.
 
 ## Non-negotiable contracts
 

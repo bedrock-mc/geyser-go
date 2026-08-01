@@ -350,6 +350,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaGameStateChange(bedrock, pk.Data)
 	case b.Profile.PlayClientboundWorldEventID:
 		return b.translateJavaWorldEvent(bedrock, pk.Data)
+	case b.Profile.PlayClientboundLevelParticlesID:
+		return b.translateJavaLevelParticles(bedrock, pk.Data)
 	case b.Profile.PlayClientboundPositionPacketID:
 		position, err := DecodePositionUpdate(pk.Data)
 		if err != nil {

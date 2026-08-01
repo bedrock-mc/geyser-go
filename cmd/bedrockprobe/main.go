@@ -198,6 +198,8 @@ func main() {
 				fmt.Printf("Bedrock item cooldown: category=%q duration=%d\n", pk.Category, pk.Duration)
 			case *packet.BlockEvent:
 				fmt.Printf("Bedrock block event: position=%v type=%d data=%d\n", pk.Position, pk.EventType, pk.EventData)
+			case *packet.SpawnParticleEffect:
+				fmt.Printf("Bedrock particle effect: dimension=%d position=%v name=%q\n", pk.Dimension, pk.Position, pk.ParticleName)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

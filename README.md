@@ -81,8 +81,8 @@ protocol parity.
   Bedrock cracking durations, and the versioned Java world-event table covers
   the common Geyser 1.21.4 sound, block-particle, weather-effect, sculk,
   trial-spawner, and vault mappings; unknown effects remain logged and
-  leniently skipped. Full vehicle input, riding offsets, and typed Java
-  particle-payload packets are still open.
+  leniently skipped. Full vehicle input, riding offsets, native particle
+  rendering, and the remaining world-event mappings are still open.
   Java entity-status events now cover the common hurt/death/taming/attack/
   villager/guardian/firework/wolf/goat mappings, and Java item/experience-orb
   pickup packets now emit typed Bedrock pickup animation or level-event
@@ -90,11 +90,17 @@ protocol parity.
   fixture remain open.
   Java cooldown packets now have a bounded typed path to Bedrock item
   cooldowns, including Geyser's vanilla shield/goat-horn category aliases;
-  active cooldown enforcement and a live cooldown-visual fixture remain open.
+  a real Paper fixture now delivers the Bedrock start and clear durations;
+  active cooldown enforcement remains open.
   Java block events now project chest-like, end-gateway, mob-spawner, and note
   block actions to typed Bedrock block events. Piston animation, bell and
   decorated-pot block-entity effects, and broader block-event coverage remain
   open.
+  Java 1.21.4 level-particle packets now decode the bounded particle union and
+  project common mapped effects, block-state particles, dust, items,
+  vibration, trail, and bounded sample counts to Bedrock level events or
+  particle effects. Native visual fidelity and the remaining unmapped
+  particles remain open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -192,14 +198,21 @@ below-name semantics, and native HUD rendering remain open.
 
 The Java cooldown packet has a bounded decoder and typed Bedrock projection,
 including the vanilla shield/goat-horn category aliases. The Paper 1.21.4
-Bukkit cooldown fixture did not produce a readable clientbound cooldown during
-the bounded probe window, so live cooldown duration/visual validation remains
-an explicit open gate.
+Bukkit fixture delivered a real Bedrock start duration of 20 ticks followed by
+the clear packet; client-side enforcement and visual timing remain open.
 
 Java block-action packets have a bounded decoder and typed Bedrock projections
 for chest-like blocks, end gateways, mob spawners, and note blocks. Piston
 movement, bell/decorated-pot effects, and a live block-action fixture remain
 open.
+
+The Java level-particle path has focused coverage for the 1.21.4 envelope,
+block-state payloads, dust/vibration/trail wire variants, unknown-registry
+skipping, and common Geyser mapping entries. Dust, item, vibration, trail, and
+named-effect variants now have typed Bedrock projections. A real Paper flame
+fixture delivered three Bedrock FLAME `LevelEvent` packets (`16392`) through
+the Snappy bridge and the bridge remained alive; native visual rendering,
+payload fidelity, and the remaining mappings remain open acceptance work.
 
 The same plugin spawned a Pig and mounted the Bedrock player. A fresh Snappy
 probe on `127.0.0.1:19155` observed a real `SetActorLink` for the Java vehicle
@@ -207,8 +220,8 @@ and Bedrock player, alongside the normal Paper join/leave log. The plugin also
 emitted Java block and smoke effects plus two block-cracking stages; the probe
 observed typed Bedrock level events `2001`, `2000`, `3600`, and `3602` with no
 bridge translation error. This closes only the common actor-link and effect
-packet paths; vehicle control, riding offsets, typed Java particle payloads,
-and full native rendering remain open.
+packet paths; vehicle control, riding offsets, particle visual fidelity, and
+full native rendering remain open.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
