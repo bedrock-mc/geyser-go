@@ -81,6 +81,9 @@ native Bedrock validation, and performance evidence are separate gates.
   typed Bedrock level/sound events; validate block, smoke, and cracking events
   over the Snappy Paper probe. Typed Java particle payloads and the remaining
   effect-specific NBT/sound semantics remain open.
+- [x] Add bounded Java entity-status and item/experience-orb pickup
+  translators with focused wire and mapping tests; a dedicated live status/
+  pickup fixture remains an open acceptance gate.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.

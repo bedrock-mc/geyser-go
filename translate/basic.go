@@ -73,6 +73,7 @@ type javaPosition struct {
 
 type javaEntityState struct {
 	runtimeID  uint64
+	entityType string
 	position   mgl32.Vec3
 	rotation   mgl32.Vec3 // pitch, yaw, head yaw
 	equipment  [6]gtprotocol.ItemInstance
@@ -333,6 +334,10 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateJavaSoundEffect(bedrock, pk.Data)
 	case b.Profile.PlayClientboundEntitySoundEffectID:
 		return b.translateJavaEntitySoundEffect(bedrock, pk.Data)
+	case b.Profile.PlayClientboundEntityEventID:
+		return b.translateJavaEntityEvent(bedrock, pk.Data)
+	case b.Profile.PlayClientboundCollectID:
+		return b.translateJavaTakeItem(bedrock, pk.Data)
 	case b.Profile.PlayClientboundStopSoundID:
 		return b.translateJavaStopSound(bedrock, pk.Data)
 	case b.Profile.PlayClientboundClearTitlesID:
@@ -907,10 +912,11 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 	metadata := gtprotocol.NewEntityMetadata()
 	b.mu.Lock()
 	entity := &javaEntityState{
-		runtimeID: runtimeID,
-		position:  spawn.Position,
-		rotation:  mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
-		metadata:  metadata,
+		runtimeID:  runtimeID,
+		entityType: entityType,
+		position:   spawn.Position,
+		rotation:   mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
+		metadata:   metadata,
 	}
 	b.entities[spawn.EntityID] = entity
 	b.mu.Unlock()

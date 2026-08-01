@@ -292,6 +292,7 @@ func (b *Basic) translatePlayerSpawn(bedrock *minecraft.Conn, spawn JavaSpawnEnt
 	runtimeID := uint64(uint32(spawn.EntityID))
 	b.entities[spawn.EntityID] = &javaEntityState{
 		runtimeID:  runtimeID,
+		entityType: "minecraft:player",
 		position:   spawn.Position,
 		rotation:   mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
 		metadata:   gtprotocol.NewEntityMetadata(),

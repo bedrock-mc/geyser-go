@@ -83,6 +83,11 @@ protocol parity.
   trial-spawner, and vault mappings; unknown effects remain logged and
   leniently skipped. Full vehicle input, riding offsets, and typed Java
   particle-payload packets are still open.
+  Java entity-status events now cover the common hurt/death/taming/attack/
+  villager/guardian/firework/wolf/goat mappings, and Java item/experience-orb
+  pickup packets now emit typed Bedrock pickup animation or level-event
+  packets. Entity-specific side effects and a dedicated live status-event
+  fixture remain open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are

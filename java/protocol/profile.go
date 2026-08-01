@@ -53,6 +53,8 @@ type Profile struct {
 	PlayClientboundScoreboardScoreID            int32
 	PlayClientboundSetPassengersID              int32
 	PlayClientboundEntitySoundEffectID          int32
+	PlayClientboundEntityEventID                int32
+	PlayClientboundCollectID                    int32
 	PlayClientboundSoundEffectID                int32
 	PlayClientboundStopSoundID                  int32
 	PlayClientboundClearTitlesID                int32
@@ -167,6 +169,8 @@ var Java1214 = Profile{
 	PlayClientboundScoreboardScoreID:            0x68,
 	PlayClientboundSetPassengersID:              0x65,
 	PlayClientboundEntitySoundEffectID:          0x6e,
+	PlayClientboundEntityEventID:                0x1f,
+	PlayClientboundCollectID:                    0x76,
 	PlayClientboundSoundEffectID:                0x6f,
 	PlayClientboundStopSoundID:                  0x71,
 	PlayClientboundClearTitlesID:                0x0f,
