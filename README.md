@@ -41,7 +41,8 @@ protocol parity.
   updates become `BlockActorData`; type-specific NBT transforms are still
   open. Component-bearing items, arbitrary container windows, cursor state,
   Java skin properties, and richer entity-specific behavior are also still
-  open.
+  open. Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
+  position/look packet with Bedrock's eye-height and collision conversion.
 
 ## Authoritative references
 

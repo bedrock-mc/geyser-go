@@ -882,10 +882,18 @@ func (b *Basic) logSemanticAnomaly(message string, args ...any) {
 
 func (b *Basic) translateBedrockPacket(java *javaprotocol.Client, pk packet.Packet) error {
 	switch pk := pk.(type) {
+	case *packet.PlayerAuthInput:
+		data, err := encodePlayerAuthInput(pk)
+		if err != nil {
+			b.logSemanticAnomaly("skipping Bedrock player auth input with invalid movement", "error", err)
+			return nil
+		}
+		return java.Conn.WritePacket(b.Profile.PlayServerboundPositionLookID, data)
 	case *packet.MovePlayer:
 		data, err := encodePositionLook(pk)
 		if err != nil {
-			return err
+			b.logSemanticAnomaly("skipping Bedrock movement with invalid position or rotation", "error", err)
+			return nil
 		}
 		return java.Conn.WritePacket(b.Profile.PlayServerboundPositionLookID, data)
 	case *packet.Text:
@@ -955,26 +963,10 @@ func encodeTeleportConfirm(id int32) []byte {
 }
 
 func encodePositionLook(pk *packet.MovePlayer) ([]byte, error) {
-	w := javaprotocol.NewWriter()
-	if err := w.Float64(float64(pk.Position.X())); err != nil {
-		return nil, err
+	if pk == nil {
+		return nil, fmt.Errorf("translate: nil MovePlayer")
 	}
-	if err := w.Float64(float64(pk.Position.Y())); err != nil {
-		return nil, err
-	}
-	if err := w.Float64(float64(pk.Position.Z())); err != nil {
-		return nil, err
-	}
-	if err := w.Float32(pk.Yaw); err != nil {
-		return nil, err
-	}
-	if err := w.Float32(pk.Pitch); err != nil {
-		return nil, err
-	}
-	if err := w.Byte(0); err != nil {
-		return nil, err
-	}
-	return append([]byte(nil), w.Bytes()...), nil
+	return encodeBedrockPositionLook(pk.Position, pk.Yaw, pk.Pitch, pk.OnGround, false)
 }
 
 func encodeChatMessage(message string) ([]byte, error) {

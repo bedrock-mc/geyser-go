@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sandertv/gophertunnel/minecraft"
+	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
@@ -16,6 +17,7 @@ func main() {
 	address := flag.String("address", "127.0.0.1:19132", "Bedrock/RakNet bridge address")
 	username := flag.String("username", "GeyserProbe", "offline-mode Bedrock username")
 	readFor := flag.Duration("read-for", 0, "after spawn, read and print Bedrock packets for this duration")
+	sendAuthInput := flag.Bool("send-auth-input", false, "send one PlayerAuthInput movement packet after spawn")
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -32,6 +34,19 @@ func main() {
 	defer conn.Close()
 	if err := conn.DoSpawnContext(ctx); err != nil {
 		panic(err)
+	}
+	if *sendAuthInput {
+		input := protocol.NewBitset(packet.PlayerAuthInputBitsetSize)
+		input.Set(packet.InputFlagVerticalCollision)
+		if err := conn.WritePacket(&packet.PlayerAuthInput{
+			Position:  conn.GameData().PlayerPosition,
+			Yaw:       conn.GameData().Yaw,
+			Pitch:     conn.GameData().Pitch,
+			HeadYaw:   conn.GameData().Yaw,
+			InputData: input,
+		}); err != nil {
+			panic(err)
+		}
 	}
 	_ = conn.WritePacket(&packet.Text{TextType: packet.TextTypeChat, Message: "geyser-go probe"})
 	fmt.Printf("Bedrock spawn succeeded: protocol=%d version=%s items=%d world=%q entity=%d\n", conn.Proto().ID(), conn.Proto().Ver(), len(conn.GameData().Items), conn.GameData().WorldName, conn.GameData().EntityRuntimeID)
