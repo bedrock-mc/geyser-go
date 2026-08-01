@@ -54,9 +54,23 @@ func main() {
 	bedrockItemsPath := flag.String("bedrock-items", "", "Cloudburst runtime_item_states.json")
 	geyserItemsPath := flag.String("geyser-items", "", "Geyser mappings items.json for the same Java protocol")
 	javaEntitiesPath := flag.String("java-entities", "", "minecraft-data entities.json for the same Java protocol")
+	geyserVanillaEntitiesPath := flag.String("geyser-vanilla-entities", "", "Geyser VanillaEntities.java for the same entity definitions")
+	entityDimensionsOutPath := flag.String("entity-dimensions-out", "", "optional generated Go file containing resolved entity display dimensions")
+	geyserSourceCommit := flag.String("geyser-source-commit", "", "Geyser source commit recorded in the entity-dimension output")
 	outPath := flag.String("out", "", "generated Go file")
 	stateNamesOutPath := flag.String("state-names-out", "", "optional generated Go file containing Java state names")
 	flag.Parse()
+	if *javaPath == "" && *palettePath == "" && *outPath == "" && *entityDimensionsOutPath != "" {
+		if *geyserVanillaEntitiesPath == "" || *javaEntitiesPath == "" {
+			panic("entity dimensions require -geyser-vanilla-entities, -java-entities, and -entity-dimensions-out")
+		}
+		entries, omissions, err := generateEntityDimensionsFile(*entityDimensionsOutPath, *geyserVanillaEntitiesPath, *javaEntitiesPath, *geyserSourceCommit)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("entity dimensions=%d omissions=%d\n", entries, omissions)
+		return
+	}
 	if *javaPath == "" || *palettePath == "" || *outPath == "" {
 		panic("usage: registrygen -java-tsv path -bedrock-palette path -out path")
 	}
@@ -187,16 +201,31 @@ func main() {
 
 	var entityNames []string
 	var entityHash string
+	var entitySource []byte
 	if *javaEntitiesPath != "" {
 		entityNames, err = readEntityNames(*javaEntitiesPath)
 		if err != nil {
 			panic(err)
 		}
-		entitySource, readErr := os.ReadFile(*javaEntitiesPath)
+		var readErr error
+		entitySource, readErr = os.ReadFile(*javaEntitiesPath)
 		if readErr != nil {
 			panic(fmt.Errorf("read Java entities source: %w", readErr))
 		}
 		entityHash = sha256Hex(entitySource)
+	}
+	if (*geyserVanillaEntitiesPath == "") != (*entityDimensionsOutPath == "") {
+		panic("entity dimensions require -geyser-vanilla-entities and -entity-dimensions-out together")
+	}
+	if *entityDimensionsOutPath != "" {
+		if *javaEntitiesPath == "" {
+			panic("entity dimensions require -java-entities")
+		}
+		entries, omissions, buildErr := generateEntityDimensionsFile(*entityDimensionsOutPath, *geyserVanillaEntitiesPath, *javaEntitiesPath, *geyserSourceCommit)
+		if buildErr != nil {
+			panic(buildErr)
+		}
+		fmt.Printf("entity dimensions=%d omissions=%d\n", entries, omissions)
 	}
 
 	sourceJava, _ := os.ReadFile(*javaPath)

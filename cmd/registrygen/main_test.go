@@ -148,3 +148,36 @@ func TestRenderStateNamesPreservesRegistryOrder(t *testing.T) {
 		t.Fatalf("state-name output lost registry order: %s", output)
 	}
 }
+
+func TestBuildEntityDisplayDimensionsResolvesInheritedBuilders(t *testing.T) {
+	source := `
+        static {
+            EntityTypeBase<Entity> root = EntityTypeDefinition.baseBuilder(Entity.class).build();
+            EntityTypeBase<Entity> parent = EntityTypeBase.baseInherited(Entity.class, root)
+                .height(1.25f).width(0.75f).build();
+            CHILD = VanillaEntityType.inherited(Entity::new, parent)
+                .type(EntityType.CHILD).build();
+            GRANDCHILD = VanillaEntityType.inherited(Entity::new, CHILD)
+                .type(EntityType.GRANDCHILD).heightAndWidth(0.5f).build();
+            OMITTED = VanillaEntityType.inherited(Entity::new, root)
+                .type(EntityType.OMITTED).build(false);
+        }
+    `
+	entries, omissions, err := buildEntityDisplayDimensions([]byte(source), []namedID{
+		{id: 0, name: "minecraft:child"},
+		{id: 1, name: "minecraft:grandchild"},
+		{id: 2, name: "minecraft:omitted"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 || len(omissions) != 1 || omissions[0].JavaIdentifier != "minecraft:omitted" {
+		t.Fatalf("entries=%#v omissions=%#v", entries, omissions)
+	}
+	if entries[0].JavaIdentifier != "minecraft:child" || entries[0].Width != 0.75 || entries[0].Height != 1.25 {
+		t.Fatalf("inherited dimensions=%#v", entries[0])
+	}
+	if entries[1].JavaIdentifier != "minecraft:grandchild" || entries[1].Width != 0.5 || entries[1].Height != 0.5 {
+		t.Fatalf("overridden dimensions=%#v", entries[1])
+	}
+}

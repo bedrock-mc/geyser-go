@@ -46,8 +46,9 @@ protocol parity.
   fields. Beacon effect holders, end-gateway exit arrays, and decorated-pot
   sherd lists also have direct Geyser-compatible projections. Mob spawners
   now project generated Bedrock entity identifiers, bounded timing fields,
-  movable state, and source-backed display dimensions for the zombie-villager
-  fixture family; the rest of the entity-dimension table remains open.
+  movable state, and the complete versioned Java 1.21.4 display-dimension
+  table resolved from Geyser's entity-definition inheritance, with explicit
+  omissions for identifiers Geyser does not define on the network.
   Vault block entities project display items and particle range with exact
   Bedrock NBT types; session-aware conversion of Java vault UUIDs to Bedrock
   player actor IDs remains explicitly open.

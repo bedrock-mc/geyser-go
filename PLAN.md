@@ -39,10 +39,11 @@ native Bedrock validation, and performance evidence are separate gates.
   `EntityIdentifier`, accept Geyser's entity aliases, and retain bounded
   timing fields while removing the Java-only nested payload; cover unknown
   identifiers leniently and validate a live Paper/Snappy spawner update.
-  Also emit source-backed `isMovable` and display dimensions/scale for the
-  zombie and zombie-villager fixture family, and reset empty standalone
-  spawners by replacing air with the spawner block before actor NBT. The
-  remaining entity-dimension table and chunk-time reset path remain open.
+  Also emit source-backed `isMovable` and the complete versioned Java 1.21.4
+  display dimensions/scale, including normalized aliases and explicit
+  Geyser network-definition omissions, and reset empty standalone spawners by
+  replacing air with the spawner block before actor NBT. The chunk-time reset
+  path remains open.
 - [x] Generate the exact Java 1.21.4 block-state names alongside the pinned
   runtime crosswalk, retain a bounded recent block-state cache for standalone
   block-entity updates, and use section palette context for chunk records.

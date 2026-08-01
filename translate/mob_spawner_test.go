@@ -46,6 +46,31 @@ func TestBedrockMobSpawnerProjectsDisplayMetadataForChunkAndStandalone(t *testin
 	}
 }
 
+func TestBedrockMobSpawnerProjectsInheritedDisplayDimensions(t *testing.T) {
+	tests := []struct {
+		identifier string
+		width      float32
+		height     float32
+	}{
+		{identifier: "minecraft:allay", width: 0.35, height: 0.6},
+		{identifier: "minecraft:chest_minecart", width: 0.98, height: 0.7},
+		{identifier: "minecraft:zombie_villager_v2", width: 0.6, height: 1.8},
+	}
+	for _, test := range tests {
+		t.Run(test.identifier, func(t *testing.T) {
+			tag, ok := BedrockBlockEntityTag(9, 0, 64, 0, map[string]any{
+				"SpawnData": map[string]any{"entity": map[string]any{"id": test.identifier}},
+			})
+			if !ok {
+				t.Fatal("mob spawner block entity did not translate")
+			}
+			if tag["DisplayEntityWidth"] != test.width || tag["DisplayEntityHeight"] != test.height || tag["DisplayEntityScale"] != float32(1) {
+				t.Fatalf("inherited display metadata = %#v", tag)
+			}
+		})
+	}
+}
+
 func TestBedrockMobSpawnerEmptyPayloadNeedsReset(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -419,36 +419,13 @@ func projectJavaMobSpawner(tag map[string]any) {
 		return
 	}
 	tag["EntityIdentifier"] = bedrockIdentifier
-	if dimensions, ok := javaMobSpawnerDisplayDimensions(javaIdentifier, bedrockIdentifier); ok {
-		tag["DisplayEntityWidth"] = dimensions.width
-		tag["DisplayEntityHeight"] = dimensions.height
+	if dimensions, ok := data.BedrockEntityDisplayDimensions(javaIdentifier, bedrockIdentifier); ok {
+		tag["DisplayEntityWidth"] = dimensions.Width
+		tag["DisplayEntityHeight"] = dimensions.Height
 		tag["DisplayEntityScale"] = float32(1)
 	}
 	delete(tag, "SpawnData")
 	delete(tag, "spawn_data")
-}
-
-type javaMobSpawnerDisplaySize struct {
-	width  float32
-	height float32
-}
-
-// These are the dimensions used by Geyser's version-pinned Java entity
-// definitions for the spawner fixture entities. Do not infer dimensions for
-// an identifier that is not in this source-backed table: the identifier and
-// timing projection remains useful for semantically odd but well-formed NBT.
-var javaMobSpawnerEntityDimensions = map[string]javaMobSpawnerDisplaySize{
-	"minecraft:zombie":             {width: 0.6, height: 1.8},
-	"minecraft:zombie_villager":    {width: 0.6, height: 1.8},
-	"minecraft:zombie_villager_v2": {width: 0.6, height: 1.8},
-}
-
-func javaMobSpawnerDisplayDimensions(javaIdentifier, bedrockIdentifier string) (javaMobSpawnerDisplaySize, bool) {
-	if dimensions, ok := javaMobSpawnerEntityDimensions[javaIdentifier]; ok {
-		return dimensions, true
-	}
-	dimensions, ok := javaMobSpawnerEntityDimensions[bedrockIdentifier]
-	return dimensions, ok
 }
 
 // projectJavaTrialSpawner keeps the trial spawner's compact Bedrock spawn
