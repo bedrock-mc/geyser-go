@@ -65,10 +65,12 @@ native Bedrock validation, and performance evidence are separate gates.
   reveal; resolve fishing-hook owners and hooked targets through the Java to
   Bedrock actor map. Project Java PotionContents to Bedrock aux values and
   enchanted/lingering flags, retain bounded firework component payloads, and
-  project firework player attachment to Bedrock's Elytra boost effect. Projectile
-  simulation, the firework actor display payload (the selected Gophertunnel fork
-  does not expose its Bedrock metadata key), hook casting/splash behavior, and
-  native rendering remain open.
+  project firework player attachment to Bedrock's Elytra boost effect. The
+  bounded 20 Hz simulator now replays the Geyser projectile families,
+  including firework acceleration and arrow in-ground state. The firework
+  actor display payload (the selected Gophertunnel fork does not expose its
+  Bedrock metadata key), hook casting/splash behavior, water/collision/
+  slipperiness integration, and native rendering remain open.
 - [x] Project Java `text_display` and `interaction` entities through Geyser's
   armor-stand backing contract, including text/name-tag metadata, multiline
   vertical offset, display translation, and interaction width/height updates;
@@ -327,6 +329,12 @@ the Java registry ordinal 17, and the zero-motion visibility clear, with no
 bridge translation error. Potion registry mapping, firework component decoding,
 and firework attachment tracking also have focused tests; the firework actor
 display payload remains blocked on the missing fork metadata key.
+
+The clean-source Snappy projectile-tick probe on `127.0.0.1:19203` connected to
+the same Paper fixture and received translated projectile actors plus repeated
+typed `MoveActorDelta` updates from the 20 Hz simulator, with no bridge
+translation error. This closes only bounded re-simulation; authoritative
+collision, water drag, item slipperiness, and native rendering remain open.
 
 A Paper display fixture then spawned a two-line Java text display and an
 `interaction` entity. The Snappy probe on `127.0.0.1:19180` received both as

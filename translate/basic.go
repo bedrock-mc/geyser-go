@@ -108,6 +108,10 @@ type javaEntityState struct {
 	goatLeftHornKnown        bool
 	goatRightHornKnown       bool
 	fireworkAttachedToPlayer bool
+	fireworkAttachedToEntity bool
+	fireworkShotAtAngle      bool
+	projectileInGround       bool
+	projectileNoGravity      bool
 	equipment                [7]gtprotocol.ItemInstance
 	metadata                 gtprotocol.EntityMetadata
 	player                   bool
@@ -220,9 +224,10 @@ func (b *Basic) Run(ctx context.Context, bedrock *minecraft.Conn, java *javaprot
 	}
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	errorsCh := make(chan error, 2)
+	errorsCh := make(chan error, 3)
 	go func() { errorsCh <- b.pumpJava(runCtx, bedrock, java) }()
 	go func() { errorsCh <- b.pumpBedrock(runCtx, bedrock, java) }()
+	go func() { errorsCh <- b.pumpProjectiles(runCtx, bedrock) }()
 	go func() {
 		<-runCtx.Done()
 		_ = java.Close()
@@ -1025,6 +1030,7 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		return nil
 	}
 	entityType := entity.entityType
+	updateJavaProjectileMetadataLocked(entity, update.Entries)
 	displayTranslationChanged := false
 	displayLineOffsetChanged := false
 	if entityType == "minecraft:text_display" {
@@ -1541,8 +1547,12 @@ func (b *Basic) translateEntityLook(bedrock *minecraft.Conn, payload []byte) err
 	}
 	b.mu.Lock()
 	entity := b.entities[look.EntityID]
+	var runtimeID uint64
+	var rotation mgl32.Vec3
 	if entity != nil {
 		entity.rotation[0], entity.rotation[1] = look.Pitch, look.Yaw
+		runtimeID = entity.runtimeID
+		rotation = entity.rotation
 	}
 	b.mu.Unlock()
 	if entity == nil {
@@ -1553,9 +1563,9 @@ func (b *Basic) translateEntityLook(bedrock *minecraft.Conn, payload []byte) err
 		flags |= packet.MoveActorDeltaFlagOnGround
 	}
 	return bedrock.WritePacket(&packet.MoveActorDelta{
-		EntityRuntimeID: entity.runtimeID,
+		EntityRuntimeID: runtimeID,
 		Flags:           flags,
-		Rotation:        entity.rotation,
+		Rotation:        rotation,
 	})
 }
 
@@ -1566,17 +1576,21 @@ func (b *Basic) translateEntityHeadRotation(bedrock *minecraft.Conn, payload []b
 	}
 	b.mu.Lock()
 	entity := b.entities[rotation.EntityID]
+	var runtimeID uint64
+	var entityRotation mgl32.Vec3
 	if entity != nil {
 		entity.rotation[2] = rotation.HeadYaw
+		runtimeID = entity.runtimeID
+		entityRotation = entity.rotation
 	}
 	b.mu.Unlock()
 	if entity == nil {
 		return nil
 	}
 	return bedrock.WritePacket(&packet.MoveActorDelta{
-		EntityRuntimeID: entity.runtimeID,
+		EntityRuntimeID: runtimeID,
 		Flags:           packet.MoveActorDeltaFlagHasRotZ,
-		Rotation:        entity.rotation,
+		Rotation:        entityRotation,
 	})
 }
 

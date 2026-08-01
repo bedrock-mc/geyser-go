@@ -64,9 +64,11 @@ protocol parity.
   hook owners and hooked targets resolve through the Java-to-Bedrock actor map;
   PotionContents now project to Bedrock aux/enchanted/lingering metadata,
   bounded firework components are retained, and player-attached fireworks emit
-  Bedrock's Elytra boost effect. Projectile simulation, the firework actor
-  display payload (the selected Gophertunnel fork does not expose its metadata
-  key), hook casting, and native rendering remain open.
+  Bedrock's Elytra boost effect. A bounded 20 Hz simulator now replays the
+  Geyser projectile families, including firework acceleration and arrow
+  in-ground state. The firework actor display payload (the selected
+  Gophertunnel fork does not expose its metadata key), hook casting,
+  water/collision/slipperiness integration, and native rendering remain open.
   Java `text_display` and `interaction` entities now use Geyser's
   armor-stand-backed projection with text/name-tag metadata, multiline offset,
   display translation, and interaction size updates. Item/block display
@@ -376,6 +378,12 @@ translation error. Potion registry mapping, firework component decoding, and
 firework attachment tracking are covered by focused tests; the firework actor
 display payload remains blocked on the missing metadata key in the selected
 Gophertunnel fork.
+
+The clean-source Snappy projectile-tick probe on `127.0.0.1:19203` connected to
+the same Paper fixture and received translated projectile actors plus repeated
+typed `MoveActorDelta` updates from the 20 Hz simulator, with no bridge
+translation error. This closes only bounded re-simulation; authoritative
+collision, water drag, item slipperiness, and native rendering remain open.
 
 The Paper entity fixture also spawned a baby/sheared blue sheep, a flagged armor
 stand, a baby/tamed/sitting cat, a sleeping/interested fox, a killer rabbit, an
