@@ -3,7 +3,8 @@ package translate
 // projectJavaShulkerBox projects the one item/state-bearing block-entity
 // field directly covered by the pinned Geyser reference. Java 1.21.4 stores
 // the shulker's direction in the block state; Bedrock expects the direction's
-// ordinal as the block-entity "facing" byte.
+// ordinal as the block-entity "facing" byte. The pinned NBT encoder represents
+// TAG_Byte values with Go's byte/uint8 type.
 //
 // Keep this projection state-only. The pinned Geyser reference handles shulker
 // contents through its inventory flow rather than establishing an item-list
@@ -21,7 +22,7 @@ func projectJavaShulkerBox(tag map[string]any, stateName string) {
 	if !ok {
 		return
 	}
-	tag["facing"] = int8(ordinal)
+	tag["facing"] = ordinal
 }
 
 func javaShulkerBoxState(stateName string) bool {
@@ -39,7 +40,7 @@ func javaShulkerBoxState(stateName string) bool {
 
 // This ordering follows the Direction enum used by Geyser's
 // blockState.getValue(Properties.FACING).ordinal() projection.
-var javaShulkerFacingOrdinals = map[string]int8{
+var javaShulkerFacingOrdinals = map[string]byte{
 	"down":  0,
 	"up":    1,
 	"north": 2,
