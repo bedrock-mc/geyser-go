@@ -352,6 +352,11 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			b.logSemanticAnomaly("Java block entity type outside generated registry", "type", update.Type)
 			return nil
 		}
+		if javaName, ok := JavaBlockEntityTypeName(update.Type); ok && javaName == "mob_spawner" && javaMobSpawnerPayloadNeedsReset(update.Data) {
+			if err := b.resetJavaMobSpawnerBlock(bedrock, update.Position); err != nil {
+				return err
+			}
+		}
 		return bedrock.WritePacket(&packet.BlockActorData{
 			Position: update.Position,
 			NBTData:  tag,
