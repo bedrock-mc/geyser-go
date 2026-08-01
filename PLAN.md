@@ -62,9 +62,11 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Translate Java vault `shared_data.display_item` and particle-range state
   into Bedrock's `display_item` and `connected_particle_range` fields with
   exact NBT scalar types, defaults, bounded malformed-data handling, and a
-  network `BlockActorData` test. Java UUID-array `connected_players` values are
-  intentionally not converted into fabricated Bedrock actor IDs by the pure
-  shared helper; session-aware player-EID resolution remains open.
+  network `BlockActorData` test. In session-aware standalone and chunk paths,
+  exact Java UUID-array `connected_players` values now resolve against the
+  live Java-to-Bedrock actor cache; unknown and malformed values are skipped.
+  The pure shared helper remains stateless and intentionally does not fabricate
+  actor IDs.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and

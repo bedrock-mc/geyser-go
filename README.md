@@ -50,8 +50,10 @@ protocol parity.
   table resolved from Geyser's entity-definition inheritance, with explicit
   omissions for identifiers Geyser does not define on the network.
   Vault block entities project display items and particle range with exact
-  Bedrock NBT types; session-aware conversion of Java vault UUIDs to Bedrock
-  player actor IDs remains explicitly open.
+  Bedrock NBT types. Session-aware standalone and chunk translation resolves
+  Java vault UUID arrays against live Bedrock player actor IDs and skips
+  unknown or malformed values; the stateless helper deliberately remains
+  unable to resolve session actors.
   The generated Java state-name table and bounded recent-state cache now feed
   state-aware banner base/patterns, skull rotation/mouth state, jigsaw joints,
   command conditional mode, and core structure metadata for both chunk and
