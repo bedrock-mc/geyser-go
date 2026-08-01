@@ -87,6 +87,7 @@ type Profile struct {
 	PlayClientboundOpenWindowID                 int32
 	PlayClientboundSetSlotID                    int32
 	PlayClientboundSetCursorItemID              int32
+	PlayClientboundDeclareCommandsID            int32
 	PlayClientboundProfilelessChatID            int32
 	PlayClientboundPlayerChatID                 int32
 	PlayClientboundSystemChatID                 int32
@@ -206,6 +207,7 @@ var Java1214 = Profile{
 	PlayClientboundOpenWindowID:                 0x35,
 	PlayClientboundSetSlotID:                    0x15,
 	PlayClientboundSetCursorItemID:              0x5a,
+	PlayClientboundDeclareCommandsID:            0x11,
 	PlayClientboundProfilelessChatID:            0x1e,
 	PlayClientboundPlayerChatID:                 0x3b,
 	PlayClientboundSystemChatID:                 0x73,

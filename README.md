@@ -106,6 +106,11 @@ protocol parity.
   unsigned Java chat packet, and forwards slash commands as Geyser's unsigned
   signed-command packet. The command tree, suggestions, secure-chat session,
   and full text-component localization remain open.
+  Java 1.21.4 Brigadier `declare_commands` packets now have a bounded decoder
+  and a Bedrock `AvailableCommands` projection for top-level literals, common
+  argument types, boolean enums, and bounded overload traversal. Exact
+  redirects, server-backed suggestions, registry-backed argument enums, and
+  command descriptions remain open.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are

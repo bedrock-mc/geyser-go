@@ -108,6 +108,10 @@ native Bedrock validation, and performance evidence are separate gates.
   normalization and the 256-character limit. Command-tree negotiation,
   suggestions, secure-chat sessions, and full text-component localization
   remain open.
+- [x] Decode Java 1.21.4 Brigadier `declare_commands` packets and project the
+  bounded top-level literal/common-argument tree to Bedrock `AvailableCommands`;
+  redirects, server-backed suggestions, registry-backed enum values, and
+  exact command descriptions remain open.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -173,6 +177,11 @@ Bedrock `Text` packet, and `/time set night` through `CommandRequest` over the
 Snappy listener. Paper logged both commands as issued by the bridge player;
 the current Bedrock text projection still flattens command response
 translation arguments, so exact localized command feedback remains open.
+The same Paper login emitted its Brigadier tree twice during the bounded
+session; the probe received a typed Bedrock `AvailableCommands` packet with
+34 top-level commands and no bridge translation error on listener
+`127.0.0.1:19157`. Redirect aliases, server suggestions, registry-backed
+argument enums, and descriptions remain incomplete.
 
 ## Non-negotiable contracts
 

@@ -498,6 +498,8 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			Container: gtprotocol.Option(gtprotocol.FullContainerName{ContainerID: gtprotocol.ContainerCursor}),
 			NewItem:   item.Item,
 		})
+	case b.Profile.PlayClientboundDeclareCommandsID:
+		return b.translateJavaCommands(bedrock, pk.Data)
 	case b.Profile.PlayClientboundSetPlayerInventoryID:
 		update, err := DecodeSetPlayerInventory(pk.Data, b.nextStackNetworkID)
 		if err != nil {

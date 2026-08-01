@@ -158,6 +158,14 @@ func main() {
 		}
 		for _, pk := range batch {
 			switch pk := pk.(type) {
+			case *packet.AvailableCommands:
+				fmt.Printf("Bedrock commands: commands=%d enums=%d values=%d\n", len(pk.Commands), len(pk.Enums), len(pk.EnumValues))
+				for i, command := range pk.Commands {
+					if i >= 5 {
+						break
+					}
+					fmt.Printf("Bedrock command: name=%q overloads=%d\n", command.Name, len(command.Overloads))
+				}
 			case *packet.Text:
 				fmt.Printf("Bedrock text: type=%d source=%q message=%q\n", pk.TextType, pk.SourceName, pk.Message)
 			case *packet.ItemStackResponse:
