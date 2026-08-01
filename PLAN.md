@@ -66,10 +66,11 @@ native Bedrock validation, and performance evidence are separate gates.
   fidelity remain open.
 - [x] Project common Java 1.21.4 living-entity metadata into Bedrock flags and
   variants, including ageable/tameable state, sheep colors/shearing, armor-stand
-  flag words, fox/rabbit/bee state, and tropical-fish packed colors; cover the
-  exact pinned metadata indices with focused tests and a live Paper/Snappy
-  fixture on `127.0.0.1:19184`. Registry-dependent cat/wolf variants, owner
-  UUIDs, and the broader entity metadata matrix remain open.
+  flag words, fox/rabbit/bee state, tropical-fish packed colors, negotiated
+  cat/wolf variants, and optional owner EIDs for known actors; cover the exact
+  pinned metadata indices with focused tests and live Paper/Snappy fixtures on
+  `127.0.0.1:19184` and `127.0.0.1:19186`. Late owner discovery, custom
+  variant assets, and the broader entity metadata matrix remain open.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -291,9 +292,17 @@ a baby/tamed/sitting cat, a sleeping/interested fox, a killer rabbit, an angry
 bee, and a tropical fish. The Snappy probe on `127.0.0.1:19184` observed the
 corresponding Bedrock flag words (including the high `FlagsTwo` word), color and
 variant metadata, and the bee anger clear update, with no bridge translation
-error. This validates the pinned Java 1.21.4 metadata layout; registry-dependent
-cat/wolf variants, owner UUIDs, animation, interaction, and the broader entity
-matrix remain open.
+error. This validates the pinned Java 1.21.4 metadata layout; registry-backed
+cat/wolf mapping and known-owner EIDs are covered by the follow-up below, while
+custom variant assets, animation, interaction, and the broader entity matrix
+remain open.
+
+A follow-up Paper fixture assigned a Siamese cat and an owned Ashen wolf to the
+local Java player. The Snappy probe on `127.0.0.1:19186` observed Bedrock cat
+variant `3`, wolf variant `1`, tame/sit flags, collar color, and owner EID `248`,
+with no bridge translation error. The registry-holder decoder is now bounded
+for Java's wolf variant type; direct custom variant assets and late owner
+discovery remain open.
 
 ## Non-negotiable contracts
 

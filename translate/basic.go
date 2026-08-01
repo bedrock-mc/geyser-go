@@ -40,9 +40,11 @@ type Basic struct {
 
 	mu                    sync.Mutex
 	gameData              minecraft.GameData
+	playerUUID            [16]byte
 	dimensionIDs          map[string]int32
 	dimensionLayouts      map[int32]javaDimensionLayout
 	biomeRuntimeIDs       []uint32
+	entityVariants        javaEntityVariantMappings
 	paintings             []javaPaintingDefinition
 	position              javaPosition
 	playerItems           [46]gtprotocol.ItemInstance
@@ -79,6 +81,9 @@ type javaPosition struct {
 type javaEntityState struct {
 	runtimeID          uint64
 	entityType         string
+	entityUUID         [16]byte
+	ownerUUID          [16]byte
+	hasOwnerUUID       bool
 	position           mgl32.Vec3
 	displayTranslation mgl32.Vec3
 	displayLineOffset  float32
@@ -162,6 +167,8 @@ func (b *Basic) Bootstrap(ctx context.Context, bedrock *minecraft.Conn, java *ja
 			b.dimensionIDs = catalog.IDs
 			b.dimensionLayouts = catalog.Layouts
 			b.biomeRuntimeIDs = catalog.BiomeRuntimeIDs
+			b.playerUUID = java.Login.UUID
+			b.entityVariants = newJavaEntityVariantMappings(java.Configuration)
 			b.paintings = javaPaintingCatalog(java.Configuration)
 			b.gameData = gameData
 			b.position = javaPosition{
@@ -1006,7 +1013,19 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		delete(metadata, gtprotocol.EntityDataKeyFlagsTwo)
 		delete(metadata, gtprotocol.EntityDataKeyPlayerFlags)
 	}
-	specialMetadata := translateSpecialEntityMetadata(entityType, update.Entries)
+	specialMetadata := translateSpecialEntityMetadataWithVariants(entityType, update.Entries, b.entityVariants)
+	if ownerUUID, hasOwnerEntry, hasOwnerUUID := javaTameableOwnerMetadata(entityType, update.Entries); hasOwnerEntry {
+		ownerID := int64(0)
+		if hasOwnerUUID {
+			ownerID = b.javaOwnerEntityIDLocked(ownerUUID)
+			entity.ownerUUID = ownerUUID
+			entity.hasOwnerUUID = true
+		} else {
+			entity.ownerUUID = [16]byte{}
+			entity.hasOwnerUUID = false
+		}
+		specialMetadata[gtprotocol.EntityDataKeyOwner] = ownerID
+	}
 	specialFlags, hasSpecialFlags := specialMetadata[gtprotocol.EntityDataKeyFlags].(int64)
 	specialFlagsTwo, hasSpecialFlagsTwo := specialMetadata[gtprotocol.EntityDataKeyFlagsTwo].(int64)
 	if hasSpecialFlags || hasSpecialFlagsTwo {
@@ -1264,6 +1283,7 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 	b.mu.Lock()
 	entity := &javaEntityState{
 		runtimeID:         runtimeID,
+		entityUUID:        spawn.UUID,
 		entityType:        entityType,
 		position:          position,
 		rotation:          mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},

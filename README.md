@@ -64,8 +64,9 @@ protocol parity.
   entities, display transforms, and native rendering/interaction remain open.
   Common Java 1.21.4 living-entity metadata now projects ageable/tameable state,
   sheep colors/shearing, armor-stand low/high flag words, fox/rabbit/bee state,
-  and tropical-fish packed colors/variants. Registry-dependent cat/wolf
-  variants, owner UUIDs, and the broader entity metadata matrix remain open.
+  tropical-fish packed colors/variants, negotiated cat/wolf variants, and owner
+  EIDs for known actors. Late owner discovery, custom variant assets, and the
+  broader entity metadata matrix remain open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
@@ -347,8 +348,16 @@ stand, a baby/tamed/sitting cat, a sleeping/interested fox, a killer rabbit, an
 angry bee, and a tropical fish. The Snappy probe on `127.0.0.1:19184` observed
 their Bedrock flag words (including `FlagsTwo`), color/variant metadata, and the
 bee anger clear update with no bridge translation error. This validates the
-pinned Java 1.21.4 metadata layout; registry-dependent cat/wolf variants, owner
-UUIDs, animation, interaction, and the broader entity matrix remain open.
+pinned Java 1.21.4 metadata layout; registry-backed cat/wolf mapping and
+known-owner EIDs are covered by the follow-up below, while custom variant
+assets, animation, interaction, and the broader entity matrix remain open.
+
+A follow-up Paper fixture assigned a Siamese cat and an owned Ashen wolf to the
+local Java player. The Snappy probe on `127.0.0.1:19186` observed Bedrock cat
+variant `3`, wolf variant `1`, tame/sit flags, collar color, and owner EID `248`,
+with no bridge translation error. The bounded wolf registry-holder decoder is
+covered by focused tests; direct custom variant assets and late owner discovery
+remain open.
 
 ## Local checks
 

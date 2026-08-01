@@ -50,6 +50,14 @@ type JavaPaintingVariant struct {
 	Custom     bool
 }
 
+// JavaWolfVariant is the 1.21.4 registry-holder form used by wolf metadata.
+// Vanilla sends a registry reference; custom direct values are decoded and
+// retained as Custom so the enclosing metadata packet stays aligned.
+type JavaWolfVariant struct {
+	RegistryID int32
+	Custom     bool
+}
+
 func DecodeEntityMetadata(payload []byte, nextStackID func() int32) (JavaEntityMetadata, error) {
 	r := javaprotocol.NewReader(payload)
 	entityID, err := r.VarInt()
@@ -166,11 +174,31 @@ func decodeJavaEntityMetadataValue(r *javaprotocol.Reader, typeID int32, nextSta
 			return nil, nil
 		}
 		return value - 1, nil
-	case 17, 18, 23: // particle, particle list, and wolf variant
+	case 17, 18: // particle and particle list
 		// These metadata values contain registry-dependent payloads. The
 		// enclosing packet is skipped until the active registry translators are
 		// available; the framed Java session remains usable.
 		return nil, fmt.Errorf("%w: type=%d", ErrUnsupportedJavaEntityMetadata, typeID)
+	case 23: // wolf variant registry holder
+		selector, err := r.VarInt()
+		if err != nil {
+			return nil, err
+		}
+		if selector < 0 {
+			return nil, fmt.Errorf("negative wolf variant selector %d", selector)
+		}
+		if selector != 0 {
+			return JavaWolfVariant{RegistryID: selector - 1}, nil
+		}
+		for _, field := range []string{"wolf wild texture", "wolf tame texture", "wolf angry texture"} {
+			if _, err := r.String(); err != nil {
+				return nil, fmt.Errorf("%s: %w", field, err)
+			}
+		}
+		if err := decodeJavaIDSet(r); err != nil {
+			return nil, fmt.Errorf("wolf biome set: %w", err)
+		}
+		return JavaWolfVariant{RegistryID: -1, Custom: true}, nil
 	case 19: // villager data
 		values := make([]int32, 3)
 		for i := range values {

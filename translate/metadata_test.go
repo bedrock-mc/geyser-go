@@ -102,6 +102,47 @@ func TestDecodeJava1214OptionalBlockStateIsDirectVarInt(t *testing.T) {
 	}
 }
 
+func TestDecodeJava1214WolfVariantRegistryHolder(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(12)
+	_ = w.Byte(22)
+	_ = w.VarInt(23)
+	_ = w.VarInt(4) // registry ordinal 3, encoded as holder ID + 1
+	_ = w.Byte(0xff)
+
+	metadata, err := DecodeEntityMetadata(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	variant, ok := metadata.Entries[0].Value.(JavaWolfVariant)
+	if !ok || variant.Custom || variant.RegistryID != 3 {
+		t.Fatalf("wolf variant metadata = %#v, ok=%v", metadata.Entries[0].Value, ok)
+	}
+}
+
+func TestDecodeJava1214WolfVariantCustomHolder(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(12)
+	_ = w.Byte(22)
+	_ = w.VarInt(23)
+	_ = w.VarInt(0) // direct custom holder
+	_ = w.String("minecraft:custom_wolf")
+	_ = w.String("minecraft:custom_wolf_tame")
+	_ = w.String("minecraft:custom_wolf_angry")
+	_ = w.VarInt(0) // named biome tag
+	_ = w.String("minecraft:is_forest")
+	_ = w.Byte(0xff)
+
+	metadata, err := DecodeEntityMetadata(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	variant, ok := metadata.Entries[0].Value.(JavaWolfVariant)
+	if !ok || !variant.Custom || variant.RegistryID != -1 {
+		t.Fatalf("custom wolf variant metadata = %#v, ok=%v", metadata.Entries[0].Value, ok)
+	}
+}
+
 func TestDecodeItemEntityMetadataProjectsItemStack(t *testing.T) {
 	w := javaprotocol.NewWriter()
 	_ = w.VarInt(11)

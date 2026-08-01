@@ -156,7 +156,29 @@ func javaIntegerValue(value any) (int64, bool) {
 	}
 }
 
-// specialEntityFlagMask reports the Bedrock flags whose values are owned by
+func javaTameableOwnerMetadata(entityType string, entries []JavaEntityMetadataEntry) (ownerUUID [16]byte, hasEntry, hasUUID bool) {
+	switch entityType {
+	case "minecraft:cat", "minecraft:parrot", "minecraft:wolf":
+	default:
+		return [16]byte{}, false, false
+	}
+	for _, entry := range entries {
+		if entry.Index != 18 {
+			continue
+		}
+		switch value := entry.Value.(type) {
+		case [16]byte:
+			return value, true, true
+		case nil:
+			return [16]byte{}, true, false
+		default:
+			return [16]byte{}, true, false
+		}
+	}
+	return [16]byte{}, false, false
+}
+
+// specialEntityFlagMasks reports the Bedrock flags whose values are owned by
 // the Java metadata packet. The bridge must replace these bits rather than
 // OR-ing them with the previous actor state, otherwise a Java false update
 // leaves a stale Bedrock flag set.
@@ -231,6 +253,10 @@ func specialEntityFlagMasks(entityType string, entries []JavaEntityMetadataEntry
 // meaning differs from Java's shared entity metadata. It returns only fields
 // changed by this packet; spawn defaults are supplied by the function above.
 func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetadataEntry) gtprotocol.EntityMetadata {
+	return translateSpecialEntityMetadataWithVariants(entityType, entries, defaultJavaEntityVariantMappings())
+}
+
+func translateSpecialEntityMetadataWithVariants(entityType string, entries []JavaEntityMetadataEntry, variants javaEntityVariantMappings) gtprotocol.EntityMetadata {
 	metadata := make(gtprotocol.EntityMetadata, 4)
 	metadata[gtprotocol.EntityDataKeyFlags] = int64(0)
 	flagsChanged := false
@@ -290,10 +316,9 @@ func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetad
 				}
 			case 19:
 				if variant, ok := entry.Value.(int32); ok && variant >= 0 {
-					// Cat variant registry IDs are translated once registry
-					// ordinal mappings are available. Preserve the value for
-					// resource packs in the meantime.
-					metadata[gtprotocol.EntityDataKeyVariant] = variant
+					if bedrockVariant, ok := javaEntityVariantID(entityType, variant, variants); ok {
+						metadata[gtprotocol.EntityDataKeyVariant] = bedrockVariant
+					}
 				}
 			case 20:
 				if resting, ok := entry.Value.(bool); ok {
@@ -343,6 +368,16 @@ func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetad
 				if anger, ok := javaIntegerValue(entry.Value); ok {
 					setProjectedFlag(metadata, gtprotocol.EntityDataFlagAngry, anger > 0)
 					flagsChanged = true
+				}
+			case 22:
+				if variant, ok := entry.Value.(JavaWolfVariant); ok {
+					bedrockVariant := int32(0)
+					if variant.RegistryID >= 0 {
+						if mapped, mappedOK := javaEntityVariantID(entityType, variant.RegistryID, variants); mappedOK {
+							bedrockVariant = mapped
+						}
+					}
+					metadata[gtprotocol.EntityDataKeyVariant] = bedrockVariant
 				}
 			}
 		case "minecraft:fox":

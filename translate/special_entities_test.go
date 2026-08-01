@@ -113,12 +113,17 @@ func TestTranslateSpecialEntityMetadata(t *testing.T) {
 
 	cat := translateSpecialEntityMetadata("minecraft:cat", []JavaEntityMetadataEntry{
 		{Index: 17, Type: 0, Value: int8(0x07)},
-		{Index: 19, Type: 1, Value: int32(4)},
+		{Index: 19, Type: 1, Value: int32(0)},
 		{Index: 20, Type: 8, Value: true},
 		{Index: 22, Type: 1, Value: int32(14)},
 	})
-	if !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSitting) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagAngry) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagTamed) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagResting) || cat[gtprotocol.EntityDataKeyVariant] != int32(4) || cat[gtprotocol.EntityDataKeyColorIndex] != byte(14) {
+	if !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagSitting) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagAngry) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagTamed) || !cat.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagResting) || cat[gtprotocol.EntityDataKeyVariant] != int32(8) || cat[gtprotocol.EntityDataKeyColorIndex] != byte(14) {
 		t.Fatalf("cat metadata = %#v", cat)
+	}
+
+	wolf := translateSpecialEntityMetadata("minecraft:wolf", []JavaEntityMetadataEntry{{Index: 22, Type: 23, Value: JavaWolfVariant{RegistryID: 3}}})
+	if wolf[gtprotocol.EntityDataKeyVariant] != int32(0) {
+		t.Fatalf("wolf metadata = %#v", wolf)
 	}
 
 	fox := translateSpecialEntityMetadata("minecraft:fox", []JavaEntityMetadataEntry{
