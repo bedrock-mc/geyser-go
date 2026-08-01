@@ -237,6 +237,101 @@ func boundedJavaCount(r *javaprotocol.Reader, field string) (int, error) {
 	return int(count), nil
 }
 
+// javaItemDamage returns the explicit Bedrock durability projection carried
+// in item NBT. MetadataValue remains the Bedrock variant/aux field for items
+// such as potions and must not be mistaken for Java's damage component.
+func javaItemDamage(item gtprotocol.ItemInstance) (int32, bool) {
+	if item.Stack.NBTData == nil {
+		return 0, false
+	}
+	value, ok := item.Stack.NBTData["Damage"]
+	if !ok {
+		return 0, false
+	}
+	return javaItemDamageValue(value)
+}
+
+func javaItemDamageValue(value any) (int32, bool) {
+	switch value := value.(type) {
+	case int:
+		if value < 0 || int64(value) > int64(maxJavaItemDamage) {
+			return 0, false
+		}
+		return int32(value), true
+	case int8:
+		if value < 0 {
+			return 0, false
+		}
+		return int32(value), true
+	case int16:
+		if value < 0 {
+			return 0, false
+		}
+		return int32(value), true
+	case int32:
+		if value < 0 || value > maxJavaItemDamage {
+			return 0, false
+		}
+		return value, true
+	case int64:
+		if value < 0 || value > int64(maxJavaItemDamage) {
+			return 0, false
+		}
+		return int32(value), true
+	case uint:
+		if uint64(value) > uint64(maxJavaItemDamage) {
+			return 0, false
+		}
+		return int32(value), true
+	case uint8:
+		return int32(value), true
+	case uint16:
+		return int32(value), true
+	case uint32:
+		if uint64(value) > uint64(maxJavaItemDamage) {
+			return 0, false
+		}
+		return int32(value), true
+	case uint64:
+		if value > uint64(maxJavaItemDamage) {
+			return 0, false
+		}
+		return int32(value), true
+	default:
+		return 0, false
+	}
+}
+
+// bedrockItemDamage is the damage value exposed by the Bedrock item
+// representation. An explicit Java durability projection wins over the
+// legacy metadata/aux value; the latter remains the fallback for variant
+// items whose Bedrock representation still uses metadata.
+func bedrockItemDamage(item gtprotocol.ItemInstance) uint32 {
+	if damage, ok := javaItemDamage(item); ok {
+		return uint32(damage)
+	}
+	return item.Stack.MetadataValue
+}
+
+// itemNBTWithoutDamage returns a shallow copy so callers can preserve the
+// original Bedrock NBT while treating the projected damage field as a typed
+// value. NBT values themselves are immutable during stack simulation.
+func itemNBTWithoutDamage(nbtData map[string]any) map[string]any {
+	if len(nbtData) == 0 {
+		return nil
+	}
+	withoutDamage := make(map[string]any, len(nbtData))
+	for key, value := range nbtData {
+		if key != "Damage" {
+			withoutDamage[key] = value
+		}
+	}
+	if len(withoutDamage) == 0 {
+		return nil
+	}
+	return withoutDamage
+}
+
 // decodeJavaNBT consumes the root compound used by Java anonymousNbt.
 func decodeJavaNBT(r *javaprotocol.Reader) (map[string]any, error) {
 	value, err := decodeJavaNBTValue(r)

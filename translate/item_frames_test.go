@@ -14,9 +14,10 @@ func TestJavaItemFrameProjectionUsesBedrockStateAndActorNBT(t *testing.T) {
 		t.Fatal("stone mapping missing")
 	}
 	item := gtprotocol.ItemInstance{Stack: gtprotocol.ItemStack{
-		ItemType: gtprotocol.ItemType{NetworkID: itemRuntimeID, MetadataValue: 7},
+		ItemType: gtprotocol.ItemType{NetworkID: itemRuntimeID, MetadataValue: 2},
 		Count:    1,
 		NBTData: map[string]any{
+			"Damage":  int32(7),
 			"display": map[string]any{"Name": "Frame item"},
 		},
 	}}

@@ -3,11 +3,13 @@ package translate
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"sort"
 
 	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/sandertv/gophertunnel/minecraft"
+	"github.com/sandertv/gophertunnel/minecraft/nbt"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
@@ -710,18 +712,44 @@ func itemEmpty(item gtprotocol.ItemInstance) bool {
 }
 
 func sameItem(a, b gtprotocol.ItemInstance) bool {
-	return !itemEmpty(a) && !itemEmpty(b) && a.Stack.NetworkID == b.Stack.NetworkID && a.Stack.MetadataValue == b.Stack.MetadataValue
+	return !itemEmpty(a) && !itemEmpty(b) && itemStackSame(a.Stack, b.Stack)
 }
 
 func itemSame(a, b gtprotocol.ItemInstance) bool {
-	if a.StackNetworkID != b.StackNetworkID || a.Stack.NetworkID != b.Stack.NetworkID || a.Stack.MetadataValue != b.Stack.MetadataValue || a.Stack.Count != b.Stack.Count {
+	if a.StackNetworkID != b.StackNetworkID || a.Stack.Count != b.Stack.Count {
 		return false
 	}
-	return true
+	return itemStackSame(a.Stack, b.Stack)
+}
+
+func itemStackSame(a, b gtprotocol.ItemStack) bool {
+	if a.NetworkID != b.NetworkID || a.MetadataValue != b.MetadataValue || a.BlockRuntimeID != b.BlockRuntimeID {
+		return false
+	}
+	if bedrockItemDamage(gtprotocol.ItemInstance{Stack: a}) != bedrockItemDamage(gtprotocol.ItemInstance{Stack: b}) {
+		return false
+	}
+	return reflect.DeepEqual(itemNBTWithoutDamage(a.NBTData), itemNBTWithoutDamage(b.NBTData)) &&
+		reflect.DeepEqual(a.CanBePlacedOn, b.CanBePlacedOn) &&
+		reflect.DeepEqual(a.CanBreak, b.CanBreak)
 }
 
 func cloneItem(item gtprotocol.ItemInstance) gtprotocol.ItemInstance {
+	item.Stack.NBTData = itemNBTClone(item.Stack.NBTData)
+	item.Stack.CanBePlacedOn = append([]string(nil), item.Stack.CanBePlacedOn...)
+	item.Stack.CanBreak = append([]string(nil), item.Stack.CanBreak...)
 	return item
+}
+
+func itemNBTClone(nbtData map[string]any) map[string]any {
+	if len(nbtData) == 0 {
+		return nil
+	}
+	clone := make(map[string]any, len(nbtData))
+	for key, value := range nbtData {
+		clone[key] = value
+	}
+	return clone
 }
 
 func subtractItem(item gtprotocol.ItemInstance, count int) gtprotocol.ItemInstance {
@@ -817,8 +845,37 @@ func writeJavaSlot(w *javaprotocol.Writer, item gtprotocol.ItemInstance) error {
 	if err := w.VarInt(itemID); err != nil {
 		return err
 	}
-	if err := w.VarInt(0); err != nil { // added component hashes
+	customData := itemNBTWithoutDamage(item.Stack.NBTData)
+	damage, hasDamage := javaItemDamage(item)
+	componentCount := 0
+	if customData != nil {
+		componentCount++
+	}
+	if hasDamage {
+		componentCount++
+	}
+	if err := w.VarInt(int32(componentCount)); err != nil {
 		return err
+	}
+	if customData != nil {
+		if err := w.VarInt(javaItemComponentCustomData); err != nil {
+			return err
+		}
+		encoded, err := nbt.MarshalEncoding(customData, nbt.NetworkBigEndian)
+		if err != nil {
+			return fmt.Errorf("encode Java custom_data component: %w", err)
+		}
+		if err := w.BytesValue(encoded); err != nil {
+			return err
+		}
+	}
+	if hasDamage {
+		if err := w.VarInt(javaItemComponentDamage); err != nil {
+			return err
+		}
+		if err := w.VarInt(damage); err != nil {
+			return err
+		}
 	}
 	return w.VarInt(0) // removed component IDs
 }

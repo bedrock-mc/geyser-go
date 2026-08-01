@@ -153,6 +153,89 @@ func TestEncodeJavaContainerClick(t *testing.T) {
 	}
 }
 
+func TestEncodeJavaSlotPreservesCustomDataAndDamageComponent(t *testing.T) {
+	runtimeID, ok := data.JavaItemRuntimeID(1)
+	if !ok {
+		t.Fatal("generated stone item mapping is missing")
+	}
+	item := gtprotocol.ItemInstance{Stack: gtprotocol.ItemStack{
+		ItemType: gtprotocol.ItemType{NetworkID: runtimeID},
+		Count:    2,
+		NBTData: map[string]any{
+			"Custom": int32(4),
+			"Damage": int32(5),
+		},
+	}}
+
+	w := javaprotocol.NewWriter()
+	if err := writeJavaSlot(w, item); err != nil {
+		t.Fatal(err)
+	}
+	r := javaprotocol.NewReader(w.Bytes())
+	if count, err := r.VarInt(); err != nil || count != 2 {
+		t.Fatalf("Java item count = %d, err=%v", count, err)
+	}
+	if itemID, err := r.VarInt(); err != nil || itemID != 1 {
+		t.Fatalf("Java item ID = %d, err=%v", itemID, err)
+	}
+	componentCount, err := r.VarInt()
+	if err != nil || componentCount != 2 {
+		t.Fatalf("Java added component count = %d, err=%v", componentCount, err)
+	}
+	componentType, err := r.VarInt()
+	if err != nil || componentType != javaItemComponentCustomData {
+		t.Fatalf("first Java component = %d, err=%v", componentType, err)
+	}
+	customData, err := javaprotocol.DecodeAnonymousNBT(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	custom, ok := customData.(map[string]any)
+	if !ok || custom["Custom"] != int32(4) {
+		t.Fatalf("Java custom_data = %#v", customData)
+	}
+	componentType, err = r.VarInt()
+	if err != nil || componentType != javaItemComponentDamage {
+		t.Fatalf("second Java component = %d, err=%v", componentType, err)
+	}
+	damage, err := r.VarInt()
+	if err != nil || damage != 5 {
+		t.Fatalf("Java damage component = %d, err=%v", damage, err)
+	}
+	removed, err := r.VarInt()
+	if err != nil || removed != 0 || r.Remaining() != 0 {
+		t.Fatalf("Java removed components = %d, err=%v, remaining=%d", removed, err, r.Remaining())
+	}
+}
+
+func TestItemIdentityIncludesProjectedDamageAndClonesNBT(t *testing.T) {
+	runtimeID, ok := data.JavaItemRuntimeID(1)
+	if !ok {
+		t.Fatal("generated stone item mapping is missing")
+	}
+	item := gtprotocol.ItemInstance{StackNetworkID: 7, Stack: gtprotocol.ItemStack{
+		ItemType: gtprotocol.ItemType{NetworkID: runtimeID},
+		Count:    2,
+		NBTData: map[string]any{
+			"Custom": int32(4),
+			"Damage": int32(5),
+		},
+	}}
+	clone := cloneItem(item)
+	if !sameItem(item, clone) || !itemSame(item, clone) {
+		t.Fatalf("cloned item identity changed: original=%#v clone=%#v", item, clone)
+	}
+	clone.Stack.NBTData["Damage"] = int32(6)
+	if sameItem(item, clone) || itemSame(item, clone) || item.Stack.NBTData["Damage"] != int32(5) {
+		t.Fatalf("damage change was lost in item identity/clone: original=%#v clone=%#v", item, clone)
+	}
+	clone = cloneItem(item)
+	clone.Stack.NBTData["Custom"] = int32(9)
+	if sameItem(item, clone) || itemSame(item, clone) || item.Stack.NBTData["Custom"] != int32(4) {
+		t.Fatalf("custom NBT change was lost in item identity/clone: original=%#v clone=%#v", item, clone)
+	}
+}
+
 func TestEncodeJavaContainerClickWindowID(t *testing.T) {
 	payload, err := encodeJavaContainerClick(4, javaInventoryClick{windowID: 7, slot: 0, actionType: javaContainerActionClickItem, param: javaClickLeft}, nil, gtprotocol.ItemInstance{})
 	if err != nil {

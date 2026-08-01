@@ -68,7 +68,7 @@ func javaItemFrameTag(position gtprotocol.BlockPos, entityType string, item gtpr
 	}
 	itemTag := map[string]any{
 		"Count":  byte(count),
-		"Damage": int16(item.Stack.MetadataValue),
+		"Damage": int16(bedrockItemDamage(item)),
 		"Name":   name,
 	}
 	if len(item.Stack.NBTData) != 0 {

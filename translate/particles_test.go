@@ -5,9 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
+	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 )
 
 func TestDecodeJavaLevelParticlesBlockState(t *testing.T) {
@@ -110,6 +112,26 @@ func TestJavaParticleMappingsUseCloudburstParticleTypeEvents(t *testing.T) {
 		if _, ok := javaParticleMappings[id]; ok {
 			t.Fatalf("particle %d unexpectedly has a Geyser 1.21.4 mapping", id)
 		}
+	}
+}
+
+func TestJavaItemParticleUsesProjectedDamage(t *testing.T) {
+	runtimeID, ok := data.JavaItemRuntimeID(1)
+	if !ok {
+		t.Fatal("generated stone item mapping is missing")
+	}
+	item := gtprotocol.ItemInstance{Stack: gtprotocol.ItemStack{
+		ItemType: gtprotocol.ItemType{NetworkID: runtimeID, MetadataValue: 2},
+		Count:    1,
+		NBTData:  map[string]any{"Damage": int32(7)},
+	}}
+	eventData, ok := javaItemParticleEventData(item)
+	if !ok {
+		t.Fatal("item particle data was rejected")
+	}
+	want := int32(uint32(runtimeID)<<16 | 7)
+	if eventData != want {
+		t.Fatalf("item particle data = %d, want runtime=%d damage=7 (%d)", eventData, runtimeID, want)
 	}
 }
 

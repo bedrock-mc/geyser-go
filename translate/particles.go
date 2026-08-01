@@ -456,12 +456,11 @@ func (b *Basic) translateJavaParticle(bedrock *minecraft.Conn, particles JavaLev
 			b.logSemanticAnomaly("skipping Java item particle with unknown item", "item", particles.Particle.Item.ItemID)
 			return nil
 		}
-		runtimeID := particles.Particle.Item.Item.Stack.ItemType.NetworkID
-		if runtimeID < 0 {
-			b.logSemanticAnomaly("skipping Java item particle with invalid Bedrock item runtime", "runtime_id", runtimeID)
+		eventData, ok := javaItemParticleEventData(particles.Particle.Item.Item)
+		if !ok {
+			b.logSemanticAnomaly("skipping Java item particle with invalid Bedrock item runtime", "runtime_id", particles.Particle.Item.Item.Stack.ItemType.NetworkID)
 			return nil
 		}
-		eventData := int32(uint32(runtimeID)<<16 | (particles.Particle.Item.Item.Stack.MetadataValue & 0xffff))
 		return b.writeJavaParticleInstances(bedrock, particles, func(position mgl32.Vec3) packet.Packet {
 			return &packet.LevelEvent{EventType: bedrockParticleType(13), Position: position, EventData: eventData}
 		})
@@ -579,6 +578,14 @@ func (b *Basic) translateJavaParticle(bedrock *minecraft.Conn, particles JavaLev
 		}
 		return nil
 	})
+}
+
+func javaItemParticleEventData(item gtprotocol.ItemInstance) (int32, bool) {
+	runtimeID := item.Stack.ItemType.NetworkID
+	if runtimeID < 0 {
+		return 0, false
+	}
+	return int32(uint32(runtimeID)<<16 | bedrockItemDamage(item)), true
 }
 
 func (b *Basic) writeJavaParticleInstances(bedrock *minecraft.Conn, particles JavaLevelParticles, create func(mgl32.Vec3) packet.Packet) error {
