@@ -161,6 +161,12 @@ func main() {
 					containerID = container.ContainerID
 				}
 				fmt.Printf("Bedrock inventory slot: window=%d container=%d slot=%d count=%d network=%d\n", pk.WindowID, containerID, pk.Slot, pk.NewItem.Stack.Count, pk.NewItem.StackNetworkID)
+			case *packet.SetDifficulty:
+				fmt.Printf("Bedrock difficulty: %d\n", pk.Difficulty)
+			case *packet.SetPlayerGameType:
+				fmt.Printf("Bedrock game type: %d\n", pk.GameType)
+			case *packet.SetTitle:
+				fmt.Printf("Bedrock title: action=%d text=%q fadeIn=%d stay=%d fadeOut=%d\n", pk.ActionType, pk.Text, pk.FadeInDuration, pk.RemainDuration, pk.FadeOutDuration)
 			default:
 				fmt.Printf("Bedrock packet: %T\n", pk)
 			}

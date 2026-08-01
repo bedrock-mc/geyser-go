@@ -55,6 +55,9 @@ native Bedrock validation, and performance evidence are separate gates.
   take/place/swap/drop stack requests for supported mapped windows. Per-menu
   properties, merchant/recipe behavior, and exact holder restoration remain
   open.
+- [x] Translate Java difficulty, game-state mode/credits/weather cues, default
+  spawn position, and title clear/text/subtitle/timing packets into typed
+  Bedrock packets with bounded decoders and a live Snappy Paper readback.
 - [ ] Implement Java handshake/login/configuration/play negotiation for the
   supported protocol matrix.
 - [ ] Implement session ownership and typed Java <-> Bedrock translator registries.
@@ -92,6 +95,9 @@ yet parity-complete. Common Java menu open/close/content packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration.
+Java difficulty, game-state mode/credits/weather cues, default spawn position,
+and title packets now have typed bounded paths, but dimension respawn, sound,
+particles, and the remaining world-event mappings are still open.
 
 ## Non-negotiable contracts
 
@@ -139,3 +145,9 @@ take from chest slot 0; Paper accepted the translated Java `container_click`,
 and Bedrock returned request `-41` with status `0`, an empty chest slot, and a
 diamond on the cursor. This is a generic-window action slice, not full
 inventory parity.
+
+The same temporary Paper plugin sent a title, changed the player to creative,
+and changed the world difficulty after join. The Snappy probe on
+`127.0.0.1:19155` observed typed title timing/title/subtitle packets, game type
+`1`, and difficulty `3`; Paper logged a normal disconnect and the bridge
+reported no translation errors.

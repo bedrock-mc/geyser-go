@@ -118,3 +118,87 @@ func TestEmptyBedrockChunkPayload(t *testing.T) {
 		}
 	}
 }
+
+func TestDecodeWorldPresentationPackets(t *testing.T) {
+	difficultyWriter := javaprotocol.NewWriter()
+	if err := difficultyWriter.Byte(2); err != nil {
+		t.Fatal(err)
+	}
+	if err := difficultyWriter.Bool(true); err != nil {
+		t.Fatal(err)
+	}
+	difficulty, err := DecodeJavaDifficulty(difficultyWriter.Bytes())
+	if err != nil || difficulty.Difficulty != 2 || !difficulty.Locked {
+		t.Fatalf("difficulty = %+v, err=%v", difficulty, err)
+	}
+
+	stateWriter := javaprotocol.NewWriter()
+	if err := stateWriter.Byte(javaGameEventChangeGameMode); err != nil {
+		t.Fatal(err)
+	}
+	if err := stateWriter.Float32(3); err != nil {
+		t.Fatal(err)
+	}
+	state, err := DecodeJavaGameStateChange(stateWriter.Bytes())
+	if err != nil || state.Reason != javaGameEventChangeGameMode || state.Value != 3 {
+		t.Fatalf("game state = %+v, err=%v", state, err)
+	}
+
+	titleWriter := javaprotocol.NewWriter()
+	if err := titleWriter.Byte(8); err != nil { // anonymous NBT TAG_String
+		t.Fatal(err)
+	}
+	if err := titleWriter.Int16(5); err != nil {
+		t.Fatal(err)
+	}
+	if err := titleWriter.BytesValue([]byte("Hello")); err != nil {
+		t.Fatal(err)
+	}
+	title, err := DecodeJavaTitleText(titleWriter.Bytes())
+	if err != nil || JavaTextComponentText(title) != "Hello" {
+		t.Fatalf("title = %#v, text=%q, err=%v", title, JavaTextComponentText(title), err)
+	}
+
+	timesWriter := javaprotocol.NewWriter()
+	for _, value := range []int32{10, 70, 20} {
+		if err := timesWriter.Int32(value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	times, err := DecodeJavaTitleTimes(timesWriter.Bytes())
+	if err != nil || times != (JavaTitleTimes{FadeIn: 10, Stay: 70, FadeOut: 20}) {
+		t.Fatalf("title times = %+v, err=%v", times, err)
+	}
+
+	eventWriter := javaprotocol.NewWriter()
+	if err := eventWriter.Int32(2001); err != nil {
+		t.Fatal(err)
+	}
+	eventPosition := gtprotocol.BlockPos{-12, 63, 34}
+	if err := eventWriter.Int64(encodeJavaPosition(eventPosition)); err != nil {
+		t.Fatal(err)
+	}
+	if err := eventWriter.Int32(7); err != nil {
+		t.Fatal(err)
+	}
+	if err := eventWriter.Bool(false); err != nil {
+		t.Fatal(err)
+	}
+	event, err := DecodeJavaWorldEvent(eventWriter.Bytes())
+	if err != nil || event.EffectID != 2001 || event.Position != eventPosition || event.Data != 7 || event.Global {
+		t.Fatalf("world event = %+v, err=%v", event, err)
+	}
+
+	spawnWriter := javaprotocol.NewWriter()
+	spawnPosition := gtprotocol.BlockPos{8, 72, -9}
+	if err := spawnWriter.Int64(encodeJavaPosition(spawnPosition)); err != nil {
+		t.Fatal(err)
+	}
+	if err := spawnWriter.Float32(135); err != nil {
+		t.Fatal(err)
+	}
+	spawn, err := DecodeJavaSpawnPosition(spawnWriter.Bytes())
+	if err != nil || spawn.Position != spawnPosition || spawn.Angle != 135 {
+		t.Fatalf("spawn position = %+v, err=%v", spawn, err)
+	}
+}

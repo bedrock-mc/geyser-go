@@ -56,6 +56,8 @@ protocol parity.
   content, and slot updates. Common mapped windows also accept bounded Bedrock
   stack requests and return typed responses; properties, merchant/recipe
   behavior, and exact virtual-holder restoration remain open.
+  Java difficulty/game-state notifications, default spawn position, and title
+  text/subtitle/timing/clear packets now have bounded typed Bedrock paths.
   Bedrock `PlayerAuthInput` and legacy `MovePlayer` now emit the Java
   position/look packet with Bedrock's eye-height and collision conversion;
   bounded server-authoritative block-break and click-air/block item actions are
@@ -116,6 +118,12 @@ take from the Java chest: Paper accepted the Java `container_click`, and Bedrock
 received `ItemStackResponse` status `0` with the chest slot emptied and the
 cursor populated. Native UI rendering and broader menu interaction are not yet
 acceptance-complete.
+
+The same temporary Paper plugin sent a title, changed the player to creative,
+and changed the world difficulty after join. The Snappy probe on
+`127.0.0.1:19155` received typed Bedrock title timing/title/subtitle packets,
+game type `1`, and difficulty `3`; Paper logged a normal disconnect and the
+bridge emitted no translation errors.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while

@@ -7,7 +7,9 @@ import (
 	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/sandertv/gophertunnel/minecraft"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
 
 const (
@@ -397,4 +399,320 @@ func finiteVec3(value mgl32.Vec3) bool {
 
 func angleByte(value int8) float32 {
 	return float32(float64(value) * 360.0 / 256.0)
+}
+
+const (
+	javaGameEventNoRespawnBlock = iota
+	javaGameEventStartRaining
+	javaGameEventStopRaining
+	javaGameEventChangeGameMode
+	javaGameEventWinGame
+	javaGameEventDemoEvent
+	javaGameEventArrowHitPlayer
+	javaGameEventRainLevelChange
+	javaGameEventThunderLevelChange
+	javaGameEventPufferFishSting
+	javaGameEventGuardianElderEffect
+	javaGameEventImmediateRespawn
+)
+
+// JavaDifficulty is the wire shape of ClientboundChangeDifficultyPacket.
+type JavaDifficulty struct {
+	Difficulty uint8
+	Locked     bool
+}
+
+func DecodeJavaDifficulty(data []byte) (JavaDifficulty, error) {
+	r := javaprotocol.NewReader(data)
+	difficulty, err := r.Byte()
+	if err != nil {
+		return JavaDifficulty{}, fmt.Errorf("translate: difficulty: %w", err)
+	}
+	locked, err := r.Bool()
+	if err != nil {
+		return JavaDifficulty{}, fmt.Errorf("translate: difficulty lock: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return JavaDifficulty{}, fmt.Errorf("translate: difficulty has %d trailing bytes", r.Remaining())
+	}
+	return JavaDifficulty{Difficulty: difficulty, Locked: locked}, nil
+}
+
+// JavaGameStateChange is the wire shape of ClientboundGameEventPacket. The
+// meaning of Value is selected by Reason; keeping it as a float preserves the
+// protocol shape while allowing the translator to apply semantic bounds.
+type JavaGameStateChange struct {
+	Reason byte
+	Value  float32
+}
+
+func DecodeJavaGameStateChange(data []byte) (JavaGameStateChange, error) {
+	r := javaprotocol.NewReader(data)
+	reason, err := r.Byte()
+	if err != nil {
+		return JavaGameStateChange{}, fmt.Errorf("translate: game state reason: %w", err)
+	}
+	value, err := r.Float32()
+	if err != nil {
+		return JavaGameStateChange{}, fmt.Errorf("translate: game state value: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return JavaGameStateChange{}, fmt.Errorf("translate: game state has %d trailing bytes", r.Remaining())
+	}
+	return JavaGameStateChange{Reason: reason, Value: value}, nil
+}
+
+func DecodeJavaClearTitles(data []byte) (bool, error) {
+	r := javaprotocol.NewReader(data)
+	reset, err := r.Bool()
+	if err != nil {
+		return false, fmt.Errorf("translate: clear titles: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return false, fmt.Errorf("translate: clear titles has %d trailing bytes", r.Remaining())
+	}
+	return reset, nil
+}
+
+func DecodeJavaTitleText(data []byte) (any, error) {
+	r := javaprotocol.NewReader(data)
+	text, err := decodeJavaNBTValue(r)
+	if err != nil {
+		return nil, fmt.Errorf("translate: title text: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return nil, fmt.Errorf("translate: title text has %d trailing bytes", r.Remaining())
+	}
+	return text, nil
+}
+
+type JavaTitleTimes struct {
+	FadeIn  int32
+	Stay    int32
+	FadeOut int32
+}
+
+func DecodeJavaTitleTimes(data []byte) (JavaTitleTimes, error) {
+	r := javaprotocol.NewReader(data)
+	fadeIn, err := r.Int32()
+	if err != nil {
+		return JavaTitleTimes{}, fmt.Errorf("translate: title fade-in: %w", err)
+	}
+	stay, err := r.Int32()
+	if err != nil {
+		return JavaTitleTimes{}, fmt.Errorf("translate: title stay: %w", err)
+	}
+	fadeOut, err := r.Int32()
+	if err != nil {
+		return JavaTitleTimes{}, fmt.Errorf("translate: title fade-out: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return JavaTitleTimes{}, fmt.Errorf("translate: title times has %d trailing bytes", r.Remaining())
+	}
+	return JavaTitleTimes{FadeIn: fadeIn, Stay: stay, FadeOut: fadeOut}, nil
+}
+
+type JavaWorldEvent struct {
+	EffectID int32
+	Position gtprotocol.BlockPos
+	Data     int32
+	Global   bool
+}
+
+func DecodeJavaWorldEvent(data []byte) (JavaWorldEvent, error) {
+	r := javaprotocol.NewReader(data)
+	effectID, err := r.Int32()
+	if err != nil {
+		return JavaWorldEvent{}, fmt.Errorf("translate: world event effect: %w", err)
+	}
+	packed, err := r.Int64()
+	if err != nil {
+		return JavaWorldEvent{}, fmt.Errorf("translate: world event position: %w", err)
+	}
+	eventData, err := r.Int32()
+	if err != nil {
+		return JavaWorldEvent{}, fmt.Errorf("translate: world event data: %w", err)
+	}
+	global, err := r.Bool()
+	if err != nil {
+		return JavaWorldEvent{}, fmt.Errorf("translate: world event global flag: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return JavaWorldEvent{}, fmt.Errorf("translate: world event has %d trailing bytes", r.Remaining())
+	}
+	return JavaWorldEvent{EffectID: effectID, Position: decodeJavaPosition(packed), Data: eventData, Global: global}, nil
+}
+
+type JavaSpawnPosition struct {
+	Position gtprotocol.BlockPos
+	Angle    float32
+}
+
+func DecodeJavaSpawnPosition(data []byte) (JavaSpawnPosition, error) {
+	r := javaprotocol.NewReader(data)
+	packed, err := r.Int64()
+	if err != nil {
+		return JavaSpawnPosition{}, fmt.Errorf("translate: spawn position: %w", err)
+	}
+	angle, err := r.Float32()
+	if err != nil {
+		return JavaSpawnPosition{}, fmt.Errorf("translate: spawn angle: %w", err)
+	}
+	if r.Remaining() != 0 {
+		return JavaSpawnPosition{}, fmt.Errorf("translate: spawn position has %d trailing bytes", r.Remaining())
+	}
+	return JavaSpawnPosition{Position: decodeJavaPosition(packed), Angle: angle}, nil
+}
+
+func (b *Basic) translateJavaDifficulty(bedrock *minecraft.Conn, data []byte) error {
+	difficulty, err := DecodeJavaDifficulty(data)
+	if err != nil {
+		return err
+	}
+	value := uint32(difficulty.Difficulty)
+	if value > 3 {
+		b.logSemanticAnomaly("skipping unknown Java difficulty", "difficulty", value)
+		return nil
+	}
+	// Bedrock has no peaceful client difficulty equivalent. Geyser exposes
+	// peaceful worlds as easy so food and client-side UI remain usable while
+	// the Java server remains authoritative.
+	if value == 0 {
+		value = 1
+	}
+	return bedrock.WritePacket(&packet.SetDifficulty{Difficulty: value})
+}
+
+func (b *Basic) translateJavaGameStateChange(bedrock *minecraft.Conn, data []byte) error {
+	change, err := DecodeJavaGameStateChange(data)
+	if err != nil {
+		return err
+	}
+	if !finiteFloat32(change.Value) {
+		b.logSemanticAnomaly("skipping non-finite Java game-state value", "reason", change.Reason)
+		return nil
+	}
+	switch change.Reason {
+	case javaGameEventStartRaining:
+		return b.writeLevelEvent(bedrock, packet.LevelEventStartRaining, 0)
+	case javaGameEventStopRaining:
+		return b.writeLevelEvent(bedrock, packet.LevelEventStopRaining, 0)
+	case javaGameEventChangeGameMode:
+		mode := int32(math.Round(float64(change.Value)))
+		if mode < 0 || mode > 3 {
+			b.logSemanticAnomaly("skipping unknown Java game mode", "mode", mode)
+			return nil
+		}
+		bedrockMode := mode
+		if mode == 3 {
+			bedrockMode = packet.GameTypeSpectator
+		}
+		b.mu.Lock()
+		b.gameData.PlayerGameMode = mode
+		b.gameData.WorldGameMode = mode
+		b.mu.Unlock()
+		return bedrock.WritePacket(&packet.SetPlayerGameType{GameType: bedrockMode})
+	case javaGameEventWinGame:
+		status := int32(packet.ShowCreditsStatusStart)
+		if change.Value != 0 {
+			status = packet.ShowCreditsStatusEnd
+		}
+		return bedrock.WritePacket(&packet.ShowCredits{
+			PlayerRuntimeID: b.gameData.EntityRuntimeID,
+			StatusType:      status,
+		})
+	case javaGameEventArrowHitPlayer:
+		return b.writePlayerSound(bedrock, "random.orb", 0.5, 0.5)
+	case javaGameEventGuardianElderEffect:
+		return bedrock.WritePacket(&packet.ActorEvent{
+			EntityRuntimeID: b.gameData.EntityRuntimeID,
+			EventType:       packet.ActorEventGuardianMiningFatigue,
+		})
+	case javaGameEventImmediateRespawn:
+		return bedrock.WritePacket(&packet.GameRulesChanged{GameRules: []gtprotocol.GameRule{{
+			Name:  "doimmediaterespawn",
+			Value: change.Value != 0,
+		}}})
+	case javaGameEventRainLevelChange, javaGameEventThunderLevelChange:
+		b.logSemanticAnomaly("Java weather strength has no direct Bedrock packet in this slice", "reason", change.Reason, "value", change.Value)
+		return nil
+	default:
+		b.logSemanticAnomaly("skipping unsupported Java game-state reason", "reason", change.Reason)
+		return nil
+	}
+}
+
+func (b *Basic) writeLevelEvent(bedrock *minecraft.Conn, eventType, data int32) error {
+	b.mu.Lock()
+	position := mgl32.Vec3{float32(b.position.x), float32(b.position.y), float32(b.position.z)}
+	b.mu.Unlock()
+	return bedrock.WritePacket(&packet.LevelEvent{EventType: eventType, Position: position, EventData: data})
+}
+
+func (b *Basic) writePlayerSound(bedrock *minecraft.Conn, name string, volume, pitch float32) error {
+	b.mu.Lock()
+	position := mgl32.Vec3{float32(b.position.x), float32(b.position.y), float32(b.position.z)}
+	b.mu.Unlock()
+	return bedrock.WritePacket(&packet.PlaySound{SoundName: name, Position: position, Volume: volume, Pitch: pitch})
+}
+
+func (b *Basic) translateJavaClearTitles(bedrock *minecraft.Conn, data []byte) error {
+	reset, err := DecodeJavaClearTitles(data)
+	if err != nil {
+		return err
+	}
+	action := int32(packet.TitleActionClear)
+	if reset {
+		action = packet.TitleActionReset
+	}
+	return bedrock.WritePacket(&packet.SetTitle{ActionType: action})
+}
+
+func (b *Basic) translateJavaTitleText(bedrock *minecraft.Conn, data []byte, action int32) error {
+	value, err := DecodeJavaTitleText(data)
+	if err != nil {
+		return err
+	}
+	text := JavaTextComponentText(value)
+	if text == "" {
+		text = " "
+	}
+	return bedrock.WritePacket(&packet.SetTitle{ActionType: action, Text: text})
+}
+
+func (b *Basic) translateJavaTitleTimes(bedrock *minecraft.Conn, data []byte) error {
+	times, err := DecodeJavaTitleTimes(data)
+	if err != nil {
+		return err
+	}
+	if times.FadeIn < 0 || times.Stay < 0 || times.FadeOut < 0 {
+		b.logSemanticAnomaly("skipping negative Java title duration")
+		return nil
+	}
+	return bedrock.WritePacket(&packet.SetTitle{
+		ActionType:      packet.TitleActionSetDurations,
+		FadeInDuration:  times.FadeIn,
+		RemainDuration:  times.Stay,
+		FadeOutDuration: times.FadeOut,
+	})
+}
+
+func (b *Basic) translateJavaSpawnPosition(bedrock *minecraft.Conn, data []byte) error {
+	spawn, err := DecodeJavaSpawnPosition(data)
+	if err != nil {
+		return err
+	}
+	if !finiteFloat32(spawn.Angle) {
+		b.logSemanticAnomaly("skipping Java spawn position with non-finite angle")
+		return nil
+	}
+	b.mu.Lock()
+	dimension := b.gameData.Dimension
+	b.mu.Unlock()
+	return bedrock.WritePacket(&packet.SetSpawnPosition{
+		SpawnType:     packet.SpawnTypeWorld,
+		Position:      spawn.Position,
+		Dimension:     dimension,
+		SpawnPosition: spawn.Position,
+	})
 }

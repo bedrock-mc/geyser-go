@@ -295,6 +295,19 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 			return err
 		}
 		return java.Conn.WritePacket(b.Profile.PlayServerboundKeepAlivePacketID, javaprotocol.EncodeLongPayload(value))
+	case b.Profile.PlayClientboundDifficultyID:
+		return b.translateJavaDifficulty(bedrock, pk.Data)
+	case b.Profile.PlayClientboundClearTitlesID:
+		return b.translateJavaClearTitles(bedrock, pk.Data)
+	case b.Profile.PlayClientboundGameStateChangeID:
+		return b.translateJavaGameStateChange(bedrock, pk.Data)
+	case b.Profile.PlayClientboundWorldEventID:
+		event, err := DecodeJavaWorldEvent(pk.Data)
+		if err != nil {
+			return err
+		}
+		b.logSemanticAnomaly("skipping Java world event without a versioned effect mapping", "effect", event.EffectID)
+		return nil
 	case b.Profile.PlayClientboundPositionPacketID:
 		position, err := DecodePositionUpdate(pk.Data)
 		if err != nil {
@@ -454,6 +467,14 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		return b.translateSetSlot(bedrock, JavaSetSlot{
 			WindowID: 0, Slot: int16(update.Slot), Item: update.Item.Item, Known: update.Item.Known,
 		})
+	case b.Profile.PlayClientboundSpawnPositionID:
+		return b.translateJavaSpawnPosition(bedrock, pk.Data)
+	case b.Profile.PlayClientboundSetTitleSubtitleID:
+		return b.translateJavaTitleText(bedrock, pk.Data, packet.TitleActionSetSubtitle)
+	case b.Profile.PlayClientboundSetTitleTextID:
+		return b.translateJavaTitleText(bedrock, pk.Data, packet.TitleActionSetTitle)
+	case b.Profile.PlayClientboundSetTitleTimeID:
+		return b.translateJavaTitleTimes(bedrock, pk.Data)
 	case b.Profile.PlayClientboundPlayerInfoID:
 		info, err := DecodePlayerInfoUpdate(pk.Data)
 		if err != nil {
