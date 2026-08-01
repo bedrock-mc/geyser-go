@@ -51,6 +51,57 @@ func TestDecodeEntityMetadataSkipsUnsupportedRegistryPayload(t *testing.T) {
 	}
 }
 
+func TestDecodeJava1214EntityMetadataTypes(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(11)
+	_ = w.Byte(7)
+	_ = w.VarInt(19) // villager data
+	_ = w.VarInt(1)
+	_ = w.VarInt(2)
+	_ = w.VarInt(3)
+	_ = w.Byte(8)
+	_ = w.VarInt(26) // custom painting variant holder
+	_ = w.VarInt(0)
+	_ = w.VarInt(2)
+	_ = w.VarInt(1)
+	_ = w.String("minecraft:kebab")
+	_ = w.Bool(false)
+	_ = w.Bool(false)
+	_ = w.Byte(0xff)
+
+	metadata, err := DecodeEntityMetadata(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(metadata.Entries) != 2 {
+		t.Fatalf("metadata entries = %#v", metadata.Entries)
+	}
+	if got, ok := metadata.Entries[0].Value.([]int32); !ok || len(got) != 3 || got[2] != 3 {
+		t.Fatalf("villager metadata = %#v", metadata.Entries[0].Value)
+	}
+	painting, ok := metadata.Entries[1].Value.(JavaPaintingVariant)
+	if !ok || !painting.Custom || painting.Width != 2 || painting.Height != 1 || painting.AssetID != "minecraft:kebab" {
+		t.Fatalf("painting metadata = %#v, ok=%v", metadata.Entries[1].Value, ok)
+	}
+}
+
+func TestDecodeJava1214OptionalBlockStateIsDirectVarInt(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(3)
+	_ = w.Byte(9)
+	_ = w.VarInt(15)
+	_ = w.VarInt(42)
+	_ = w.Byte(0xff)
+
+	metadata, err := DecodeEntityMetadata(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, ok := metadata.Entries[0].Value.(int32); !ok || value != 42 {
+		t.Fatalf("optional block state = %#v", metadata.Entries[0].Value)
+	}
+}
+
 func TestDecodeItemEntityMetadataProjectsItemStack(t *testing.T) {
 	w := javaprotocol.NewWriter()
 	_ = w.VarInt(11)

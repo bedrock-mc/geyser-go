@@ -43,6 +43,7 @@ type Basic struct {
 	dimensionIDs          map[string]int32
 	dimensionLayouts      map[int32]javaDimensionLayout
 	biomeRuntimeIDs       []uint32
+	paintings             []javaPaintingDefinition
 	position              javaPosition
 	playerItems           [46]gtprotocol.ItemInstance
 	cursorItem            gtprotocol.ItemInstance
@@ -76,17 +77,21 @@ type javaPosition struct {
 }
 
 type javaEntityState struct {
-	runtimeID  uint64
-	entityType string
-	position   mgl32.Vec3
-	rotation   mgl32.Vec3 // pitch, yaw, head yaw
-	velocity   mgl32.Vec3
-	item       gtprotocol.ItemInstance
-	hasItem    bool
-	equipment  [6]gtprotocol.ItemInstance
-	metadata   gtprotocol.EntityMetadata
-	player     bool
-	playerUUID [16]byte
+	runtimeID         uint64
+	entityType        string
+	position          mgl32.Vec3
+	rotation          mgl32.Vec3 // pitch, yaw, head yaw
+	velocity          mgl32.Vec3
+	item              gtprotocol.ItemInstance
+	hasItem           bool
+	painting          JavaPaintingVariant
+	hasPainting       bool
+	paintingDirection int32
+	paintingSpawned   bool
+	equipment         [6]gtprotocol.ItemInstance
+	metadata          gtprotocol.EntityMetadata
+	player            bool
+	playerUUID        [16]byte
 }
 
 func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
@@ -150,6 +155,7 @@ func (b *Basic) Bootstrap(ctx context.Context, bedrock *minecraft.Conn, java *ja
 			b.dimensionIDs = catalog.IDs
 			b.dimensionLayouts = catalog.Layouts
 			b.biomeRuntimeIDs = catalog.BiomeRuntimeIDs
+			b.paintings = javaPaintingCatalog(java.Configuration)
 			b.gameData = gameData
 			b.position = javaPosition{
 				x:   float64(b.gameData.PlayerPosition.X()),
@@ -927,6 +933,24 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		b.logSemanticAnomaly("skipping Java item entity metadata with an empty or unknown item", "entity", update.EntityID)
 		hasItemUpdate = false
 	}
+	var paintingUpdate JavaPaintingVariant
+	hasPaintingUpdate := false
+	var paintingDirectionUpdate int32 = 3 // Java's default hanging direction is SOUTH.
+	hasDirectionUpdate := false
+	for _, entry := range update.Entries {
+		switch entry.Type {
+		case 12:
+			if value, ok := entry.Value.(int32); ok {
+				paintingDirectionUpdate = value
+				hasDirectionUpdate = true
+			}
+		case 26:
+			if value, ok := entry.Value.(JavaPaintingVariant); ok {
+				paintingUpdate = value
+				hasPaintingUpdate = true
+			}
+		}
+	}
 	b.mu.Lock()
 	entity := b.entities[update.EntityID]
 	if entity == nil {
@@ -956,6 +980,25 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		itemCountChanged = hadItem && itemChanged && sameProjectedItemExceptCount(previousItem, item)
 		entity.item = item
 		entity.hasItem = true
+	}
+	paintingChanged := false
+	directionChanged := false
+	currentPainting := entity.painting
+	currentPaintingDirection := entity.paintingDirection
+	paintingSpawned := entity.paintingSpawned
+	if entityType == "minecraft:painting" {
+		if hasPaintingUpdate {
+			paintingChanged = !entity.hasPainting || entity.painting != paintingUpdate
+			entity.painting = paintingUpdate
+			entity.hasPainting = true
+		}
+		if hasDirectionUpdate {
+			directionChanged = entity.paintingDirection != paintingDirectionUpdate
+			entity.paintingDirection = paintingDirectionUpdate
+		}
+		currentPainting = entity.painting
+		currentPaintingDirection = entity.paintingDirection
+		paintingSpawned = entity.paintingSpawned
 	}
 	b.mu.Unlock()
 	if entityType == "minecraft:item" {
@@ -992,6 +1035,39 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		if !hadItem {
 			return nil
 		}
+	}
+	if entityType == "minecraft:painting" {
+		if !hasPaintingUpdate && !hasDirectionUpdate {
+			return nil
+		}
+		if !paintingChanged && !directionChanged && paintingSpawned {
+			return nil
+		}
+		definition, ok := b.paintingDefinition(currentPainting)
+		if !ok {
+			b.logSemanticAnomaly("skipping Java painting with no valid Bedrock motive", "entity", update.EntityID)
+			return nil
+		}
+		if paintingSpawned {
+			if err := bedrock.WritePacket(&packet.RemoveActor{EntityUniqueID: int64(update.EntityID)}); err != nil {
+				return err
+			}
+		}
+		if err := bedrock.WritePacket(&packet.AddPainting{
+			EntityUniqueID:  int64(update.EntityID),
+			EntityRuntimeID: runtimeID,
+			Position:        javaPaintingPosition(position, currentPaintingDirection, definition.Width, definition.Height),
+			Direction:       javaPaintingDirection(currentPaintingDirection),
+			Title:           definition.Motive,
+		}); err != nil {
+			return err
+		}
+		b.mu.Lock()
+		if entity := b.entities[update.EntityID]; entity != nil {
+			entity.paintingSpawned = true
+		}
+		b.mu.Unlock()
+		return nil
 	}
 	if len(merged) == 0 {
 		return nil
@@ -1056,19 +1132,20 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 	metadata := gtprotocol.NewEntityMetadata()
 	b.mu.Lock()
 	entity := &javaEntityState{
-		runtimeID:  runtimeID,
-		entityType: entityType,
-		position:   spawn.Position,
-		rotation:   mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
-		velocity:   spawn.Velocity,
-		metadata:   metadata,
+		runtimeID:         runtimeID,
+		entityType:        entityType,
+		position:          spawn.Position,
+		rotation:          mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
+		velocity:          spawn.Velocity,
+		paintingDirection: 3, // Java Direction.SOUTH, the hanging-entity default.
+		metadata:          metadata,
 	}
 	b.entities[spawn.EntityID] = entity
 	b.mu.Unlock()
-	if entityType == "minecraft:item" {
-		// Java sends the item stack in the following metadata packet. Bedrock
-		// has a dedicated AddItemActor packet, so wait until that stack is
-		// available instead of emitting an invalid generic actor.
+	if entityType == "minecraft:item" || entityType == "minecraft:painting" {
+		// Java sends the item/painting-specific state in following metadata
+		// packets. Bedrock has dedicated actor packets for both, so wait until
+		// that state is available instead of emitting a generic actor.
 		return nil
 	}
 	return bedrock.WritePacket(&packet.AddActor{

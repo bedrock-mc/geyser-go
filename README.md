@@ -43,9 +43,12 @@ protocol parity.
   common custom NBT, names/lore, durability, enchantments, glint, repair cost,
   dyed colors, and map IDs into Gophertunnel item stacks. Behavior-heavy item
   components, arbitrary container windows, Java skin properties, and richer
-  entity-specific behavior are also still open. Dropped Java item entities use
-  Bedrock's dedicated item-actor packet and typed stack-count updates; pickup,
-  merge, and broader entity-specific behavior are still open. Common
+  entity-specific behavior are also still open. The bounded entity-metadata
+  decoder follows the pinned Java 1.21.4 registry, dropped Java item entities
+  use Bedrock's dedicated item-actor packet and typed stack-count updates, and
+  paintings use `AddPainting` with negotiated variant order and direction
+  offsets. Pickup, merge, interaction, and broader entity-specific behavior are
+  still open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
   swap/drop plus mine-stack validation) now map to Java 1.21.4 hashed
   container-click packets, with cursor/state tracking, typed Bedrock responses,
@@ -287,6 +290,11 @@ The temporary Paper entity fixture also dropped a diamond stack and changed its
 count. The Snappy probe on `127.0.0.1:19171` received typed `AddItemActor`
 packets and clean item removals; this is an automated actor-projection result,
 not full item-entity parity or native rendering evidence.
+
+The same fixture spawned Kebab and Pool paintings. The Snappy probe on
+`127.0.0.1:19172` received typed `AddPainting` packets for both motives,
+including the variant update, with no bridge translation error. Painting
+interaction, custom motive assets, and native rendering remain open.
 
 ## Local checks
 

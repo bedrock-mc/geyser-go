@@ -227,6 +227,12 @@ func main() {
 				fmt.Printf("Bedrock scoreboard remove: objective=%q\n", pk.ObjectiveName)
 			case *packet.SetActorLink:
 				fmt.Printf("Bedrock actor link: ridden=%d rider=%d type=%d immediate=%t riderInitiated=%t\n", pk.EntityLink.RiddenEntityUniqueID, pk.EntityLink.RiderEntityUniqueID, pk.EntityLink.Type, pk.EntityLink.Immediate, pk.EntityLink.RiderInitiated)
+			case *packet.AddActor:
+				fmt.Printf("Bedrock actor add: type=%q runtime=%d position=%v\n", pk.EntityType, pk.EntityRuntimeID, pk.Position)
+			case *packet.AddPainting:
+				fmt.Printf("Bedrock painting add: title=%q runtime=%d direction=%d position=%v\n", pk.Title, pk.EntityRuntimeID, pk.Direction, pk.Position)
+			case *packet.AddItemActor:
+				fmt.Printf("Bedrock item add: runtime=%d item=%d count=%d position=%v\n", pk.EntityRuntimeID, pk.Item.Stack.NetworkID, pk.Item.Stack.Count, pk.Position)
 			case *packet.ActorEvent:
 				fmt.Printf("Bedrock actor event: entity=%d type=%d data=%d\n", pk.EntityRuntimeID, pk.EventType, pk.EventData)
 			case *packet.TakeItemActor:

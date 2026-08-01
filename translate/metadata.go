@@ -22,6 +22,25 @@ type JavaEntityMetadataEntry struct {
 	Value any
 }
 
+// JavaGlobalPos is the bounded representation of Java's optional global
+// position metadata. The dimension key is retained even though the current
+// Bedrock actor metadata projection does not consume it.
+type JavaGlobalPos struct {
+	Dimension string
+	Position  gtprotocol.BlockPos
+}
+
+// JavaPaintingVariant is the holder form used by 1.21.4 painting metadata.
+// Registry references carry only an ordinal; custom holders additionally carry
+// the dimensions and asset key needed to project an AddPainting packet.
+type JavaPaintingVariant struct {
+	RegistryID int32
+	Width      int32
+	Height     int32
+	AssetID    string
+	Custom     bool
+}
+
 func DecodeEntityMetadata(payload []byte, nextStackID func() int32) (JavaEntityMetadata, error) {
 	r := javaprotocol.NewReader(payload)
 	entityID, err := r.VarInt()
@@ -127,7 +146,9 @@ func decodeJavaEntityMetadataValue(r *javaprotocol.Reader, typeID int32, nextSta
 		return uuid, nil
 	case 14: // block state
 		return r.VarInt()
-	case 15, 20: // optional block state / optional unsigned int
+	case 15: // optional block state (the 1.21.4 wire type is a direct VarInt)
+		return r.VarInt()
+	case 20: // optional unsigned int
 		value, err := r.VarInt()
 		if err != nil {
 			return nil, err
@@ -136,10 +157,10 @@ func decodeJavaEntityMetadataValue(r *javaprotocol.Reader, typeID int32, nextSta
 			return nil, nil
 		}
 		return value - 1, nil
-	case 17, 18, 23, 25, 26:
-		// These values contain registry-dependent particle/variant/global-position
-		// payloads. Their packet is skipped as a unit until the active registry
-		// translator is available; the framed Java session remains usable.
+	case 17, 18, 23: // particle, particle list, and wolf variant
+		// These metadata values contain registry-dependent payloads. The
+		// enclosing packet is skipped until the active registry translators are
+		// available; the framed Java session remains usable.
 		return nil, fmt.Errorf("%w: type=%d", ErrUnsupportedJavaEntityMetadata, typeID)
 	case 19: // villager data
 		values := make([]int32, 3)
@@ -153,6 +174,52 @@ func decodeJavaEntityMetadataValue(r *javaprotocol.Reader, typeID int32, nextSta
 		return values, nil
 	case 21, 22, 24, 27, 28: // pose/cat/frog/sniffer/armadillo state
 		return r.VarInt()
+	case 25: // optional global position
+		present, err := r.Bool()
+		if err != nil || !present {
+			return nil, err
+		}
+		dimension, err := r.String()
+		if err != nil {
+			return nil, err
+		}
+		packed, err := r.Int64()
+		if err != nil {
+			return nil, err
+		}
+		return JavaGlobalPos{Dimension: dimension, Position: decodeJavaPosition(packed)}, nil
+	case 26: // painting variant holder
+		selector, err := r.VarInt()
+		if err != nil {
+			return nil, err
+		}
+		if selector != 0 {
+			return JavaPaintingVariant{RegistryID: selector - 1}, nil
+		}
+		width, err := r.VarInt()
+		if err != nil {
+			return nil, err
+		}
+		height, err := r.VarInt()
+		if err != nil {
+			return nil, err
+		}
+		assetID, err := r.String()
+		if err != nil {
+			return nil, err
+		}
+		for _, field := range []string{"painting title", "painting author"} {
+			present, readErr := r.Bool()
+			if readErr != nil {
+				return nil, readErr
+			}
+			if present {
+				if _, readErr = decodeJavaNBTValue(r); readErr != nil {
+					return nil, fmt.Errorf("%s: %w", field, readErr)
+				}
+			}
+		}
+		return JavaPaintingVariant{Width: width, Height: height, AssetID: assetID, Custom: true}, nil
 	case 29: // vector3
 		x, err := r.Float32()
 		if err != nil {

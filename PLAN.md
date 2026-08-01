@@ -38,6 +38,10 @@ native Bedrock validation, and performance evidence are separate gates.
   packet, including delayed stack metadata, count-only actor events, and
   changed-stack remove/re-add behavior; cover the item metadata codec and a
   live Snappy Paper readback.
+- [x] Align the bounded entity-metadata decoder with the pinned Java 1.21.4
+  metadata registry and project Java painting variants through Bedrock's
+  dedicated `AddPainting` packet, including negotiated registry order,
+  direction, offsets, and variant changes; cover a live Kebab/Pool fixture.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -165,10 +169,11 @@ reconciliation remain open. The inventory slice covers the Java player window
 and the initial mapped common-menu path, and safely skips updates containing
 components whose behavior it cannot yet project. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
-and player-list/player-actor packets are present. Dropped-item entities now have
-a dedicated item-actor path with stack-count updates, but entity-specific
-metadata, Java skin properties, equipment fidelity, and animation are not yet
-parity-complete. Common Java menu open/close/content packets now have a
+and player-list/player-actor packets are present. The pinned 1.21.4 entity
+metadata registry is decoded, dropped-item entities have a dedicated item-actor
+path with stack-count updates, and paintings have a typed `AddPainting` path;
+broader entity-specific metadata, Java skin properties, equipment fidelity, and
+animation are not yet parity-complete. Common Java menu open/close/content packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration. Java difficulty, game-state
@@ -295,3 +300,8 @@ count after spawn. A fresh Snappy probe on `127.0.0.1:19171` observed typed
 `AddItemActor` packets and item removals with no bridge translation error. This
 closes only the dropped-item actor projection; item pickup, merge physics,
 per-entity metadata, and native Bedrock rendering remain open.
+
+The same Paper fixture spawned Kebab and Pool paintings, then the Snappy probe
+on `127.0.0.1:19172` observed typed `AddPainting` packets for both motives,
+including the variant update, with no bridge translation error. Painting
+interaction, custom motive assets, and native rendering remain open.
