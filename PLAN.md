@@ -34,6 +34,10 @@ native Bedrock validation, and performance evidence are separate gates.
 - [x] Forward Java entity velocity/equipment, held-slot/player-inventory
   updates, generic entity metadata, and the Java player-info/list lifecycle to
   typed Bedrock actor packets; cover bounded decoders and a live Paper readback.
+- [x] Project Java dropped-item entities through Bedrock's dedicated item-actor
+  packet, including delayed stack metadata, count-only actor events, and
+  changed-stack remove/re-add behavior; cover the item metadata codec and a
+  live Snappy Paper readback.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -161,9 +165,10 @@ reconciliation remain open. The inventory slice covers the Java player window
 and the initial mapped common-menu path, and safely skips updates containing
 components whose behavior it cannot yet project. Generic
 block-entity identity/coordinates, flags/name/pose metadata,
-and player-list/player-actor packets are present, but entity-specific metadata,
-Java skin properties, item actors, equipment fidelity, and animation are not
-yet parity-complete. Common Java menu open/close/content packets now have a
+and player-list/player-actor packets are present. Dropped-item entities now have
+a dedicated item-actor path with stack-count updates, but entity-specific
+metadata, Java skin properties, equipment fidelity, and animation are not yet
+parity-complete. Common Java menu open/close/content packets now have a
 virtual-holder path, and the generic mapped-window stack-request path is
 live-tested; Bedrock window interaction is still incomplete for unsupported
 menus, properties, recipes, and holder restoration. Java difficulty, game-state
@@ -284,3 +289,9 @@ prefix/suffix. The Snappy probe observed the typed Bedrock display objective and
 fake-player score entries for `[P] First line!` and `Second line`, including the
 score update path, with no bridge translation error. Native HUD rendering and
 full scoreboard styling/name-tag semantics remain open.
+
+The temporary Paper entity fixture dropped a stack of diamonds and changed its
+count after spawn. A fresh Snappy probe on `127.0.0.1:19171` observed typed
+`AddItemActor` packets and item removals with no bridge translation error. This
+closes only the dropped-item actor projection; item pickup, merge physics,
+per-entity metadata, and native Bedrock rendering remain open.

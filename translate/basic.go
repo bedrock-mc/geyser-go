@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -79,6 +80,9 @@ type javaEntityState struct {
 	entityType string
 	position   mgl32.Vec3
 	rotation   mgl32.Vec3 // pitch, yaw, head yaw
+	velocity   mgl32.Vec3
+	item       gtprotocol.ItemInstance
+	hasItem    bool
 	equipment  [6]gtprotocol.ItemInstance
 	metadata   gtprotocol.EntityMetadata
 	player     bool
@@ -590,6 +594,9 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		}
 		b.mu.Lock()
 		entity := b.entities[velocity.EntityID]
+		if entity != nil {
+			entity.velocity = velocity.Velocity
+		}
 		b.mu.Unlock()
 		if entity == nil {
 			return nil
@@ -904,6 +911,22 @@ func (b *Basic) translateEntityEquipment(bedrock *minecraft.Conn, update JavaEnt
 
 func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEntityMetadata) error {
 	metadata := translateGenericEntityMetadata(update.Entries)
+	var item gtprotocol.ItemInstance
+	hasItemUpdate := false
+	for _, entry := range update.Entries {
+		if entry.Index != 8 {
+			continue
+		}
+		value, ok := entry.Value.(gtprotocol.ItemInstance)
+		if ok {
+			item = value
+			hasItemUpdate = true
+		}
+	}
+	if hasItemUpdate && (item.Stack.Count == 0 || item.Stack.ItemType.NetworkID == 0) {
+		b.logSemanticAnomaly("skipping Java item entity metadata with an empty or unknown item", "entity", update.EntityID)
+		hasItemUpdate = false
+	}
 	b.mu.Lock()
 	entity := b.entities[update.EntityID]
 	if entity == nil {
@@ -921,11 +944,76 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		merged[key] = value
 	}
 	runtimeID := entity.runtimeID
+	entityType := entity.entityType
+	position := entity.position
+	velocity := entity.velocity
+	previousItem := entity.item
+	hadItem := entity.hasItem
+	itemChanged := false
+	itemCountChanged := false
+	if entityType == "minecraft:item" && hasItemUpdate {
+		itemChanged = !hadItem || !sameProjectedItem(previousItem, item)
+		itemCountChanged = hadItem && itemChanged && sameProjectedItemExceptCount(previousItem, item)
+		entity.item = item
+		entity.hasItem = true
+	}
 	b.mu.Unlock()
+	if entityType == "minecraft:item" {
+		if hasItemUpdate && (!hadItem || itemChanged) {
+			if !hadItem {
+				return bedrock.WritePacket(&packet.AddItemActor{
+					EntityUniqueID:  int64(update.EntityID),
+					EntityRuntimeID: runtimeID,
+					Item:            item,
+					Position:        position,
+					Velocity:        velocity,
+					EntityMetadata:  merged,
+				})
+			}
+			if itemCountChanged {
+				return bedrock.WritePacket(&packet.ActorEvent{
+					EntityRuntimeID: runtimeID,
+					EventType:       packet.ActorEventUpdateStackSize,
+					EventData:       int32(item.Stack.Count),
+				})
+			}
+			if err := bedrock.WritePacket(&packet.RemoveActor{EntityUniqueID: int64(update.EntityID)}); err != nil {
+				return err
+			}
+			return bedrock.WritePacket(&packet.AddItemActor{
+				EntityUniqueID:  int64(update.EntityID),
+				EntityRuntimeID: runtimeID,
+				Item:            item,
+				Position:        position,
+				Velocity:        velocity,
+				EntityMetadata:  merged,
+			})
+		}
+		if !hadItem {
+			return nil
+		}
+	}
+	if len(merged) == 0 {
+		return nil
+	}
 	return bedrock.WritePacket(&packet.SetActorData{
 		EntityRuntimeID: runtimeID,
 		EntityMetadata:  merged,
 	})
+}
+
+func sameProjectedItem(a, b gtprotocol.ItemInstance) bool {
+	a.StackNetworkID = 0
+	b.StackNetworkID = 0
+	return reflect.DeepEqual(a, b)
+}
+
+func sameProjectedItemExceptCount(a, b gtprotocol.ItemInstance) bool {
+	a.StackNetworkID = 0
+	b.StackNetworkID = 0
+	a.Stack.Count = 0
+	b.Stack.Count = 0
+	return reflect.DeepEqual(a, b)
 }
 
 func javaPlayerSlot(slot int16) (containerID byte, bedrockSlot uint32, ok bool) {
@@ -972,10 +1060,17 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 		entityType: entityType,
 		position:   spawn.Position,
 		rotation:   mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
+		velocity:   spawn.Velocity,
 		metadata:   metadata,
 	}
 	b.entities[spawn.EntityID] = entity
 	b.mu.Unlock()
+	if entityType == "minecraft:item" {
+		// Java sends the item stack in the following metadata packet. Bedrock
+		// has a dedicated AddItemActor packet, so wait until that stack is
+		// available instead of emitting an invalid generic actor.
+		return nil
+	}
 	return bedrock.WritePacket(&packet.AddActor{
 		EntityUniqueID:  int64(spawn.EntityID),
 		EntityRuntimeID: runtimeID,
@@ -1112,6 +1207,9 @@ func (b *Basic) translateEntityDestroy(bedrock *minecraft.Conn, payload []byte) 
 		delete(b.passengers, id)
 		b.mu.Unlock()
 		if entity == nil {
+			continue
+		}
+		if entity.entityType == "minecraft:item" && !entity.hasItem {
 			continue
 		}
 		if err := bedrock.WritePacket(&packet.RemoveActor{EntityUniqueID: int64(id)}); err != nil {

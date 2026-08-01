@@ -43,7 +43,9 @@ protocol parity.
   common custom NBT, names/lore, durability, enchantments, glint, repair cost,
   dyed colors, and map IDs into Gophertunnel item stacks. Behavior-heavy item
   components, arbitrary container windows, Java skin properties, and richer
-  entity-specific behavior are also still open. Common
+  entity-specific behavior are also still open. Dropped Java item entities use
+  Bedrock's dedicated item-actor packet and typed stack-count updates; pickup,
+  merge, and broader entity-specific behavior are still open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
   swap/drop plus mine-stack validation) now map to Java 1.21.4 hashed
   container-click packets, with cursor/state tracking, typed Bedrock responses,
@@ -278,8 +280,13 @@ This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while
 native terrain rendering, lighting, type-specific block-entity transforms,
 behavior-heavy item components, arbitrary inventory windows, complex transaction state, Java skin fidelity,
-entity-specific metadata, target-specific interaction semantics, and the rest of
+entity-specific metadata, item pickup/merge behavior, target-specific interaction semantics, and the rest of
 the Geyser gameplay translators are still open acceptance work.
+
+The temporary Paper entity fixture also dropped a diamond stack and changed its
+count. The Snappy probe on `127.0.0.1:19171` received typed `AddItemActor`
+packets and clean item removals; this is an automated actor-projection result,
+not full item-entity parity or native rendering evidence.
 
 ## Local checks
 
