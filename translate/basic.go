@@ -975,6 +975,36 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		b.mu.Unlock()
 		return nil
 	}
+	entityType := entity.entityType
+	if !hasEntityMetadataEntry(update.Entries, 0) {
+		delete(metadata, gtprotocol.EntityDataKeyFlags)
+		delete(metadata, gtprotocol.EntityDataKeyFlagsTwo)
+		delete(metadata, gtprotocol.EntityDataKeyPlayerFlags)
+	}
+	specialMetadata := translateSpecialEntityMetadata(entityType, update.Entries)
+	if specialFlags, ok := specialMetadata[gtprotocol.EntityDataKeyFlags].(int64); ok {
+		currentFlags, _ := entity.metadata[gtprotocol.EntityDataKeyFlags].(int64)
+		if entityType == "minecraft:end_crystal" || entityType == "minecraft:ender_crystal" {
+			for _, entry := range update.Entries {
+				if entry.Index != 9 {
+					continue
+				}
+				if showBottom, ok := entry.Value.(bool); ok {
+					if showBottom {
+						specialFlags = currentFlags | (int64(1) << gtprotocol.EntityDataFlagShowBottom)
+					} else {
+						specialFlags = currentFlags &^ (int64(1) << gtprotocol.EntityDataFlagShowBottom)
+					}
+				}
+			}
+		} else {
+			specialFlags |= currentFlags
+		}
+		specialMetadata[gtprotocol.EntityDataKeyFlags] = specialFlags
+	}
+	for key, value := range specialMetadata {
+		metadata[key] = value
+	}
 	if entity.metadata == nil {
 		entity.metadata = gtprotocol.NewEntityMetadata()
 	}
@@ -986,7 +1016,6 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		merged[key] = value
 	}
 	runtimeID := entity.runtimeID
-	entityType := entity.entityType
 	position := entity.position
 	velocity := entity.velocity
 	previousItem := entity.item
@@ -1181,6 +1210,7 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 	if entityType == "minecraft:player" {
 		return b.translatePlayerSpawn(bedrock, spawn)
 	}
+	position := javaEntitySpawnPosition(entityType, spawn.Position)
 	runtimeID := uint64(uint32(spawn.EntityID))
 	metadata, projectable := javaSpawnEntityProjection(entityType, spawn.ObjectData)
 	if !projectable {
@@ -1195,7 +1225,7 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 	entity := &javaEntityState{
 		runtimeID:         runtimeID,
 		entityType:        entityType,
-		position:          spawn.Position,
+		position:          position,
 		rotation:          mgl32.Vec3{spawn.Pitch, spawn.Yaw, spawn.HeadYaw},
 		velocity:          spawn.Velocity,
 		paintingDirection: 3, // Java Direction.SOUTH, the hanging-entity default.
@@ -1225,18 +1255,28 @@ func (b *Basic) translateSpawnEntity(bedrock *minecraft.Conn, payload []byte) er
 		// that state is available instead of emitting a generic actor.
 		return nil
 	}
-	return bedrock.WritePacket(&packet.AddActor{
+	if err := bedrock.WritePacket(&packet.AddActor{
 		EntityUniqueID:  int64(spawn.EntityID),
 		EntityRuntimeID: runtimeID,
-		EntityType:      entityType,
-		Position:        spawn.Position,
+		EntityType:      bedrockEntityType(entityType),
+		Position:        position,
 		Velocity:        spawn.Velocity,
 		Pitch:           spawn.Pitch,
 		Yaw:             spawn.Yaw,
 		HeadYaw:         spawn.HeadYaw,
 		BodyYaw:         spawn.Yaw,
 		EntityMetadata:  metadata,
-	})
+	}); err != nil {
+		return err
+	}
+	if entityType == "minecraft:lightning_bolt" {
+		for _, sound := range javaLightningSounds(position) {
+			if err := bedrock.WritePacket(&sound); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (b *Basic) translateEntityTeleport(bedrock *minecraft.Conn, payload []byte) error {

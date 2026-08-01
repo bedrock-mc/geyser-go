@@ -52,6 +52,9 @@ protocol parity.
   Experience orbs and falling blocks receive their special Bedrock actor
   metadata, including complete Java block-state mapping for falling blocks;
   owned fishing-hook metadata is projected and covered by focused tests.
+  Bedrock identifier overrides and special metadata are also projected for
+  End Crystals, Area Effect Clouds, primed TNT, and Lightning sounds; wider
+  entity metadata coverage remains open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
@@ -313,6 +316,13 @@ Bedrock `SpawnExperienceOrb` amount and a `minecraft:falling_block` actor with
 display-tile runtime 2706, with no bridge translation error. Fishing-hook
 projection is unit-tested; a live fishing-hook fixture plus native rendering
 and interaction remain open.
+
+The same fixture spawned an End Crystal, Area Effect Cloud, primed TNT, and
+Lightning. The Snappy probe on `127.0.0.1:19178` received the Bedrock
+`ender_crystal` identifier with fire-immunity/block-target metadata, cloud
+defaults plus a radius update, TNT fuse/ignited metadata updates, and both
+Lightning sound packets, with no bridge translation error. Native rendering,
+interaction, and the broader entity metadata matrix remain open.
 
 ## Local checks
 

@@ -4,8 +4,72 @@ import (
 	"testing"
 
 	"github.com/bedrock-mc/geyser-go/data"
+	"github.com/go-gl/mathgl/mgl32"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 )
+
+func TestBedrockEntityTypeOverrides(t *testing.T) {
+	cases := map[string]string{
+		"minecraft:end_crystal":       "minecraft:ender_crystal",
+		"minecraft:ender_crystal":     "minecraft:ender_crystal",
+		"minecraft:evoker_fangs":      "minecraft:evocation_fang",
+		"minecraft:experience_bottle": "minecraft:xp_bottle",
+		"minecraft:eye_of_ender":      "minecraft:eye_of_ender_signal",
+		"minecraft:firework_rocket":   "minecraft:fireworks_rocket",
+		"minecraft:fishing_bobber":    "minecraft:fishing_hook",
+		"minecraft:trident":           "minecraft:thrown_trident",
+		"minecraft:villager":          "minecraft:villager_v2",
+	}
+	for javaType, want := range cases {
+		if got := bedrockEntityType(javaType); got != want {
+			t.Errorf("bedrockEntityType(%q) = %q, want %q", javaType, got, want)
+		}
+	}
+	if got := bedrockEntityType("minecraft:pig"); got != "minecraft:pig" {
+		t.Fatalf("ordinary entity identifier changed to %q", got)
+	}
+}
+
+func TestJavaEntitySpawnProjectionDefaults(t *testing.T) {
+	cloud, ok := javaSpawnEntityProjection("minecraft:area_effect_cloud", 0)
+	if !ok || !cloud.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagFireImmune) || cloud[gtprotocol.EntityDataKeyDataDuration] != int32(2147483647) || cloud[gtprotocol.EntityDataKeyDataRadius] != float32(3) {
+		t.Fatalf("area-cloud spawn metadata = %#v, ok=%t", cloud, ok)
+	}
+
+	crystal, ok := javaSpawnEntityProjection("minecraft:ender_crystal", 0)
+	if !ok || !crystal.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagFireImmune) || crystal[gtprotocol.EntityDataKeyBlockTarget] != (gtprotocol.BlockPos{}) {
+		t.Fatalf("end-crystal spawn metadata = %#v, ok=%t", crystal, ok)
+	}
+
+	if got := javaEntitySpawnPosition("minecraft:leash_knot", mgl32.Vec3{10, 20, 30}); got != (mgl32.Vec3{10.5, 20.25, 30.5}) {
+		t.Fatalf("leash-knot position = %v", got)
+	}
+}
+
+func TestTranslateSpecialEntityMetadata(t *testing.T) {
+	crystal := translateSpecialEntityMetadata("minecraft:ender_crystal", []JavaEntityMetadataEntry{
+		{Index: 8, Type: 11, Value: gtprotocol.BlockPos{1, 64, -2}},
+		{Index: 9, Type: 8, Value: true},
+	})
+	if crystal[gtprotocol.EntityDataKeyBlockTarget] != (gtprotocol.BlockPos{1, 64, -2}) || !crystal.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagShowBottom) {
+		t.Fatalf("end-crystal metadata = %#v", crystal)
+	}
+
+	cloud := translateSpecialEntityMetadata("minecraft:area_effect_cloud", []JavaEntityMetadataEntry{{Index: 8, Type: 3, Value: float32(100)}})
+	if cloud[gtprotocol.EntityDataKeyDataRadius] != float32(32) {
+		t.Fatalf("area-cloud radius metadata = %#v", cloud)
+	}
+
+	tnt := translateSpecialEntityMetadata("minecraft:tnt", []JavaEntityMetadataEntry{{Index: 8, Type: 1, Value: int32(80)}})
+	if tnt[gtprotocol.EntityDataKeyFuseTime] != int32(80) || !tnt.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagIgnited) {
+		t.Fatalf("TNT metadata = %#v", tnt)
+	}
+
+	sounds := javaLightningSounds(mgl32.Vec3{1, 2, 3})
+	if len(sounds) != 2 || sounds[0].SoundName != "ambient.weather.thunder" || sounds[1].SoundName != "ambient.weather.lightning.impact" || sounds[0].Volume != 10000 || sounds[1].Volume != 2 || sounds[0].Pitch < 0.8 || sounds[0].Pitch >= 1 || sounds[1].Pitch < 0.5 || sounds[1].Pitch >= 0.7 {
+		t.Fatalf("lightning sounds = %#v", sounds)
+	}
+}
 
 func TestJavaSpawnEntityProjection(t *testing.T) {
 	xp, ok := javaSpawnEntityProjection("minecraft:xp_orb", 17)

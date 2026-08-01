@@ -229,6 +229,8 @@ func main() {
 				fmt.Printf("Bedrock actor link: ridden=%d rider=%d type=%d immediate=%t riderInitiated=%t\n", pk.EntityLink.RiddenEntityUniqueID, pk.EntityLink.RiderEntityUniqueID, pk.EntityLink.Type, pk.EntityLink.Immediate, pk.EntityLink.RiderInitiated)
 			case *packet.AddActor:
 				fmt.Printf("Bedrock actor add: type=%q runtime=%d position=%v metadata=%#v\n", pk.EntityType, pk.EntityRuntimeID, pk.Position, pk.EntityMetadata)
+			case *packet.SetActorData:
+				fmt.Printf("Bedrock actor metadata: runtime=%d metadata=%#v\n", pk.EntityRuntimeID, pk.EntityMetadata)
 			case *packet.SpawnExperienceOrb:
 				fmt.Printf("Bedrock experience orb: position=%v amount=%d\n", pk.Position, pk.ExperienceAmount)
 			case *packet.AddPainting:

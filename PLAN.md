@@ -50,6 +50,10 @@ native Bedrock validation, and performance evidence are separate gates.
   with their Bedrock actor metadata, including Java block-state to complete
   Bedrock runtime mapping and safe unknown-state handling; cover unit tests and
   a live Paper/Snappy experience-orb/falling-block fixture.
+- [x] Apply Geyser's Bedrock entity-identifier overrides and special metadata
+  defaults/updates for End Crystals, Area Effect Clouds, and primed TNT, plus
+  the leash-knot offset and Lightning thunder/impact sounds; cover focused
+  projection tests and a live Paper/Snappy fixture.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -244,6 +248,13 @@ the typed Bedrock `SpawnExperienceOrb` amount and a `minecraft:falling_block`
 actor with display-tile runtime 2706, with no bridge translation error. Fishing
 hook projection is covered by focused tests; a live fishing-hook fixture and
 native rendering/interaction remain open.
+
+The same fixture also spawned an End Crystal, Area Effect Cloud, primed TNT,
+and Lightning. The Snappy probe on `127.0.0.1:19178` received the Bedrock
+`ender_crystal` identifier with fire-immunity/block-target metadata, cloud
+defaults plus a radius update, TNT fuse/ignited metadata updates, and both
+Lightning sound packets, with no bridge translation error. Native rendering,
+interaction, and the broader entity metadata matrix remain open.
 
 ## Non-negotiable contracts
 

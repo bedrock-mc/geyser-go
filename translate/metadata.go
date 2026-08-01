@@ -22,6 +22,15 @@ type JavaEntityMetadataEntry struct {
 	Value any
 }
 
+func hasEntityMetadataEntry(entries []JavaEntityMetadataEntry, index byte) bool {
+	for _, entry := range entries {
+		if entry.Index == index {
+			return true
+		}
+	}
+	return false
+}
+
 // JavaGlobalPos is the bounded representation of Java's optional global
 // position metadata. The dimension key is retained even though the current
 // Bedrock actor metadata projection does not consume it.
