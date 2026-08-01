@@ -55,6 +55,9 @@ protocol parity.
   Bedrock identifier overrides and special metadata are also projected for
   End Crystals, Area Effect Clouds, primed TNT, and Lightning sounds; wider
   entity metadata coverage remains open.
+  Spectral-arrow texture flags, arrow critical/tipped-display metadata, and
+  trident critical/enchantment flags are also projected; native projectile
+  rendering and collision remain open.
   Pickup, merge, interaction, and broader entity-specific behavior are still
   open. Common
   Bedrock server-authoritative player-inventory stack requests (take/place/
@@ -323,6 +326,13 @@ Lightning. The Snappy probe on `127.0.0.1:19178` received the Bedrock
 defaults plus a radius update, TNT fuse/ignited metadata updates, and both
 Lightning sound packets, with no bridge translation error. Native rendering,
 interaction, and the broader entity metadata matrix remain open.
+
+The same fixture spawned normal, spectral, and trident projectiles. The Snappy
+probe on `127.0.0.1:19179` received `arrow`, `spectral_arrow`, and Bedrock's
+`thrown_trident`, observed the critical-arrow and spectral-texture flags, and
+reported no bridge translation error. The tipped-color and trident-enchantment
+updates are covered by focused tests; native projectile rendering, collision,
+and the remaining projectile metadata remain open.
 
 ## Local checks
 

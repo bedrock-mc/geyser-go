@@ -54,6 +54,10 @@ native Bedrock validation, and performance evidence are separate gates.
   defaults/updates for End Crystals, Area Effect Clouds, and primed TNT, plus
   the leash-knot offset and Lightning thunder/impact sounds; cover focused
   projection tests and a live Paper/Snappy fixture.
+- [x] Project spectral-arrow texture flags, arrow critical/tipped-display
+  metadata, and trident critical/enchantment flags into Bedrock actor metadata;
+  cover the version-pinned color table with focused tests and a live
+  Paper/Snappy arrow-family fixture.
 - [x] Translate Java experience, player abilities, and basic entity animation
   packets into Gophertunnel player-state/animation packets; cover bounded
   decoders and a live Snappy Paper readback.
@@ -255,6 +259,13 @@ and Lightning. The Snappy probe on `127.0.0.1:19178` received the Bedrock
 defaults plus a radius update, TNT fuse/ignited metadata updates, and both
 Lightning sound packets, with no bridge translation error. Native rendering,
 interaction, and the broader entity metadata matrix remain open.
+
+The same fixture spawned normal, spectral, and trident projectiles. The Snappy
+probe on `127.0.0.1:19179` received `arrow`, `spectral_arrow`, and Bedrock's
+`thrown_trident`, observed the critical-arrow and spectral-texture flags, and
+reported no bridge translation error. The tipped-color and trident-enchantment
+updates are covered by focused tests; native projectile rendering, collision,
+and the remaining projectile metadata remain open.
 
 ## Non-negotiable contracts
 

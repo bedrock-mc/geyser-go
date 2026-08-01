@@ -997,6 +997,30 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 					}
 				}
 			}
+		} else if entityType == "minecraft:arrow" || entityType == "minecraft:spectral_arrow" || entityType == "minecraft:trident" {
+			specialFlags = currentFlags
+			for _, entry := range update.Entries {
+				switch entry.Index {
+				case 8:
+					if arrowFlags, ok := entry.Value.(int8); ok {
+						if arrowFlags&0x01 != 0 {
+							specialFlags |= int64(1) << gtprotocol.EntityDataFlagCritical
+						} else {
+							specialFlags &^= int64(1) << gtprotocol.EntityDataFlagCritical
+						}
+					}
+				case 12:
+					if entityType == "minecraft:trident" {
+						if enchanted, ok := entry.Value.(bool); ok {
+							if enchanted {
+								specialFlags |= int64(1) << gtprotocol.EntityDataFlagEnchanted
+							} else {
+								specialFlags &^= int64(1) << gtprotocol.EntityDataFlagEnchanted
+							}
+						}
+					}
+				}
+			}
 		} else {
 			specialFlags |= currentFlags
 		}

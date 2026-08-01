@@ -69,6 +69,30 @@ func TestTranslateSpecialEntityMetadata(t *testing.T) {
 	if len(sounds) != 2 || sounds[0].SoundName != "ambient.weather.thunder" || sounds[1].SoundName != "ambient.weather.lightning.impact" || sounds[0].Volume != 10000 || sounds[1].Volume != 2 || sounds[0].Pitch < 0.8 || sounds[0].Pitch >= 1 || sounds[1].Pitch < 0.5 || sounds[1].Pitch >= 0.7 {
 		t.Fatalf("lightning sounds = %#v", sounds)
 	}
+
+	spectral, ok := javaSpawnEntityProjection("minecraft:spectral_arrow", 0)
+	if !ok || !spectral.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagBribed) {
+		t.Fatalf("spectral-arrow spawn metadata = %#v, ok=%t", spectral, ok)
+	}
+
+	arrow := translateSpecialEntityMetadata("minecraft:arrow", []JavaEntityMetadataEntry{
+		{Index: 8, Type: 0, Value: int8(1)},
+		{Index: 11, Type: 1, Value: int32(16762624)},
+	})
+	if !arrow.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagCritical) || arrow[gtprotocol.EntityDataKeyCustomDisplay] != byte(32) {
+		t.Fatalf("arrow metadata = %#v", arrow)
+	}
+
+	trident := translateSpecialEntityMetadata("minecraft:trident", []JavaEntityMetadataEntry{
+		{Index: 8, Type: 0, Value: int8(1)},
+		{Index: 12, Type: 8, Value: true},
+	})
+	if !trident.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagCritical) || !trident.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagEnchanted) {
+		t.Fatalf("trident metadata = %#v", trident)
+	}
+	if tippedArrowDisplayID(123456789) != 0 || tippedArrowDisplayID(-1) != 0 {
+		t.Fatal("unknown tipped-arrow colors should use no display variant")
+	}
 }
 
 func TestJavaSpawnEntityProjection(t *testing.T) {

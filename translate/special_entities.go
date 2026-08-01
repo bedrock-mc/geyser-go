@@ -75,6 +75,9 @@ func javaSpawnEntityProjection(entityType string, objectData int32) (gtprotocol.
 	case "minecraft:end_crystal", "minecraft:ender_crystal":
 		metadata.SetFlag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagFireImmune)
 		metadata[gtprotocol.EntityDataKeyBlockTarget] = gtprotocol.BlockPos{}
+	case "minecraft:spectral_arrow":
+		// Geyser uses this Bedrock flag to select the spectral-arrow texture.
+		metadata.SetFlag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagBribed)
 	case "minecraft:xp_orb":
 		// Geyser uses this marker to select the Bedrock XP-orb texture. The
 		// Java object-data value is the orb's XP amount, not this Bedrock
@@ -100,6 +103,7 @@ func javaSpawnEntityProjection(entityType string, objectData int32) (gtprotocol.
 // changed by this packet; spawn defaults are supplied by the function above.
 func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetadataEntry) gtprotocol.EntityMetadata {
 	metadata := make(gtprotocol.EntityMetadata, 4)
+	metadata[gtprotocol.EntityDataKeyFlags] = int64(0)
 	flagsChanged := false
 	for _, entry := range entries {
 		switch entityType {
@@ -137,12 +141,82 @@ func translateSpecialEntityMetadata(entityType string, entries []JavaEntityMetad
 					flagsChanged = true
 				}
 			}
+		case "minecraft:arrow", "minecraft:spectral_arrow", "minecraft:trident":
+			switch entry.Index {
+			case 8:
+				if arrowFlags, ok := entry.Value.(int8); ok {
+					flags := metadata[gtprotocol.EntityDataKeyFlags].(int64)
+					if arrowFlags&0x01 != 0 {
+						flags |= int64(1) << gtprotocol.EntityDataFlagCritical
+					} else {
+						flags &^= int64(1) << gtprotocol.EntityDataFlagCritical
+					}
+					metadata[gtprotocol.EntityDataKeyFlags] = flags
+					flagsChanged = true
+				}
+			case 11:
+				if entityType == "minecraft:arrow" {
+					if color, ok := entry.Value.(int32); ok {
+						metadata[gtprotocol.EntityDataKeyCustomDisplay] = tippedArrowDisplayID(color)
+					}
+				}
+			case 12:
+				if entityType == "minecraft:trident" {
+					if enchanted, ok := entry.Value.(bool); ok {
+						flags := metadata[gtprotocol.EntityDataKeyFlags].(int64)
+						if enchanted {
+							flags |= int64(1) << gtprotocol.EntityDataFlagEnchanted
+						} else {
+							flags &^= int64(1) << gtprotocol.EntityDataFlagEnchanted
+						}
+						metadata[gtprotocol.EntityDataKeyFlags] = flags
+						flagsChanged = true
+					}
+				}
+			}
 		}
 	}
 	if !flagsChanged {
 		delete(metadata, gtprotocol.EntityDataKeyFlags)
 	}
 	return metadata
+}
+
+func tippedArrowDisplayID(color int32) byte {
+	if color < 0 {
+		return 0
+	}
+	if id, ok := tippedArrowColors[color]; ok {
+		return id
+	}
+	return 0
+}
+
+// tippedArrowColors is the Geyser Potion.toTippedArrowId table for the
+// version-pinned Java potion particle colours.
+var tippedArrowColors = map[int32]byte{
+	3694022:  1,  // water
+	12779366: 6,  // night vision
+	16185078: 8,  // invisibility
+	16646020: 10, // leaping
+	16750848: 13, // fire resistance
+	3402751:  15, // swiftness
+	9154528:  18, // slowness
+	9274086:  38, // turtle master
+	9274854:  40, // strong turtle master
+	10017472: 20, // water breathing
+	16262179: 22, // healing
+	11101546: 24, // harming
+	8889187:  26, // poison
+	13458603: 29, // regeneration
+	16762624: 32, // strength
+	4738376:  35, // weakness
+	5882118:  3,  // luck
+	15978425: 41, // slow falling
+	12438015: 44, // wind charging
+	7891290:  45, // weaving
+	10092451: 46, // oozing
+	9214860:  47, // infestation
 }
 
 func javaLightningSounds(position mgl32.Vec3) []packet.PlaySound {
