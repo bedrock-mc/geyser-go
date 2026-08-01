@@ -16,10 +16,39 @@ import (
 var ErrUnsupportedJavaItemComponent = errors.New("translate: unsupported Java item component")
 
 type JavaItemSlot struct {
-	Item    gtprotocol.ItemInstance
-	ItemID  int32
-	Known   bool
-	Present bool
+	Item              gtprotocol.ItemInstance
+	ItemID            int32
+	Known             bool
+	Present           bool
+	PotionID          int32
+	HasPotionID       bool
+	Fireworks         *JavaFireworksData
+	FireworkExplosion *JavaFireworkExplosion
+}
+
+// JavaEntityItemMetadata retains the Java component data that changes an
+// entity's Bedrock representation. Ordinary inventory translation only needs
+// the projected ItemInstance, but entity metadata such as a thrown potion's
+// PotionContents is not representable in that value alone.
+type JavaEntityItemMetadata struct {
+	Item              gtprotocol.ItemInstance
+	PotionID          int32
+	HasPotionID       bool
+	Fireworks         *JavaFireworksData
+	FireworkExplosion *JavaFireworkExplosion
+}
+
+type JavaFireworkExplosion struct {
+	Shape      int32
+	Colors     []int32
+	FadeColors []int32
+	Flicker    bool
+	Trail      bool
+}
+
+type JavaFireworksData struct {
+	FlightDuration int32
+	Explosions     []JavaFireworkExplosion
 }
 
 type JavaWindowItems struct {
@@ -173,6 +202,11 @@ func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaI
 			Count:    uint16(count),
 		},
 	}
+	if components.hasPotionID {
+		if metadata, ok := javaPotionBedrockID(components.potionID); ok {
+			item.Stack.MetadataValue = uint32(metadata)
+		}
+	}
 	if components.hasMetadata {
 		item.Stack.MetadataValue = components.metadata
 	}
@@ -180,7 +214,16 @@ func decodeJavaItemSlot(r *javaprotocol.Reader, nextStackID func() int32) (JavaI
 	if nextStackID != nil {
 		item.StackNetworkID = nextStackID()
 	}
-	return JavaItemSlot{Item: item, ItemID: itemID, Known: true, Present: true}, nil
+	return JavaItemSlot{
+		Item:              item,
+		ItemID:            itemID,
+		Known:             true,
+		Present:           true,
+		PotionID:          components.potionID,
+		HasPotionID:       components.hasPotionID,
+		Fireworks:         components.fireworks,
+		FireworkExplosion: components.fireworkExplosion,
+	}, nil
 }
 
 func boundedJavaCount(r *javaprotocol.Reader, field string) (int, error) {

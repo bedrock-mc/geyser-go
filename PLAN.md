@@ -63,9 +63,12 @@ native Bedrock validation, and performance evidence are separate gates.
   for eggs, snowballs, ender pearls, experience bottles, potions, and eyes of
   ender, including the half-scale/invisible draw window and velocity-triggered
   reveal; resolve fishing-hook owners and hooked targets through the Java to
-  Bedrock actor map. Projectile simulation, potion component payloads,
-  firework item display data, hook casting/splash behavior, and native rendering
-  remain open.
+  Bedrock actor map. Project Java PotionContents to Bedrock aux values and
+  enchanted/lingering flags, retain bounded firework component payloads, and
+  project firework player attachment to Bedrock's Elytra boost effect. Projectile
+  simulation, the firework actor display payload (the selected Gophertunnel fork
+  does not expose its Bedrock metadata key), hook casting/splash behavior, and
+  native rendering remain open.
 - [x] Project Java `text_display` and `interaction` entities through Geyser's
   armor-stand backing contract, including text/name-tag metadata, multiline
   vertical offset, display translation, and interaction width/height updates;
@@ -316,6 +319,14 @@ received a clear update on their velocity packet, including zero-motion
 projectiles, with no bridge translation error. The Paper API does not permit a
 fixture to spawn a `FishHook` directly, so fishing-hook owner/target behavior
 remains unit-tested rather than live-closed.
+
+The same Paper fixture then assigned a real `LONG_SLOWNESS` item to its thrown
+potion. The clean-source Snappy probe on `127.0.0.1:19202` observed the initial splash-potion
+actor, the later `AuxValueData=18`/enchanted metadata update corresponding to
+the Java registry ordinal 17, and the zero-motion visibility clear, with no
+bridge translation error. Potion registry mapping, firework component decoding,
+and firework attachment tracking also have focused tests; the firework actor
+display payload remains blocked on the missing fork metadata key.
 
 A Paper display fixture then spawned a two-line Java text display and an
 `interaction` entity. The Snappy probe on `127.0.0.1:19180` received both as

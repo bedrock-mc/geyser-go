@@ -67,9 +67,11 @@ type Basic struct {
 	nextScoreboardEntryID int64
 	nextStackID           int32
 	nextSequence          int32
+	clientTick            uint64
 	sprinting             bool
 	sneaking              bool
 	gliding               bool
+	fireworkAttachments   map[int32]struct{}
 	unknown               map[int32]uint64
 }
 
@@ -79,36 +81,37 @@ type javaPosition struct {
 }
 
 type javaEntityState struct {
-	runtimeID          uint64
-	entityType         string
-	entityUUID         [16]byte
-	projectileHidden   bool
-	ownerUUID          [16]byte
-	hasOwnerUUID       bool
-	position           mgl32.Vec3
-	displayTranslation mgl32.Vec3
-	displayLineOffset  float32
-	rotation           mgl32.Vec3 // pitch, yaw, head yaw
-	velocity           mgl32.Vec3
-	item               gtprotocol.ItemInstance
-	hasItem            bool
-	framePosition      gtprotocol.BlockPos
-	frameDirection     int32
-	frameItem          gtprotocol.ItemInstance
-	frameRotation      int32
-	frameSpawned       bool
-	painting           JavaPaintingVariant
-	hasPainting        bool
-	paintingDirection  int32
-	paintingSpawned    bool
-	goatLeftHorn       bool
-	goatRightHorn      bool
-	goatLeftHornKnown  bool
-	goatRightHornKnown bool
-	equipment          [7]gtprotocol.ItemInstance
-	metadata           gtprotocol.EntityMetadata
-	player             bool
-	playerUUID         [16]byte
+	runtimeID                uint64
+	entityType               string
+	entityUUID               [16]byte
+	projectileHidden         bool
+	ownerUUID                [16]byte
+	hasOwnerUUID             bool
+	position                 mgl32.Vec3
+	displayTranslation       mgl32.Vec3
+	displayLineOffset        float32
+	rotation                 mgl32.Vec3 // pitch, yaw, head yaw
+	velocity                 mgl32.Vec3
+	item                     gtprotocol.ItemInstance
+	hasItem                  bool
+	framePosition            gtprotocol.BlockPos
+	frameDirection           int32
+	frameItem                gtprotocol.ItemInstance
+	frameRotation            int32
+	frameSpawned             bool
+	painting                 JavaPaintingVariant
+	hasPainting              bool
+	paintingDirection        int32
+	paintingSpawned          bool
+	goatLeftHorn             bool
+	goatRightHorn            bool
+	goatLeftHornKnown        bool
+	goatRightHornKnown       bool
+	fireworkAttachedToPlayer bool
+	equipment                [7]gtprotocol.ItemInstance
+	metadata                 gtprotocol.EntityMetadata
+	player                   bool
+	playerUUID               [16]byte
 }
 
 func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
@@ -138,6 +141,7 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		nextScoreboardEntryID: 1,
 		nextStackID:           1,
 		nextSequence:          1,
+		fireworkAttachments:   make(map[int32]struct{}),
 		unknown:               make(map[int32]uint64),
 	}
 }
@@ -962,17 +966,26 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 	}
 	var item gtprotocol.ItemInstance
 	hasItemUpdate := false
+	hasItemMetadataUpdate := false
+	var entityItemMetadata JavaEntityItemMetadata
 	var frameItem gtprotocol.ItemInstance
 	hasFrameItemUpdate := false
 	var frameRotationUpdate int32
 	hasFrameRotationUpdate := false
 	for _, entry := range update.Entries {
 		if entry.Index == 8 {
-			value, ok := entry.Value.(gtprotocol.ItemInstance)
-			if ok {
+			hasItemMetadataUpdate = true
+			switch value := entry.Value.(type) {
+			case gtprotocol.ItemInstance:
 				item = value
 				hasItemUpdate = true
 				frameItem = value
+				hasFrameItemUpdate = true
+			case JavaEntityItemMetadata:
+				item = value.Item
+				entityItemMetadata = value
+				hasItemUpdate = true
+				frameItem = value.Item
 				hasFrameItemUpdate = true
 			}
 		}
@@ -1056,6 +1069,8 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 	specialMetadata := translateSpecialEntityMetadataWithVariants(entityType, update.Entries, b.entityVariants)
 	b.translateEntityTargetMetadataLocked(entityType, update.Entries, specialMetadata)
 	b.translateGoatHornMetadataLocked(entityType, update.Entries, entity, specialMetadata)
+	translateJavaPotionEntityMetadata(entityType, entityItemMetadata, hasItemMetadataUpdate, specialMetadata)
+	fireworkDuration, fireworkEffectChanged := b.updateJavaFireworkAttachmentLocked(update.EntityID, entity, update.Entries)
 	if ownerUUID, hasOwnerEntry, hasOwnerUUID := javaTameableOwnerMetadata(entityType, update.Entries); hasOwnerEntry {
 		ownerID := int64(0)
 		if hasOwnerUUID {
@@ -1164,6 +1179,11 @@ func (b *Basic) translateEntityMetadata(bedrock *minecraft.Conn, update JavaEnti
 		frameSpawned = entity.frameSpawned
 	}
 	b.mu.Unlock()
+	if fireworkEffectChanged {
+		if err := b.writeFireworkMovementEffect(bedrock, fireworkDuration); err != nil {
+			return err
+		}
+	}
 	if entityType == "minecraft:item" {
 		if hasItemUpdate && (!hadItem || itemChanged) {
 			if !hadItem {
@@ -1570,9 +1590,20 @@ func (b *Basic) translateEntityDestroy(bedrock *minecraft.Conn, payload []byte) 
 		entity := b.entities[id]
 		delete(b.entities, id)
 		delete(b.passengers, id)
+		stopFireworkBoost := false
+		if entity != nil && entity.fireworkAttachedToPlayer {
+			delete(b.fireworkAttachments, id)
+			entity.fireworkAttachedToPlayer = false
+			stopFireworkBoost = len(b.fireworkAttachments) == 0
+		}
 		b.mu.Unlock()
 		if entity == nil {
 			continue
+		}
+		if stopFireworkBoost {
+			if err := b.writeFireworkMovementEffect(bedrock, 0); err != nil {
+				return err
+			}
 		}
 		if entity.entityType == "minecraft:item_frame" || entity.entityType == "minecraft:glow_item_frame" {
 			if entity.frameSpawned {

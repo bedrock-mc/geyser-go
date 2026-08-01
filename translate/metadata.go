@@ -114,6 +114,15 @@ func decodeJavaEntityMetadataValue(r *javaprotocol.Reader, typeID int32, nextSta
 		if err != nil {
 			return nil, err
 		}
+		if item.HasPotionID || item.Fireworks != nil || item.FireworkExplosion != nil {
+			return JavaEntityItemMetadata{
+				Item:              item.Item,
+				PotionID:          item.PotionID,
+				HasPotionID:       item.HasPotionID,
+				Fireworks:         item.Fireworks,
+				FireworkExplosion: item.FireworkExplosion,
+			}, nil
+		}
 		return item.Item, nil
 	case 8: // boolean
 		return r.Bool()

@@ -62,8 +62,11 @@ protocol parity.
   snowballs, ender pearls, experience bottles, potions, and eyes of ender,
   including half-scale metadata and the short invisible draw window. Fishing
   hook owners and hooked targets resolve through the Java-to-Bedrock actor map;
-  projectile simulation, potion/firework item payloads, hook casting, and
-  native rendering remain open.
+  PotionContents now project to Bedrock aux/enchanted/lingering metadata,
+  bounded firework components are retained, and player-attached fireworks emit
+  Bedrock's Elytra boost effect. Projectile simulation, the firework actor
+  display payload (the selected Gophertunnel fork does not expose its metadata
+  key), hook casting, and native rendering remain open.
   Java `text_display` and `interaction` entities now use Geyser's
   armor-stand-backed projection with text/name-tag metadata, multiline offset,
   display translation, and interaction size updates. Item/block display
@@ -361,9 +364,18 @@ experience-bottle, potion, and eye-of-ender entities. The Snappy probe on
 `127.0.0.1:19197` received `egg`, `snowball`, `ender_pearl`, `xp_bottle`,
 `splash_potion`, and `eye_of_ender_signal` actors at scale `0.5`; throwable
 actors then received the invisible-bit clear update on their velocity packet,
-including zero-motion projectiles, with no bridge translation error. Paper’s
+including zero-motion projectiles, with no bridge translation error. Paper's
 API rejects direct `FishHook` fixture spawning, so fishing-hook owner/target
 behavior is unit-tested and not represented as a live-closed gate yet.
+
+The same Paper fixture assigned a real `LONG_SLOWNESS` item to its thrown
+potion. The clean-source Snappy probe on `127.0.0.1:19202` observed the initial
+`splash_potion`, the later `AuxValueData=18` plus enchanted metadata update for
+Java potion ordinal 17, and the zero-motion visibility clear, with no bridge
+translation error. Potion registry mapping, firework component decoding, and
+firework attachment tracking are covered by focused tests; the firework actor
+display payload remains blocked on the missing metadata key in the selected
+Gophertunnel fork.
 
 The Paper entity fixture also spawned a baby/sheared blue sheep, a flagged armor
 stand, a baby/tamed/sitting cat, a sleeping/interested fox, a killer rabbit, an

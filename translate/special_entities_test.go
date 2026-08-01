@@ -91,6 +91,17 @@ func TestJavaEntitySpawnProjectionDefaults(t *testing.T) {
 }
 
 func TestTranslateSpecialEntityMetadata(t *testing.T) {
+	potion := gtprotocol.NewEntityMetadata()
+	translateJavaPotionEntityMetadata("minecraft:potion", JavaEntityItemMetadata{PotionID: 18, HasPotionID: true}, true, potion)
+	if potion[gtprotocol.EntityDataKeyAuxValueData] != int16(42) || !potion.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagEnchanted) || potion.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagLingering) {
+		t.Fatalf("potion metadata = %#v", potion)
+	}
+	lingering := gtprotocol.NewEntityMetadata()
+	translateJavaPotionEntityMetadata("minecraft:lingering_potion", JavaEntityItemMetadata{}, true, lingering)
+	if lingering[gtprotocol.EntityDataKeyAuxValueData] != int16(0) || lingering.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagEnchanted) || !lingering.Flag(gtprotocol.EntityDataKeyFlags, gtprotocol.EntityDataFlagLingering) {
+		t.Fatalf("lingering potion metadata = %#v", lingering)
+	}
+
 	crystal := translateSpecialEntityMetadata("minecraft:ender_crystal", []JavaEntityMetadataEntry{
 		{Index: 8, Type: 11, Value: gtprotocol.BlockPos{1, 64, -2}},
 		{Index: 9, Type: 8, Value: true},
@@ -230,6 +241,24 @@ func TestTranslateSpecialEntityMetadata(t *testing.T) {
 	}
 	if math.Abs(float64(javaTextDisplayLineOffset("one")-float32(-0.4586))) > 0.00001 || math.Abs(float64(javaTextDisplayLineOffset("one\ntwo")-float32(-0.3172))) > 0.00001 || javaTextDisplayLineOffset("") != 0 {
 		t.Fatalf("text-display line offsets are incorrect")
+	}
+}
+
+func TestJavaFireworkAttachmentTracking(t *testing.T) {
+	b := NewBasic(javaprotocol.Java1214, nil)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.gameData.EntityRuntimeID = 42
+	entity := &javaEntityState{entityType: "minecraft:fireworks_rocket"}
+	b.entities[7] = entity
+
+	duration, send := b.updateJavaFireworkAttachmentLocked(7, entity, []JavaEntityMetadataEntry{{Index: 9, Type: 20, Value: int32(42)}})
+	if !send || duration != 1000000 || !entity.fireworkAttachedToPlayer || len(b.fireworkAttachments) != 1 {
+		t.Fatalf("firework attach = duration %d send %t state=%+v attachments=%v", duration, send, entity, b.fireworkAttachments)
+	}
+	duration, send = b.updateJavaFireworkAttachmentLocked(7, entity, []JavaEntityMetadataEntry{{Index: 9, Type: 20, Value: nil}})
+	if !send || duration != 0 || entity.fireworkAttachedToPlayer || len(b.fireworkAttachments) != 0 {
+		t.Fatalf("firework detach = duration %d send %t state=%+v attachments=%v", duration, send, entity, b.fireworkAttachments)
 	}
 }
 

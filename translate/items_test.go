@@ -150,6 +150,58 @@ func TestDecodeJavaItemComponentsProjectsCommonData(t *testing.T) {
 	}
 }
 
+func TestDecodeJavaPotionContentsProjectsBedrockAuxValue(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(1) // item count
+	_ = w.VarInt(1) // stone registry ID; the component shape is what matters here
+	_ = w.VarInt(1) // added component count
+	_ = w.VarInt(0) // removed component count
+	_ = w.VarInt(javaItemComponentPotionContents)
+	_ = w.Bool(true) // potion registry holder is present
+	_ = w.VarInt(18) // Java LONG_SLOWNESS ordinal -> Bedrock aux 42
+	_ = w.Bool(false)
+	_ = w.VarInt(0) // custom effect count
+	_ = w.Bool(false)
+
+	item, err := DecodeJavaCursorItem(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !item.HasPotionID || item.PotionID != 18 || item.Item.Stack.MetadataValue != 42 {
+		t.Fatalf("decoded potion item = %+v", item)
+	}
+}
+
+func TestDecodeJavaFireworksComponentRetainsExplosions(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(1)
+	_ = w.VarInt(1)
+	_ = w.VarInt(1)
+	_ = w.VarInt(0)
+	_ = w.VarInt(javaItemComponentFireworks)
+	_ = w.VarInt(2) // flight duration
+	_ = w.VarInt(1) // explosion count
+	_ = w.VarInt(3) // shape
+	_ = w.VarInt(1)
+	_ = w.Int32(0xff0000)
+	_ = w.VarInt(1)
+	_ = w.Int32(0x00ff00)
+	_ = w.Bool(true)
+	_ = w.Bool(false)
+
+	item, err := DecodeJavaCursorItem(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Fireworks == nil || item.Fireworks.FlightDuration != 2 || len(item.Fireworks.Explosions) != 1 {
+		t.Fatalf("decoded fireworks = %+v", item.Fireworks)
+	}
+	explosion := item.Fireworks.Explosions[0]
+	if explosion.Shape != 3 || len(explosion.Colors) != 1 || explosion.Colors[0] != 0xff0000 || len(explosion.FadeColors) != 1 || !explosion.Flicker || explosion.Trail {
+		t.Fatalf("decoded firework explosion = %+v", explosion)
+	}
+}
+
 func TestDecodeJavaItemComponentTruncationIsWireFatal(t *testing.T) {
 	w := javaprotocol.NewWriter()
 	_ = w.VarInt(1)

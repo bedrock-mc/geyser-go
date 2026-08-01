@@ -321,6 +321,9 @@ func specialEntityFlagMasks(entityType string, entries []JavaEntityMetadataEntry
 			add(gtprotocol.EntityDataFlagIgnited)
 		case (entityType == "minecraft:arrow" || entityType == "minecraft:spectral_arrow" || entityType == "minecraft:trident") && entry.Index == 8:
 			add(gtprotocol.EntityDataFlagCritical)
+		case javaThrownPotionEntity(entityType) && entry.Index == 8:
+			add(gtprotocol.EntityDataFlagEnchanted)
+			add(gtprotocol.EntityDataFlagLingering)
 		case entityType == "minecraft:trident" && entry.Index == 12:
 			add(gtprotocol.EntityDataFlagEnchanted)
 		case entityType == "minecraft:creeper":

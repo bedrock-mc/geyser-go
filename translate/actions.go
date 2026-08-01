@@ -14,6 +14,9 @@ func (b *Basic) translatePlayerAuthInputActions(bedrock *minecraft.Conn, java *j
 	if input == nil {
 		return nil
 	}
+	b.mu.Lock()
+	b.clientTick = input.Tick
+	b.mu.Unlock()
 	if err := b.translatePlayerAuthInputState(java, input); err != nil {
 		return err
 	}

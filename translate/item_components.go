@@ -81,15 +81,19 @@ const (
 const javaItemComponentCount = javaItemComponentContainerLoot + 1
 
 type javaItemComponentState struct {
-	nbt          map[string]any
-	metadata     uint32
-	hasMetadata  bool
-	customName   bool
-	displayName  string
-	lore         []string
-	enchantments []map[string]any
-	glint        bool
-	unsupported  []int32
+	nbt               map[string]any
+	metadata          uint32
+	hasMetadata       bool
+	customName        bool
+	displayName       string
+	lore              []string
+	enchantments      []map[string]any
+	glint             bool
+	potionID          int32
+	hasPotionID       bool
+	fireworks         *JavaFireworksData
+	fireworkExplosion *JavaFireworkExplosion
+	unsupported       []int32
 }
 
 func decodeJavaItemComponents(r *javaprotocol.Reader, count int) (javaItemComponentState, error) {
@@ -353,10 +357,10 @@ func decodeJavaItemComponent(r *javaprotocol.Reader, componentType int32, state 
 		}
 		return false, nil
 	case javaItemComponentPotionContents:
-		if err := decodeJavaPotionContents(r); err != nil {
+		if err := decodeJavaPotionContents(r, state); err != nil {
 			return false, err
 		}
-		return false, nil
+		return true, nil
 	case javaItemComponentSuspiciousStewEffects:
 		count, err := boundedJavaCount(r, "suspicious stew effect count")
 		if err != nil {
@@ -402,15 +406,19 @@ func decodeJavaItemComponent(r *javaprotocol.Reader, componentType int32, state 
 		}
 		return false, nil
 	case javaItemComponentFireworkExplosion:
-		if err := decodeJavaFireworkExplosion(r); err != nil {
+		explosion, err := decodeJavaFireworkExplosion(r)
+		if err != nil {
 			return false, err
 		}
-		return false, nil
+		state.fireworkExplosion = &explosion
+		return true, nil
 	case javaItemComponentFireworks:
-		if err := decodeJavaFireworks(r); err != nil {
+		fireworks, err := decodeJavaFireworks(r)
+		if err != nil {
 			return false, err
 		}
-		return false, nil
+		state.fireworks = &fireworks
+		return true, nil
 	case javaItemComponentProfile:
 		if err := decodeJavaProfile(r); err != nil {
 			return false, err
@@ -857,9 +865,13 @@ func decodeJavaItemSlotArray(r *javaprotocol.Reader) error {
 	return nil
 }
 
-func decodeJavaPotionContents(r *javaprotocol.Reader) error {
+func decodeJavaPotionContents(r *javaprotocol.Reader, state *javaItemComponentState) error {
 	if err := decodeJavaOptional(r, func(r *javaprotocol.Reader) error {
-		_, err := r.VarInt()
+		potionID, err := r.VarInt()
+		if err == nil {
+			state.potionID = potionID
+			state.hasPotionID = true
+		}
 		return err
 	}); err != nil {
 		return err
@@ -1042,48 +1054,63 @@ func decodeJavaLodestoneTracker(r *javaprotocol.Reader) error {
 	return err
 }
 
-func decodeJavaFireworkExplosion(r *javaprotocol.Reader) error {
+func decodeJavaFireworkExplosion(r *javaprotocol.Reader) (JavaFireworkExplosion, error) {
 	shape, err := r.VarInt()
 	if err != nil {
-		return err
+		return JavaFireworkExplosion{}, err
 	}
 	if shape < 0 || shape > 4 {
-		return fmt.Errorf("invalid firework explosion shape %d", shape)
+		return JavaFireworkExplosion{}, fmt.Errorf("invalid firework explosion shape %d", shape)
 	}
+	explosion := JavaFireworkExplosion{Shape: shape}
 	for i := 0; i < 2; i++ {
 		count, err := boundedJavaCount(r, "firework color count")
 		if err != nil {
-			return err
+			return JavaFireworkExplosion{}, err
 		}
+		colors := make([]int32, count)
 		for j := 0; j < count; j++ {
-			if _, err := r.Int32(); err != nil {
-				return err
+			color, err := r.Int32()
+			if err != nil {
+				return JavaFireworkExplosion{}, err
 			}
+			colors[j] = color
+		}
+		if i == 0 {
+			explosion.Colors = colors
+		} else {
+			explosion.FadeColors = colors
 		}
 	}
-	for i := 0; i < 2; i++ {
-		if _, err := r.Bool(); err != nil {
-			return err
-		}
+	explosion.Flicker, err = r.Bool()
+	if err != nil {
+		return JavaFireworkExplosion{}, err
 	}
-	return nil
+	explosion.Trail, err = r.Bool()
+	if err != nil {
+		return JavaFireworkExplosion{}, err
+	}
+	return explosion, nil
 }
 
-func decodeJavaFireworks(r *javaprotocol.Reader) error {
-	if _, err := r.VarInt(); err != nil {
-		return err
+func decodeJavaFireworks(r *javaprotocol.Reader) (JavaFireworksData, error) {
+	flightDuration, err := r.VarInt()
+	if err != nil {
+		return JavaFireworksData{}, err
 	}
 	count, err := boundedJavaCount(r, "firework explosion count")
 
 	if err != nil {
-		return err
+		return JavaFireworksData{}, err
 	}
+	explosions := make([]JavaFireworkExplosion, count)
 	for i := 0; i < count; i++ {
-		if err := decodeJavaFireworkExplosion(r); err != nil {
-			return err
+		explosions[i], err = decodeJavaFireworkExplosion(r)
+		if err != nil {
+			return JavaFireworksData{}, err
 		}
 	}
-	return nil
+	return JavaFireworksData{FlightDuration: flightDuration, Explosions: explosions}, nil
 }
 
 func decodeJavaProfile(r *javaprotocol.Reader) error {

@@ -212,3 +212,30 @@ func TestDecodeItemEntityMetadataProjectsItemStack(t *testing.T) {
 		t.Fatal("projected item comparison treated a count-only update as a content change")
 	}
 }
+
+func TestDecodePotionEntityMetadataRetainsComponentProjection(t *testing.T) {
+	w := javaprotocol.NewWriter()
+	_ = w.VarInt(11)
+	_ = w.Byte(8)
+	_ = w.VarInt(7) // item stack
+	_ = w.VarInt(1)
+	_ = w.VarInt(1)
+	_ = w.VarInt(1)
+	_ = w.VarInt(0)
+	_ = w.VarInt(javaItemComponentPotionContents)
+	_ = w.Bool(true)
+	_ = w.VarInt(18)
+	_ = w.Bool(false)
+	_ = w.VarInt(0)
+	_ = w.Bool(false)
+	_ = w.Byte(0xff)
+
+	metadata, err := DecodeEntityMetadata(w.Bytes(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, ok := metadata.Entries[0].Value.(JavaEntityItemMetadata)
+	if !ok || !item.HasPotionID || item.PotionID != 18 || item.Item.Stack.MetadataValue != 42 {
+		t.Fatalf("potion entity item metadata = %#v, ok=%v", metadata.Entries[0].Value, ok)
+	}
+}
