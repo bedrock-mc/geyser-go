@@ -40,6 +40,8 @@ func projectJavaBlockEntityPayload(javaName string, tag map[string]any, stateNam
 		projectJavaMobSpawner(tag)
 	case "trial_spawner":
 		projectJavaTrialSpawner(tag)
+	case "vault":
+		projectJavaVault(tag)
 	case "shulker_box":
 		projectJavaShulkerBox(tag, stateName)
 	}
