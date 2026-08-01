@@ -1,0 +1,53 @@
+# Geyser-Go
+
+Geyser-Go is a Go implementation of the Geyser Bedrock-to-Java bridge. It is
+separate from Cinnabar and is being built as a reusable library first, with a
+small standalone command for local interoperability testing.
+
+The project target is version-matched Geyser parity. The current branch is an
+incomplete foundation: it has the Java packet framing/session boundary and the
+Gophertunnel Bedrock ownership boundary, but it does not yet claim gameplay or
+protocol parity.
+
+## Current architecture
+
+- `java/protocol` owns bounded Java TCP framing, VarInt/VarLong and primitive
+  codecs, zlib packet compression, AES/CFB8 stream encryption, and the initial
+  handshake/login packet shapes.
+- `bridge` owns Bedrock listener lifecycle, Java connection ownership, and the
+  typed translator/session boundary. The listener uses lunar batch boundaries;
+  it deliberately disconnects rather than relaying packets without a
+  translator contract.
+- `data` and `cmd/registrygen` will own versioned, generated Bedrock/Java
+  registries. The current generator reads Cloudburst's complete item and block
+  state JSON, preserving every source record (including multiple state hashes
+  for one block name). Dragonfly/Lunar data is a source for complete vanilla
+  catalogs, not a runtime excuse to omit unsupported blocks or items.
+
+## Authoritative references
+
+- Geyser: <https://github.com/GeyserMC/Geyser>
+- MCProtocolLib: <https://github.com/GeyserMC/MCProtocolLib>
+- Gophertunnel fork: <https://github.com/HashimTheArab/gophertunnel/tree/lunar>
+- Dragonfly: <https://github.com/df-mc/dragonfly>
+- Cloudburst data: <https://github.com/CloudburstMC/Data>
+- Lunar all-vanilla tooling: <https://github.com/lunar-bedrock/lunar/tree/main/cmd/bedrockdata-gen>
+
+The initial dependency pin uses `hashimthearab/gophertunnel` `lunar` commit
+`60c66ae560608f209f67b7c432cbc5e29e38170a`, which includes the fork's batch
+forwarding hooks, declared compression handling, and Snappy implementation.
+The generated catalog command was exercised against Cloudburst data commit
+`619483eb88140f46b8933506c6263861c0d8fa43` and produced 1,933 item records and
+16,913 block-state records; the payload checkout remains external to this repo.
+
+## Local checks
+
+```powershell
+go test ./...
+go vet ./...
+go run ./cmd/geyser-go --help
+```
+
+The live Bedrock/Paper/BDS procedure and acceptance gates are recorded in
+`PLAN.md`. No Mojang payloads, server binaries, credentials, or captures belong
+in this repository.
