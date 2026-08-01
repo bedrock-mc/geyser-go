@@ -112,6 +112,9 @@ native Bedrock validation, and performance evidence are separate gates.
   bounded top-level literal/common-argument tree to Bedrock `AvailableCommands`;
   redirects, server-backed suggestions, registry-backed enum values, and
   exact command descriptions remain open.
+- [x] Preserve simple Java translatable text components and their arguments in
+  Bedrock translation packets, with bounded plain-text fallback for nested
+  components; locale coverage, styling, and exact key mappings remain open.
 - [x] Decode Java 1.21.4 resource-pack push/pop packets and acknowledge the
   required accepted/downloaded/successfully-loaded sequence plus optional
   declined status; Bedrock pack hosting, download, cache, stack delivery, and
@@ -191,6 +194,11 @@ Snappy Bedrock probe on `127.0.0.1:19158` joined and survived its bounded read
 window with no bridge translation error. The Java status acknowledgment path
 is covered by focused tests; actual Bedrock pack hosting, delivery, caching,
 stack updates, removal, and native rendering remain incomplete.
+The same Snappy probe on `127.0.0.1:19163` received a typed Bedrock
+translation packet for `multiplayer.player.joined` with its player-name
+parameter, and command feedback remained connected through the bounded
+plain-text fallback. Locale coverage, styled/nested component fidelity, and
+exact Java-to-Bedrock translation-key mappings remain incomplete.
 
 ## Non-negotiable contracts
 

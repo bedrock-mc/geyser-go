@@ -167,7 +167,7 @@ func main() {
 					fmt.Printf("Bedrock command: name=%q overloads=%d\n", command.Name, len(command.Overloads))
 				}
 			case *packet.Text:
-				fmt.Printf("Bedrock text: type=%d source=%q message=%q\n", pk.TextType, pk.SourceName, pk.Message)
+				fmt.Printf("Bedrock text: type=%d source=%q message=%q params=%q\n", pk.TextType, pk.SourceName, pk.Message, pk.Parameters)
 			case *packet.ItemStackResponse:
 				for _, response := range pk.Responses {
 					fmt.Printf("Bedrock item stack response: request=%d status=%d containers=%d\n", response.RequestID, response.Status, len(response.ContainerInfo))

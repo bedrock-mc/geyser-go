@@ -57,6 +57,27 @@ func TestJavaTextComponentText(t *testing.T) {
 	}
 }
 
+func TestProjectJavaTextComponentPreservesTranslation(t *testing.T) {
+	component := map[string]any{
+		"translate": "chat.type.text",
+		"with":      []any{"Steve", "hello"},
+	}
+	projection := ProjectJavaTextComponent(component)
+	if projection.TranslationKey != "chat.type.text" || len(projection.Parameters) != 2 || projection.Parameters[0] != "Steve" || projection.Parameters[1] != "hello" {
+		t.Fatalf("translation projection = %+v", projection)
+	}
+}
+
+func TestJavaTextComponentTextUsesTranslationFallback(t *testing.T) {
+	component := map[string]any{
+		"translate": "command.unknown.command",
+		"extra":     []any{map[string]any{"translate": "command.context.here"}},
+	}
+	if got := JavaTextComponentText(component); got != "Unknown or incomplete command, see below for error<--[HERE]" {
+		t.Fatalf("translation fallback = %q", got)
+	}
+}
+
 func writeNetworkTextComponent(t *testing.T, w *javaprotocol.Writer, text string) {
 	t.Helper()
 	_ = w.Byte(10) // TAG_Compound

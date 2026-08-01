@@ -105,7 +105,9 @@ protocol parity.
   whitespace, drops empty/oversized input, forwards ordinary messages as the
   unsigned Java chat packet, and forwards slash commands as Geyser's unsigned
   signed-command packet. The command tree, suggestions, secure-chat session,
-  and full text-component localization remain open.
+  and full text-component localization remain open. Simple Java translatable
+  components now preserve their key and arguments in Bedrock translation text
+  packets; nested components use a bounded plain-text fallback.
   Java 1.21.4 Brigadier `declare_commands` packets now have a bounded decoder
   and a Bedrock `AvailableCommands` projection for top-level literals, common
   argument types, boolean enums, and bounded overload traversal. Exact
@@ -248,6 +250,13 @@ scheduled a required pack, and the Snappy Bedrock probe on `127.0.0.1:19158`
 joined and survived its bounded read window with no bridge translation error.
 The current tranche only acknowledges Java pack requests; it does not yet
 deliver the pack to Bedrock or validate native pack rendering.
+
+Simple Java translatable components now survive the Bedrock boundary with
+their key and parameters. The Snappy probe on `127.0.0.1:19163` received
+`multiplayer.player.joined` as a Bedrock translation packet with the player
+name parameter, and command feedback remained connected with the bounded
+plain-text fallback. Locale coverage, styled/nested component fidelity, and
+exact Java-to-Bedrock translation-key differences remain open.
 
 This remains an incomplete transport/world tranche: the automated Bedrock
 probe receives forwarded Java chunks and the partial play-state updates, while

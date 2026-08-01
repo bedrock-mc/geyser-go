@@ -598,8 +598,16 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		if err != nil {
 			return err
 		}
-		message := JavaTextComponentText(chat.Content)
-		if message == "" {
+		projection := ProjectJavaTextComponent(chat.Content)
+		if projection.TranslationKey != "" && !chat.ActionBar {
+			return bedrock.WritePacket(&packet.Text{
+				TextType:         packet.TextTypeTranslation,
+				NeedsTranslation: true,
+				Message:          projection.TranslationKey,
+				Parameters:       projection.Parameters,
+			})
+		}
+		if projection.PlainText == "" {
 			b.logSemanticAnomaly("skipping empty Java system chat component")
 			return nil
 		}
@@ -607,7 +615,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		if chat.ActionBar {
 			textType = packet.TextTypeTip
 		}
-		return bedrock.WritePacket(&packet.Text{TextType: textType, Message: message})
+		return bedrock.WritePacket(&packet.Text{TextType: textType, Message: projection.PlainText})
 	case b.Profile.PlayClientboundPlayerChatID:
 		chat, err := DecodePlayerChat(pk.Data)
 		if err != nil {
