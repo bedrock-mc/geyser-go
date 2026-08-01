@@ -74,6 +74,18 @@ func JavaItemID(name string) (int32, bool) {
 	return itemID, ok
 }
 
+// JavaBlockStateName resolves a Java 1.21.4 block-state registry ID to its
+// canonical namespaced state key, including serialized properties. The state
+// name table is generated from the same pinned registry as the runtime-ID
+// crosswalk, so property-aware translators do not depend on handwritten
+// numeric IDs or on Dragonfly implementing the block behavior.
+func JavaBlockStateName(stateID int32) (string, bool) {
+	if stateID < 0 || int64(stateID) >= int64(len(Java1214BlockStateNames)) {
+		return "", false
+	}
+	return Java1214BlockStateNames[stateID], true
+}
+
 // BedrockEntityIdentifier resolves the Java entity identifier used by saved
 // spawner data to the negotiated Bedrock actor identifier. The generated
 // entity table already contains Geyser's canonical names; the alias table

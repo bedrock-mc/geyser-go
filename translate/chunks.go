@@ -366,7 +366,12 @@ func encodeBedrockChunk(chunk JavaChunk, dimension int32, sectionCount, minSecti
 	}
 	payload.WriteByte(0) // Education Edition border blocks marker.
 	for _, entity := range chunk.BlockEntities {
-		_, tag, ok := BedrockBlockEntityForChunk(chunk.X, chunk.Z, entity)
+		position, tag, ok := BedrockBlockEntityForChunk(chunk.X, chunk.Z, entity)
+		if ok {
+			if stateID, hasState := JavaChunkBlockStateAt(chunk, position, minSection); hasState {
+				_, tag, ok = BedrockBlockEntityForChunkWithState(chunk.X, chunk.Z, entity, stateID)
+			}
+		}
 		if !ok {
 			// Unknown registry entries are semantically odd but valid Java data.
 			// The caller logs the anomaly at packet level; the chunk remains usable.

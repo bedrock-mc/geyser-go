@@ -1,8 +1,10 @@
 package translate
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/nbt"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
@@ -264,6 +266,113 @@ func TestBedrockMobSpawnerProjectsEntityIdentifier(t *testing.T) {
 	if tag["Delay"] != int16(20) || tag["SpawnCount"] != int8(2) {
 		t.Fatalf("spawner timing fields changed: %#v", tag)
 	}
+}
+
+func TestStateAwareBlockEntityProjection(t *testing.T) {
+	bannerState := findJavaState(t, func(name string) bool {
+		return strings.HasPrefix(name, "minecraft:red_banner[")
+	})
+	banner, ok := BedrockBlockEntityTagWithState(20, 0, 64, 0, map[string]any{
+		"patterns": []map[string]any{{"pattern": "minecraft:stripe_bottom", "color": "minecraft:blue"}},
+	}, bannerState)
+	if !ok || banner["Base"] != int32(1) {
+		t.Fatalf("banner base = %#v", banner)
+	}
+	patterns, ok := banner["Patterns"].([]map[string]any)
+	if !ok || len(patterns) != 1 || patterns[0]["Pattern"] != "bs" || patterns[0]["Color"] != int32(4) {
+		t.Fatalf("banner patterns = %#v", banner["Patterns"])
+	}
+
+	skullState := findJavaState(t, func(name string) bool {
+		return strings.HasPrefix(name, "minecraft:player_head[") && strings.Contains(name, "rotation=7")
+	})
+	skull, ok := BedrockBlockEntityTagWithState(16, 0, 64, 0, nil, skullState)
+	if !ok || skull["Rotation"] != float32(157.5) {
+		t.Fatalf("skull state = %#v", skull)
+	}
+
+	commandState := findJavaState(t, func(name string) bool {
+		return strings.HasPrefix(name, "minecraft:command_block[") && strings.Contains(name, "conditional=true")
+	})
+	command, ok := BedrockBlockEntityTagWithState(23, 0, 64, 0, nil, commandState)
+	if !ok || command["conditionalMode"] != true {
+		t.Fatalf("command state = %#v", command)
+	}
+
+	jigsawState := findJavaState(t, func(name string) bool {
+		return strings.HasPrefix(name, "minecraft:jigsaw[") && strings.Contains(name, "orientation=west_up")
+	})
+	jigsaw, ok := BedrockBlockEntityTagWithState(32, 0, 64, 0, map[string]any{
+		"name":        "minecraft:test",
+		"target_pool": "minecraft:test_pool",
+		"final_state": "minecraft:air",
+		"target":      "minecraft:test_target",
+	}, jigsawState)
+	if !ok || jigsaw["joint"] != "aligned" || jigsaw["name"] != "minecraft:test" {
+		t.Fatalf("jigsaw state = %#v", jigsaw)
+	}
+
+	structure, ok := BedrockBlockEntityTag(21, 0, 64, 0, map[string]any{
+		"name":            "test_structure",
+		"mode":            "LOAD",
+		"mirror":          "FRONT_BACK",
+		"rotation":        "CLOCKWISE_90",
+		"ignoreEntities":  int8(1),
+		"powered":         int8(1),
+		"showboundingbox": int8(1),
+		"sizeX":           int32(3),
+		"sizeY":           int32(4),
+		"sizeZ":           int32(5),
+		"posX":            int32(-1),
+		"posY":            int32(2),
+		"posZ":            int32(-3),
+		"integrity":       float32(0.5),
+	})
+	if !ok || structure["structureName"] != "test_structure" || structure["data"] != int32(2) ||
+		structure["mirror"] != int8(1) || structure["rotation"] != int8(1) ||
+		structure["xStructureOffset"] != int32(-1) || structure["yStructureOffset"] != int32(2) ||
+		structure["zStructureOffset"] != int32(-3) || structure["integrity"] != float32(0.5) {
+		t.Fatalf("structure state = %#v", structure)
+	}
+}
+
+func TestBlockEntityStateCacheUsesPriorBlockChange(t *testing.T) {
+	b := NewBasic(javaprotocol.Java1214, nil)
+	position := gtprotocol.BlockPos{14, 65, 0}
+	stateID := findJavaState(t, func(name string) bool { return strings.HasPrefix(name, "minecraft:red_banner[") })
+	b.rememberBlockStateChange(position, stateID)
+	b.rememberBlockEntityPosition(position)
+	cached, ok := b.cachedBlockEntityState(position)
+	if !ok || cached != stateID {
+		t.Fatalf("cached state = (%d, %v), want %d", cached, ok, stateID)
+	}
+	tag, ok := BedrockBlockEntityTagWithState(20, position[0], position[1], position[2], nil, cached)
+	if !ok || tag["Base"] != int32(1) {
+		t.Fatalf("cached banner tag = %#v", tag)
+	}
+}
+
+func TestJavaChunkBlockStateAtUsesWorldCoordinates(t *testing.T) {
+	stateID := findJavaState(t, func(name string) bool { return name == "minecraft:stone" })
+	blocks := make([]int32, javaChunkSectionSize)
+	blocks[(15<<8)|(3<<4)|3] = stateID
+	chunk := JavaChunk{X: -2, Z: 4, Sections: []JavaChunkSection{{Blocks: blocks}}}
+	position := gtprotocol.BlockPos{-29, -1, 67}
+	got, ok := JavaChunkBlockStateAt(chunk, position, -1)
+	if !ok || got != stateID {
+		t.Fatalf("state at %v = (%d, %v), want %d", position, got, ok, stateID)
+	}
+}
+
+func findJavaState(t *testing.T, predicate func(string) bool) int32 {
+	t.Helper()
+	for id, name := range data.Java1214BlockStateNames {
+		if predicate(name) {
+			return int32(id)
+		}
+	}
+	t.Fatal("matching Java block state not found")
+	return -1
 }
 
 func TestDecodeBlockEntityUpdate(t *testing.T) {

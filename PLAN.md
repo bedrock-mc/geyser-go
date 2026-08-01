@@ -39,6 +39,15 @@ native Bedrock validation, and performance evidence are separate gates.
   `EntityIdentifier`, accept Geyser's entity aliases, and retain bounded
   timing fields while removing the Java-only nested payload; cover unknown
   identifiers leniently and validate a live Paper/Snappy spawner update.
+- [x] Generate the exact Java 1.21.4 block-state names alongside the pinned
+  runtime crosswalk, retain a bounded recent block-state cache for standalone
+  block-entity updates, and use section palette context for chunk records.
+  Project Geyser's state-dependent banner base/patterns, skull rotation and
+  powered mouth, jigsaw joint, command conditional mode, and core structure
+  metadata; cover string/numeric NBT variants with focused tests and validate
+  banner/skull `BlockActorData` over a live Paper/Snappy session. Custom-skull
+  profile resolution, structure UI/control flow, and the remaining block
+  entity types remain open.
 - [x] Resolve the remaining Java 1.21.4 generated block-state fallbacks for
   zombie, player, creeper, dragon, and piglin heads (including wall variants)
   through the complete Cloudburst/Lunar palette; keep `air`, `cave_air`, and

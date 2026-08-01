@@ -61,6 +61,9 @@ type Basic struct {
 	vehicleID             int32
 	hasVehicle            bool
 	blockBreaks           map[gtprotocol.BlockPos]javaBlockBreakState
+	blockEntityStates     map[gtprotocol.BlockPos]int32
+	blockEntityChunks     map[gtprotocol.ChunkPos]map[gtprotocol.BlockPos]struct{}
+	blockStates           javaBlockStateCache
 	windows               map[int32]*javaWindowState
 	bedrockWindows        map[byte]*javaWindowState
 	activeWindowID        byte
@@ -141,6 +144,8 @@ func NewBasic(profile javaprotocol.Profile, logger *slog.Logger) *Basic {
 		scoreboardTeams:       make(map[string]*javaScoreboardTeamState),
 		passengers:            make(map[int32][]int32),
 		blockBreaks:           make(map[gtprotocol.BlockPos]javaBlockBreakState),
+		blockEntityStates:     make(map[gtprotocol.BlockPos]int32),
+		blockEntityChunks:     make(map[gtprotocol.ChunkPos]map[gtprotocol.BlockPos]struct{}),
 		windows:               make(map[int32]*javaWindowState),
 		bedrockWindows:        make(map[byte]*javaWindowState),
 		nextWindowID:          1,
@@ -290,6 +295,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		if err != nil {
 			return err
 		}
+		b.rememberBlockStateChange(change.Position, change.StateID)
 		runtimeID, known := JavaBlockRuntimeID(change.StateID)
 		if !known {
 			b.logSemanticAnomaly("Java block state outside generated registry", "state", change.StateID)
@@ -307,6 +313,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		}
 		entries := make([]gtprotocol.BlockChangeEntry, 0, len(update.Changes))
 		for _, change := range update.Changes {
+			b.rememberBlockStateChange(change.Position, change.StateID)
 			runtimeID, known := JavaBlockRuntimeID(change.StateID)
 			if !known {
 				b.logSemanticAnomaly("Java multi-block state outside generated registry", "state", change.StateID)
@@ -331,7 +338,15 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		if err != nil {
 			return err
 		}
-		tag, known := BedrockBlockEntityTag(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data)
+		b.rememberBlockEntityPosition(update.Position)
+		stateID, hasState := b.cachedBlockEntityState(update.Position)
+		var tag map[string]any
+		var known bool
+		if hasState {
+			tag, known = BedrockBlockEntityTagWithState(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data, stateID)
+		} else {
+			tag, known = BedrockBlockEntityTag(update.Type, update.Position[0], update.Position[1], update.Position[2], update.Data)
+		}
 		if !known {
 			b.logSemanticAnomaly("Java block entity type outside generated registry", "type", update.Type)
 			return nil
@@ -350,6 +365,13 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		layout, hasLayout := b.dimensionLayouts[dimension]
 		biomeRuntimeIDs := b.biomeRuntimeIDs
 		b.mu.Unlock()
+		minSection := 0
+		if hasLayout {
+			minSection = layout.MinSection
+		} else {
+			_, minSection = bedrockDimensionSections(dimension)
+		}
+		b.rememberChunkBlockEntityStates(chunk, minSection)
 		var raw []byte
 		var sections uint32
 		if hasLayout {
@@ -498,6 +520,7 @@ func (b *Basic) translateJavaPacket(bedrock *minecraft.Conn, java *javaprotocol.
 		if err != nil {
 			return err
 		}
+		b.forgetBlockEntityChunk(chunk.X, chunk.Z)
 		b.mu.Lock()
 		dimension := b.gameData.Dimension
 		layout, hasLayout := b.dimensionLayouts[dimension]

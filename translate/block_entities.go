@@ -3,6 +3,7 @@ package translate
 import (
 	"fmt"
 
+	"github.com/bedrock-mc/geyser-go/data"
 	javaprotocol "github.com/bedrock-mc/geyser-go/java/protocol"
 	gtprotocol "github.com/sandertv/gophertunnel/minecraft/protocol"
 )
@@ -106,19 +107,29 @@ func bedrockBlockEntityID(javaName string) string {
 // preserving the Java fields here already gives Bedrock a valid identity and
 // position for the common vanilla records.
 func BedrockBlockEntityTag(typeID int32, x, y, z int32, data map[string]any) (map[string]any, bool) {
+	return BedrockBlockEntityTagWithState(typeID, x, y, z, data, -1)
+}
+
+// BedrockBlockEntityTagWithState creates a block-entity compound while also
+// providing the Java block state at the entity position. Java stores several
+// values that Bedrock needs for rendering (banner base color, skull rotation,
+// command-block conditional mode, and jigsaw orientation) in the block state
+// rather than in the NBT payload.
+func BedrockBlockEntityTagWithState(typeID int32, x, y, z int32, payload map[string]any, stateID int32) (map[string]any, bool) {
 	javaName, ok := JavaBlockEntityTypeName(typeID)
 	if !ok {
 		return nil, false
 	}
-	tag := make(map[string]any, len(data)+4)
-	for key, value := range data {
+	tag := make(map[string]any, len(payload)+4)
+	for key, value := range payload {
 		tag[key] = value
 	}
 	tag["x"] = x
 	tag["y"] = y
 	tag["z"] = z
 	tag["id"] = bedrockBlockEntityID(javaName)
-	projectJavaBlockEntityPayload(javaName, tag)
+	stateName, _ := data.JavaBlockStateName(stateID)
+	projectJavaBlockEntityPayload(javaName, tag, stateName)
 	return tag, true
 }
 
@@ -136,11 +147,18 @@ func chunkBlockEntityPosition(chunkX, chunkZ int32, entity JavaBlockEntity) (gtp
 // the world position and NBT compound required by a Bedrock LevelChunk or
 // BlockActorData packet.
 func BedrockBlockEntityForChunk(chunkX, chunkZ int32, entity JavaBlockEntity) (gtprotocol.BlockPos, map[string]any, bool) {
+	return BedrockBlockEntityForChunkWithState(chunkX, chunkZ, entity, -1)
+}
+
+// BedrockBlockEntityForChunkWithState is the chunk-record variant of
+// BedrockBlockEntityTagWithState. A negative state ID means that the section
+// context was unavailable, so the translator falls back to NBT-only fields.
+func BedrockBlockEntityForChunkWithState(chunkX, chunkZ int32, entity JavaBlockEntity, stateID int32) (gtprotocol.BlockPos, map[string]any, bool) {
 	position, ok := chunkBlockEntityPosition(chunkX, chunkZ, entity)
 	if !ok {
 		return gtprotocol.BlockPos{}, nil, false
 	}
-	tag, ok := BedrockBlockEntityTag(entity.Type, position[0], position[1], position[2], entity.Data)
+	tag, ok := BedrockBlockEntityTagWithState(entity.Type, position[0], position[1], position[2], entity.Data, stateID)
 	return position, tag, ok
 }
 

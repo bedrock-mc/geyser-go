@@ -12,10 +12,20 @@ import (
 // needed by Bedrock's tile-entity readers. The generic identity, coordinates,
 // and unknown fields are assembled by BedrockBlockEntityTag first so this
 // helper can be shared by chunk payloads and standalone updates.
-func projectJavaBlockEntityPayload(javaName string, tag map[string]any) {
+func projectJavaBlockEntityPayload(javaName string, tag map[string]any, stateName string) {
 	switch javaName {
 	case "sign", "hanging_sign":
 		projectJavaSign(tag)
+	case "banner":
+		projectJavaBanner(tag, stateName)
+	case "skull":
+		projectJavaSkull(tag, stateName)
+	case "jigsaw":
+		projectJavaJigsaw(tag, stateName)
+	case "command_block":
+		projectJavaCommandBlock(tag, stateName)
+	case "structure_block":
+		projectJavaStructureBlock(tag)
 	case "campfire":
 		projectJavaCampfire(tag)
 	case "beacon":
@@ -27,6 +37,294 @@ func projectJavaBlockEntityPayload(javaName string, tag map[string]any) {
 	case "mob_spawner":
 		projectJavaMobSpawner(tag)
 	}
+}
+
+func projectJavaBanner(tag map[string]any, stateName string) {
+	if color, ok := javaBannerColor(javaBlockStateBaseName(stateName)); ok {
+		// Java's DyeColor enum and Bedrock's banner color IDs are reversed.
+		tag["Base"] = int32(15 - color)
+	}
+
+	patterns, ok := javaNBTCompoundList(tag["patterns"])
+	if !ok {
+		return
+	}
+	converted := make([]map[string]any, 0, len(patterns))
+	ominous := javaBannerIsOminous(patterns)
+	for _, pattern := range patterns {
+		name, found := javaNBTStringValue(pattern["pattern"])
+		if !found {
+			name, found = javaNBTStringValue(pattern["Pattern"])
+		}
+		if !found {
+			continue
+		}
+		name = strings.TrimPrefix(name, "minecraft:")
+		bedrockName, found := javaBannerPatternNames[name]
+		if !found {
+			continue
+		}
+		color, found := javaBannerDyeColor(pattern["color"])
+		if !found {
+			color, found = javaBannerDyeColor(pattern["Color"])
+		}
+		if !found || color < 0 || color > 15 {
+			continue
+		}
+		converted = append(converted, map[string]any{
+			"Pattern": bedrockName,
+			"Color":   int32(15 - color),
+		})
+	}
+	if ominous {
+		// Bedrock has a dedicated ominous-banner type and does not render the
+		// raw Java pattern stack correctly.
+		tag["Type"] = int32(1)
+	} else if len(converted) != 0 {
+		tag["Patterns"] = converted
+	}
+	delete(tag, "patterns")
+}
+
+func javaBannerDyeColor(value any) (int64, bool) {
+	if name, ok := javaNBTStringValue(value); ok {
+		name = strings.TrimPrefix(name, "minecraft:")
+		color, found := javaBannerDyeColors[name]
+		return color, found
+	}
+	color, ok := javaNBTInt64Value(value)
+	return color, ok && color >= 0 && color <= 15
+}
+
+func javaBannerIsOminous(patterns []map[string]any) bool {
+	want := []struct {
+		pattern string
+		color   string
+	}{
+		{"mr", "cyan"}, {"bs", "light_gray"}, {"cs", "gray"}, {"bo", "light_gray"},
+		{"ms", "black"}, {"hh", "light_gray"}, {"mc", "light_gray"}, {"bo", "black"},
+	}
+	if len(patterns) != len(want) {
+		return false
+	}
+	for index, pattern := range patterns {
+		name, ok := javaNBTStringValue(pattern["pattern"])
+		if !ok {
+			name, ok = javaNBTStringValue(pattern["Pattern"])
+		}
+		if !ok {
+			return false
+		}
+		name = strings.TrimPrefix(name, "minecraft:")
+		if javaBannerPatternNames[name] != want[index].pattern {
+			return false
+		}
+		color, ok := javaBannerDyeColor(pattern["color"])
+		if !ok {
+			color, ok = javaBannerDyeColor(pattern["Color"])
+		}
+		wantColor, wantOK := javaBannerDyeColors[want[index].color]
+		if !ok || !wantOK || color != wantColor {
+			return false
+		}
+	}
+	return true
+}
+
+func projectJavaSkull(tag map[string]any, stateName string) {
+	if rotation, ok := javaBlockStatePropertyInt(stateName, "rotation"); ok && rotation >= 0 && rotation < 16 {
+		tag["Rotation"] = float32(rotation) * 22.5
+	}
+	if powered, ok := javaBlockStatePropertyBool(stateName, "powered"); ok && powered {
+		tag["MouthMoving"] = true
+	}
+}
+
+func projectJavaJigsaw(tag map[string]any, stateName string) {
+	if joint, ok := javaNBTStringValue(tag["joint"]); ok {
+		tag["joint"] = joint
+	} else if orientation, ok := javaBlockStateProperty(stateName, "orientation"); ok {
+		if javaJigsawOrientationAligned(orientation) {
+			tag["joint"] = "aligned"
+		} else {
+			tag["joint"] = "rollable"
+		}
+	}
+	for _, key := range []string{"name", "target_pool", "final_state", "target"} {
+		if value, ok := javaNBTStringValue(tag[key]); ok {
+			tag[key] = value
+		}
+	}
+}
+
+func projectJavaCommandBlock(tag map[string]any, stateName string) {
+	if conditional, ok := javaBlockStatePropertyBool(stateName, "conditional"); ok {
+		tag["conditionalMode"] = conditional
+	}
+}
+
+func projectJavaStructureBlock(tag map[string]any) {
+	if name, ok := javaNBTStringValue(tag["name"]); ok {
+		tag["structureName"] = name
+	}
+	mode := int32(1)
+	if value, ok := javaNBTStringValue(tag["mode"]); ok {
+		switch value {
+		case "LOAD":
+			mode = 2
+		case "CORNER":
+			mode = 3
+		case "DATA":
+			mode = 4
+		}
+	}
+	tag["data"] = mode
+	tag["dataField"] = ""
+
+	if mirror, ok := javaNBTStringValue(tag["mirror"]); ok {
+		var value int8
+		switch mirror {
+		case "FRONT_BACK":
+			value = 1
+		case "LEFT_RIGHT":
+			value = 2
+		}
+		tag["mirror"] = value
+	}
+	if rotation, ok := javaNBTStringValue(tag["rotation"]); ok {
+		var value int8
+		switch rotation {
+		case "CLOCKWISE_90":
+			value = 1
+		case "CLOCKWISE_180":
+			value = 2
+		case "COUNTERCLOCKWISE_90":
+			value = 3
+		}
+		tag["rotation"] = value
+	}
+	if value, ok := javaNBTBoolValue(tag["ignoreEntities"]); ok {
+		tag["ignoreEntities"] = value
+	}
+	if value, ok := javaNBTBoolValue(tag["powered"]); ok {
+		tag["isPowered"] = value
+	}
+	if value, ok := javaNBTBoolValue(tag["showboundingbox"]); ok {
+		tag["showBoundingBox"] = value
+	}
+	if seed, ok := javaNBTInt64Value(tag["seed"]); ok {
+		tag["seed"] = seed
+	}
+	for javaKey, bedrockKey := range map[string]string{
+		"posX": "xStructureOffset", "posY": "yStructureOffset", "posZ": "zStructureOffset",
+		"sizeX": "xStructureSize", "sizeY": "yStructureSize", "sizeZ": "zStructureSize",
+	} {
+		if value, ok := javaNBTInt64Value(tag[javaKey]); ok {
+			tag[bedrockKey] = clampJavaNBTInt32(value)
+		}
+	}
+	if integrity, ok := javaNBTFloat32Value(tag["integrity"]); ok {
+		if integrity < 0 {
+			integrity = 0
+		}
+		if integrity > 1 {
+			integrity = 1
+		}
+		tag["integrity"] = integrity
+	}
+}
+
+func javaBlockStateBaseName(stateName string) string {
+	name := strings.TrimPrefix(stateName, "minecraft:")
+	if bracket := strings.IndexByte(name, '['); bracket >= 0 {
+		name = name[:bracket]
+	}
+	return name
+}
+
+func javaBlockStateProperty(stateName, property string) (string, bool) {
+	start := strings.IndexByte(stateName, '[')
+	end := strings.LastIndexByte(stateName, ']')
+	if start < 0 || end <= start {
+		return "", false
+	}
+	for _, field := range strings.Split(stateName[start+1:end], ",") {
+		parts := strings.SplitN(field, "=", 2)
+		if len(parts) == 2 && parts[0] == property {
+			return parts[1], true
+		}
+	}
+	return "", false
+}
+
+func javaBlockStatePropertyInt(stateName, property string) (int, bool) {
+	value, ok := javaBlockStateProperty(stateName, property)
+	if !ok {
+		return 0, false
+	}
+	parsed, err := strconv.Atoi(value)
+	return parsed, err == nil
+}
+
+func javaBlockStatePropertyBool(stateName, property string) (bool, bool) {
+	value, ok := javaBlockStateProperty(stateName, property)
+	if !ok {
+		return false, false
+	}
+	parsed, err := strconv.ParseBool(value)
+	return parsed, err == nil
+}
+
+func javaJigsawOrientationAligned(orientation string) bool {
+	orientation = strings.ToLower(orientation)
+	front, _, _ := strings.Cut(orientation, "_")
+	return front != "up" && front != "down"
+}
+
+func javaBannerColor(blockName string) (int64, bool) {
+	blockName = strings.TrimSuffix(blockName, "_wall")
+	if !strings.HasSuffix(blockName, "_banner") {
+		return 0, false
+	}
+	color := strings.TrimSuffix(blockName, "_banner")
+	value, ok := javaBannerDyeColors[color]
+	return value, ok
+}
+
+var javaBannerDyeColors = map[string]int64{
+	"white": 0, "orange": 1, "magenta": 2, "light_blue": 3,
+	"yellow": 4, "lime": 5, "pink": 6, "gray": 7,
+	"light_gray": 8, "cyan": 9, "purple": 10, "blue": 11,
+	"brown": 12, "green": 13, "red": 14, "black": 15,
+}
+
+// Java and Bedrock use the same short banner-pattern identifiers for the
+// vanilla pattern set. Keeping the explicit allow-list makes malformed or
+// future server-provided identifiers harmless while retaining all 1.21.4
+// vanilla patterns.
+var javaBannerPatternNames = map[string]string{
+	"base": "b", "b": "b", "square_bottom_left": "bl", "bl": "bl",
+	"square_bottom_right": "br", "br": "br", "square_top_left": "tl", "tl": "tl",
+	"square_top_right": "tr", "tr": "tr", "stripe_bottom": "bs", "bs": "bs",
+	"stripe_top": "ts", "ts": "ts", "stripe_left": "ls", "ls": "ls",
+	"stripe_right": "rs", "rs": "rs", "stripe_center": "cs", "cs": "cs",
+	"stripe_middle": "ms", "ms": "ms", "stripe_downright": "drs", "drs": "drs",
+	"stripe_downleft": "dls", "dls": "dls", "small_stripes": "ss", "ss": "ss",
+	"cross": "cr", "cr": "cr", "straight_cross": "sc", "sc": "sc",
+	"triangle_bottom": "bt", "bt": "bt", "triangle_top": "tt", "tt": "tt",
+	"triangles_bottom": "bts", "bts": "bts", "triangles_top": "tts", "tts": "tts",
+	"diagonal_left": "ld", "ld": "ld", "diagonal_up_right": "rd", "rd": "rd",
+	"diagonal_up_left": "lud", "lud": "lud", "diagonal_right": "rud", "rud": "rud",
+	"circle": "mc", "mc": "mc", "rhombus": "mr", "mr": "mr",
+	"half_vertical": "vh", "vh": "vh", "half_horizontal": "hh", "hh": "hh",
+	"half_vertical_right": "vhr", "vhr": "vhr", "half_horizontal_bottom": "hhb", "hhb": "hhb",
+	"border": "bo", "bo": "bo", "curly_border": "cbo", "cbo": "cbo",
+	"gradient": "gra", "gra": "gra", "gradient_up": "gru", "gru": "gru",
+	"bricks": "bri", "bri": "bri", "globe": "glb", "glb": "glb",
+	"creeper": "cre", "cre": "cre", "skull": "sku", "sku": "sku",
+	"flower": "flo", "flo": "flo", "mojang": "moj", "moj": "moj",
+	"piglin": "pig", "pig": "pig", "flow": "flw", "flw": "flw",
+	"guster": "gus", "gus": "gus",
 }
 
 func projectJavaMobSpawner(tag map[string]any) {
@@ -551,6 +849,46 @@ func javaNBTBool(value any) bool {
 		return value != 0
 	default:
 		return false
+	}
+}
+
+func javaNBTBoolValue(value any) (bool, bool) {
+	switch value := value.(type) {
+	case bool:
+		return value, true
+	case int8:
+		return value != 0, true
+	case uint8:
+		return value != 0, true
+	case int16:
+		return value != 0, true
+	case uint16:
+		return value != 0, true
+	case int32:
+		return value != 0, true
+	case uint32:
+		return value != 0, true
+	case int64:
+		return value != 0, true
+	case uint64:
+		return value != 0, true
+	case int:
+		return value != 0, true
+	case uint:
+		return value != 0, true
+	default:
+		return false, false
+	}
+}
+
+func javaNBTFloat32Value(value any) (float32, bool) {
+	switch value := value.(type) {
+	case float32:
+		return value, true
+	case float64:
+		return float32(value), true
+	default:
+		return 0, false
 	}
 }
 

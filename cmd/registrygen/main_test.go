@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNormalizeBlockMappingUsesPaletteAliases(t *testing.T) {
 	palette := map[string][]uint32{
@@ -132,5 +135,16 @@ func TestNormalizeBedrockItemNameUsesCompletePaletteAliases(t *testing.T) {
 	}
 	if got := normalizeBedrockItemName("minecraft:missing", bedrock); got != "minecraft:missing" {
 		t.Fatalf("unknown item name changed to %q", got)
+	}
+}
+
+func TestRenderStateNamesPreservesRegistryOrder(t *testing.T) {
+	output := renderStateNames([]javaState{
+		{id: 0, key: "minecraft:air"},
+		{id: 1, key: "minecraft:stone"},
+	}, "state-hash")
+	if !strings.Contains(output, "Java1214BlockStateNameCount = 2") ||
+		!strings.Contains(output, `"minecraft:air", "minecraft:stone"`) {
+		t.Fatalf("state-name output lost registry order: %s", output)
 	}
 }

@@ -45,8 +45,12 @@ protocol parity.
   generated complete item registry, including safe custom-data/name/lore
   fields. Beacon effect holders, end-gateway exit arrays, and decorated-pot
   sherd lists also have direct Geyser-compatible projections. Mob spawners
-  now project generated Bedrock entity identifiers and bounded timing fields;
-  most other type-specific NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
+  now project generated Bedrock entity identifiers and bounded timing fields.
+  The generated Java state-name table and bounded recent-state cache now feed
+  state-aware banner base/patterns, skull rotation/mouth state, jigsaw joints,
+  command conditional mode, and core structure metadata for both chunk and
+  standalone block-entity updates; custom skull profiles and the remaining
+  type-specific NBT transforms remain open. Java 1.21.4 item slots now have bounded component decoding and project
   common custom NBT, names/lore, durability, enchantments, glint, repair cost,
   dyed colors, and map IDs into Gophertunnel item stacks. Java `textures`
   profile properties now resolve bounded Mojang skin/cape images with slim-arm
@@ -351,6 +355,13 @@ The same fixture emitted a Java zombie spawner. The probe on
 `127.0.0.1:19220` observed Bedrock `EntityIdentifier="minecraft:zombie"`
 with its delay/count/range fields and no Java `SpawnData` compound; the bridge
 reported zero translation errors.
+
+The state-aware fixture placed a red banner with a blue stripe and a player
+head. The clean Snappy probe on `127.0.0.1:19223` observed Bedrock `Banner`
+NBT with `Base=1` and `Patterns=[{Pattern="bs", Color=4}]`, plus `Skull`
+`Rotation=270`; the bridge reported zero translation errors during the
+state-entity window. The standalone path consumed the preceding Java block
+state update through the bounded cache.
 
 The temporary Paper entity fixture also dropped a diamond stack and changed its
 count. The Snappy probe on `127.0.0.1:19171` received typed `AddItemActor`
